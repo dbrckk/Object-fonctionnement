@@ -1,0 +1,178 @@
+/* Object Fonctionnement Visual Studio — premium paper-and-ink styling.
+   Keeps the original ColorFigures geometry, palette switching, and MIT attribution. */
+:root{--studio-ink:#1a3043;--studio-muted:#61717f;--studio-paper:#fff9ed;--studio-sea:#c9e6eb;--studio-accent:#f4a97f}
+body{
+  color:var(--studio-ink)!important;
+  background:
+    radial-gradient(ellipse at 72% 24%,#ffffff 0%,transparent 49%),
+    radial-gradient(ellipse at 10% 68%,#deeff0 0%,transparent 53%),
+    #f6f1e8!important;
+  background-image:
+    radial-gradient(ellipse at 72% 24%,#ffffff 0%,transparent 49%),
+    radial-gradient(ellipse at 10% 68%,#deeff0 0%,transparent 53%)!important;
+}
+body > header{
+  align-items:center!important;
+  padding-bottom:12px;
+  border-bottom:1px solid #26384a1a;
+}
+body > header h1{
+  font:700 clamp(15px,2.8vw,21px)/1.22 ui-sans-serif,system-ui,sans-serif!important;
+  letter-spacing:-.025em!important;
+  color:#223245;
+}
+body > header span{
+  font:500 11px/1.5 ui-sans-serif,system-ui,sans-serif;
+  color:#73808c!important;
+  max-width:290px;
+}
+body .stage{
+  isolation:isolate;
+  background:
+    radial-gradient(ellipse at 50% 50%,#fffdfa 0%,#f6ede0 59%,#e9e6dc 100%);
+  border:1px solid #26384a1a;
+  border-radius:22px;
+  margin:13px auto 12px;
+  padding:12px 8px 7px;
+  box-shadow:0 16px 36px #22334c13,inset 0 1px 0 #ffffffed;
+}
+body .stage:before{
+  content:"";display:block;pointer-events:none;
+  position:absolute;inset:10% 8% 4%;z-index:0;
+  background:radial-gradient(ellipse at 50% 72%,#263b541a 0%,transparent 60%);
+}
+body .stage:after{
+  content:"COULEURS & MÉCANISMES";
+  position:absolute;left:17px;bottom:14px;
+  letter-spacing:.13em;font:700 9px/1 system-ui,sans-serif;
+  color:#627a8b81;pointer-events:none;
+}
+body #fig{
+  position:relative;z-index:1;
+  max-width:100%;
+  filter:drop-shadow(0 8px 8px #1d385c17);
+}
+body #fig [data-act]:focus-visible{
+  outline:3px solid #fa9c68;outline-offset:4px;
+}
+body #fig .tag.on rect{filter:drop-shadow(0 1px 2px #ef8a3791)}
+body .actions{z-index:5!important;gap:9px!important}
+body .actions .cap{color:#566c77;font-weight:700}
+body button.act{
+  min-height:38px;
+  background:#fffcf3;
+  border:1.5px solid #2e3542;
+  color:#1d2b3b;
+  border-radius:12px;
+  padding:9px 15px;
+  font:650 12px/1.2 ui-sans-serif,system-ui,sans-serif;
+  white-space:normal;
+  text-align:left;
+  box-shadow:2px 3px 0 #1d2b3b14;
+  transition:background-color .15s,transform .15s,box-shadow .15s;
+}
+body button.act:hover{background:color-mix(in srgb,var(--accent,#ffb87e) 19%,#fffaf0)}
+body button.act:active{transform:translateY(2px);box-shadow:0 1px 0 #1d2b3b24}
+body .chip{
+  font:600 11px/1.25 ui-sans-serif,system-ui,sans-serif;
+  padding:9px 11px;
+  background:#fff9ed;
+  box-shadow:1px 2px 0 #20334419;
+}
+body .chips{
+  border-color:#b6bdc0;border-width:1px;
+  background:#fffdf6;
+  box-shadow:0 9px 22px #2b3c4c19;
+}
+body #readout{
+  display:block!important;
+  width:min(100%,760px);
+  background:linear-gradient(120deg,#263e4d,#355767);
+  color:#f4f9f8;
+  border:1px solid #1b3344;
+  border-radius:12px;
+  padding:12px 16px;
+  min-height:45px;
+  font:700 11px/1.5 ui-sans-serif,system-ui,sans-serif;
+  letter-spacing:.07em;
+  margin:0 auto 13px;
+  text-shadow:none;
+  box-shadow:0 5px 12px #253f5714;
+}
+body .idea{
+  display:block!important;
+  width:min(100%,760px);
+  background:#fffcf5;
+  border:1px solid #e5dac8;
+  border-radius:12px;
+  padding:12px 14px;
+  margin:0 auto 15px;
+  font:450 12px/1.6 ui-sans-serif,system-ui,sans-serif;
+  text-align:left;
+  color:#455366;
+}
+body .idea strong{
+  color:#8e503b;
+  display:block;
+  margin-bottom:4px;
+  letter-spacing:.12em;
+}
+body .controls{
+  background:#ffffffb5;
+  border:1px solid #e2dbd0;
+  border-radius:14px;
+  padding:14px 15px;
+  gap:14px 24px;
+  margin:0 auto;
+}
+body .ctl label{font:750 10px/1.35 ui-sans-serif,system-ui,sans-serif;color:#627485;letter-spacing:.1em}
+body input[type=range]{width:100%;accent-color:#b26c4c;min-height:35px}
+body .sw{
+  min-width:36px;min-height:36px;
+  border:2px solid #fff;
+  box-shadow:0 0 0 1px #26384c3a;
+}
+body .sw[aria-pressed=true]{outline:2px solid #253d50;outline-offset:3px}
+body .made-with{margin-top:13px;font:600 10px/1.4 system-ui,sans-serif;letter-spacing:.055em}
+body button.sound-switch{
+  min-height:40px;
+  background:#253a4d;color:#fffdf5;border:1px solid #253a4d;
+  padding:8px 13px;border-radius:14px;
+  font:700 11px/1.2 ui-sans-serif,system-ui,sans-serif;
+}
+body button.sound-switch[aria-pressed=false]{background:#ede9df;color:#5c6872;border-color:#cad0cf}
+body .toast.show{
+  background:#fffdf5;border-color:#334d5c;
+  border-radius:10px;box-shadow:0 5px 20px #1b2d431f;
+}
+@media(max-width:560px){
+ body{padding:12px 8px 17px!important}
+ body > header{gap:8px}
+ body > header h1{font-size:15px!important;max-width:50%}
+ body > header span{display:none}
+ body button.sound-switch{padding:7px 11px;min-height:38px}
+ body .stage{margin:9px auto 10px;padding:8px 5px 12px;border-radius:17px}
+ body .stage:after{display:none}
+ body .actions{gap:6px!important;margin:4px 2px 8px!important}
+ body button.act{padding:8px 10px;font-size:11px;min-height:36px;border-radius:10px}
+ body #readout{padding:11px 13px}
+ body .controls{padding:12px;grid-template-columns:1fr 1fr;gap:11px}
+ body .controls .ctl:first-child{grid-column:1/-1}
+ body .sw{min-height:33px;min-width:33px}
+}
+@media(min-width:650px){
+ body .stage{padding:22px 18px}
+ body #fig{margin-top:18px;margin-bottom:18px}
+}
+@media(prefers-reduced-motion:reduce){
+ body .act,body .chip{transition:none!important;animation:none!important}
+}
+
+/* State-driven effects are vector-based; no video textures or network requests. */
+#fig .of-steam{animation:of-rise 2.3s ease-in-out infinite;animation-delay:var(--delay,0s);transform-box:fill-box;transform-origin:center bottom}
+#fig .of-air{animation:of-wind 1.25s ease-in-out infinite;animation-delay:var(--delay,0s);stroke-dasharray:8 6}
+#fig .of-ripple{animation:of-ripple 1.2s ease-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes of-rise{0%{opacity:.08;transform:translateY(3px) scale(.84)}50%{opacity:.64}100%{opacity:.06;transform:translateY(-9px) scale(1.08)}}
+@keyframes of-wind{0%{stroke-dashoffset:0;opacity:.19}40%{opacity:.65}100%{stroke-dashoffset:-36;opacity:.19}}
+@keyframes of-ripple{0%{opacity:.85;transform:scale(.65)}100%{opacity:0;transform:scale(1.32)}}
+@media(prefers-reduced-motion:reduce){#fig .of-steam,#fig .of-air,#fig .of-ripple{animation:none!important}}

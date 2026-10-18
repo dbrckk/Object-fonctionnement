@@ -92,3 +92,37 @@ L'application conserve la simulation active lorsqu'un favori est modifié.
 
 GitHub Actions installe les dépendances à partir du fichier package-lock.json
 via npm ci pour des builds reproductibles.
+
+
+## Studio visuel et sonore (version 0.2)
+
+- Palette enrichie, matériaux dessinés, halos de chaleur et de lumière,
+  vapeur et filets d'air isométriques, écoulement et pulsations de pression.
+- Les animations sont synchronisées avec les états des modèles :
+  éjection progressive du grille-pain, rotation du barillet, variation du
+  faisceau de la lampe, mouvement des pales, chauffe et extraction.
+- Les bruitages sont générés localement par Web Audio : interrupteurs,
+  moteurs, eau, vapeur, bulles, pièces, ressorts, pompe, serrure,
+  gouttes et fin de cycle. Aucune bande-son tierce, aucun
+  microphone ni pisteur.
+- Le son est activé par défaut mais ne démarre qu'après une interaction.
+  Il se coupe dans la page et dans l'application, avec préférence
+  persistante entre les sessions.
+- Ambiance sonore arrêtée lorsque le son est coupé ou la page fermée.
+- Animations réduites si le système demande « réduire les animations ».
+- Génération des neuf aperçus WebP dans la CI avant les tests.
+- Moteur ColorFigures crédité sous licence MIT dans COLORFIGURES-LICENSE.
+
+Les durées et sons sont stylisés, et non des reproductions exactes
+d'appareils. Vérifier la qualité acoustique sur téléphone physique.
+
+
+### Icône de l'application
+
+L'identité visuelle comprend une icône originale (cube isométrique et
+mécanisme central), fournie en SVG dans resources/app-icon.svg. La commande
+npm run android:icons produit la favicon et les variantes PNG adaptées aux
+densités Android, après la génération de la plateforme Capacitor.
+
+La CI génère les icônes Android et renseigne versionCode 2 / versionName
+0.2.0 pour cette évolution graphique et sonore.

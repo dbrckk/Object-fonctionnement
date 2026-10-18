@@ -1,6 +1,15 @@
 /* Size-only bridge for a sandboxed, same-application figure; no data or privileged actions. */
 (() => {
  "use strict";
+ // One shared loader upgrades every object, including the original MIT demos.
+ // Assets are bundled locally and load in standalone figure pages as well.
+ const stylesheet=document.createElement("link");
+ stylesheet.rel="stylesheet";
+ stylesheet.href="./studio.css";
+ document.head.appendChild(stylesheet);
+ const sound=document.createElement("script");
+ sound.src="./soundscape.js";
+ document.body.appendChild(sound);
  if(window.parent===window)return;
  let last=0,scheduled=false;
  const report=()=>{

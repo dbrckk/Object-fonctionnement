@@ -1,6 +1,6 @@
 {
   "name": "object-fonctionnement",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,8 @@
     "android:sync": "npm run build && cap sync android",
     "android:open": "cap open android",
     "test:browser": "node tests/browser.test.mjs",
-    "generate:previews": "node scripts/generate-previews.mjs"
+    "generate:previews": "node scripts/generate-previews.mjs",
+    "android:icons": "node scripts/generate-android-icons.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.0",

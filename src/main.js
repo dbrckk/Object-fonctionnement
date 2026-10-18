@@ -4,8 +4,22 @@ import {App} from "@capacitor/app";
 import {OBJECTS,CATEGORIES,filterObjects} from "./catalog.js";
 const root=document.getElementById("app");
 const KEY="object-fonctionnement:favorites:v1";
+const SOUND_KEY="object-fonctionnement:sound:v1";
+function initialSound(){try{return localStorage.getItem(SOUND_KEY)!=="off";}catch{return true;}}
+function postSoundSetting(){
+ const frame=document.querySelector("iframe.figure-frame");
+ if(frame?.contentWindow)frame.contentWindow.postMessage({type:"object-figure:sound-setting",enabled:state.soundEnabled},"*");
+}
+function setSound(enabled){
+ state.soundEnabled=Boolean(enabled);
+ try{localStorage.setItem(SOUND_KEY,state.soundEnabled?"on":"off");}catch{}
+ const button=document.getElementById("global-sound");
+ if(button){button.setAttribute("aria-pressed",String(state.soundEnabled));button.textContent=state.soundEnabled?"♫ Son activé":"♪ Son coupé";}
+ postSoundSetting();
+}
+
 function readFavorites(){try {const data=JSON.parse(localStorage.getItem(KEY)||"[]");return Array.isArray(data)?data.filter(x=>typeof x==="string"):[];}catch{return [];}}
-const state={query:"",category:"Tout",favoritesOnly:false,favorites:readFavorites(),selected:null,running:false,phase:0};
+const state={query:"",category:"Tout",favoritesOnly:false,favorites:readFavorites(),selected:null,running:false,phase:0,soundEnabled:initialSound()};
 let timeoutA;
 const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(state.favorites));}catch{}}
@@ -36,8 +50,12 @@ function toggleFavorite(id){
  display();
 }
 function renderDetail(o){
- root.innerHTML='<header class="detail-header"><button id="back" class="back">← Catalogue</button><span class="brand small">OBJET<span>·</span>FONCTIONNEMENT</span></header><main class="detail"><p class="eyebrow">'+escapeHtml(o.category)+' / COMPRENDRE</p><h1>'+escapeHtml(o.name)+'</h1><p class="intro">'+escapeHtml(o.summary)+'</p><div class="simulation" style="--object:'+o.color+'">'+(o.figure ? '<iframe class="figure-frame" title="Démonstration interactive : '+escapeHtml(o.name)+'" src="/figures/'+o.figure+'.html" sandbox="allow-scripts" loading="eager" referrerpolicy="no-referrer"></iframe><p class="simulation-note">Manipule les commandes du modèle isométrique ci-dessus. Modèle isométrique interactif basé sur ColorFigures (licence MIT). Les commandes simulent le principe de fonctionnement.</p>' : '<div class="simulation-figure '+(state.running?'animated':'')+'" aria-hidden="true"><span>'+o.icon+'</span></div><div class="simulation-status" role="status" aria-live="polite">'+escapeHtml(o.states[state.phase])+'</div><button id="simulate" class="primary" '+(state.running?'disabled':'')+'>'+(state.running?'Simulation en cours…':'▶ '+escapeHtml(o.action))+'</button><p class="simulation-note">Animation pédagogique simplifiée, non représentative de toutes les pièces internes.</p>')+'</div><section class="information"><h2>Comment ça fonctionne ?</h2><p>'+escapeHtml(o.how)+'</p></section><section class="information"><h2>Mode d’utilisation</h2><ol class="steps">'+o.steps.map(s=>'<li>'+escapeHtml(s)+'</li>').join("")+'</ol></section><section class="safety"><strong>À savoir</strong><p>'+escapeHtml(o.safety)+'</p></section><button id="favorite-detail" class="secondary" aria-pressed="'+state.favorites.includes(o.id)+'">'+(state.favorites.includes(o.id)?"★ Retirer des favoris":"☆ Ajouter aux favoris")+'</button></main><footer>Les indications peuvent varier selon le modèle. Consulte sa notice.</footer>';
+ root.innerHTML='<header class="detail-header"><button id="back" class="back">← Catalogue</button><button id="global-sound" class="audio-toggle" aria-label="Activer ou désactiver les bruitages" aria-pressed="'+state.soundEnabled+'">'+(state.soundEnabled?"♫ Son activé":"♪ Son coupé")+'</button><span class="brand small">OBJET<span>·</span>FONCTIONNEMENT</span></header><main class="detail"><p class="eyebrow">'+escapeHtml(o.category)+' / COMPRENDRE</p><h1>'+escapeHtml(o.name)+'</h1><p class="intro">'+escapeHtml(o.summary)+'</p><div class="simulation" style="--object:'+o.color+'">'+(o.figure ? '<iframe class="figure-frame" title="Démonstration interactive : '+escapeHtml(o.name)+'" src="/figures/'+o.figure+'.html" sandbox="allow-scripts" loading="eager" referrerpolicy="no-referrer"></iframe><p class="simulation-note">Manipule les commandes du modèle isométrique ci-dessus. Modèle isométrique interactif basé sur ColorFigures (licence MIT). Les commandes simulent le principe de fonctionnement.</p>' : '<div class="simulation-figure '+(state.running?'animated':'')+'" aria-hidden="true"><span>'+o.icon+'</span></div><div class="simulation-status" role="status" aria-live="polite">'+escapeHtml(o.states[state.phase])+'</div><button id="simulate" class="primary" '+(state.running?'disabled':'')+'>'+(state.running?'Simulation en cours…':'▶ '+escapeHtml(o.action))+'</button><p class="simulation-note">Animation pédagogique simplifiée, non représentative de toutes les pièces internes.</p>')+'</div><section class="information"><h2>Comment ça fonctionne ?</h2><p>'+escapeHtml(o.how)+'</p></section><section class="information"><h2>Mode d’utilisation</h2><ol class="steps">'+o.steps.map(s=>'<li>'+escapeHtml(s)+'</li>').join("")+'</ol></section><section class="safety"><strong>À savoir</strong><p>'+escapeHtml(o.safety)+'</p></section><button id="favorite-detail" class="secondary" aria-pressed="'+state.favorites.includes(o.id)+'">'+(state.favorites.includes(o.id)?"★ Retirer des favoris":"☆ Ajouter aux favoris")+'</button></main><footer>Les indications peuvent varier selon le modèle. Consulte sa notice.</footer>';
  document.getElementById("back").addEventListener("click",returnToCatalog);
+ document.getElementById("global-sound").addEventListener("click",()=>setSound(!state.soundEnabled));
+ const frame=document.querySelector("iframe.figure-frame");
+ if(frame)frame.addEventListener("load",postSoundSetting);
+
  document.getElementById("favorite-detail").addEventListener("click",()=>toggleFavorite(o.id));
  if(!o.figure)document.getElementById("simulate").addEventListener("click",()=>{if(state.running)return;state.running=true;state.phase=1;display();timeoutA=setTimeout(()=>{state.phase=2;state.running=false;display();},o.duration);});
 }
@@ -62,7 +80,13 @@ if(Capacitor.isNativePlatform()){
 // Messages are accepted only from the currently mounted, sandboxed figure.
 window.addEventListener("message",event=>{
  const iframe=document.querySelector("iframe.figure-frame");
- if(!iframe||event.source!==iframe.contentWindow||event.data?.type!=="object-figure:resize")return;
+ if(!iframe||event.source!==iframe.contentWindow)return;
+ if(event.data?.type==="object-figure:sound-ready"){postSoundSetting();return;}
+ if(event.data?.type==="object-figure:sound-preference"){
+  if(typeof event.data.enabled==="boolean")setSound(event.data.enabled);
+  return;
+ }
+ if(event.data?.type!=="object-figure:resize")return;
  const height=Number(event.data.height);
  if(!Number.isFinite(height)||height<350||height>2400)return;
  const rounded=Math.ceil(height);

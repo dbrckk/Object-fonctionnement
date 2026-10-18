@@ -33,8 +33,24 @@
       return true;
     });
   };
+  // Hand-inked visual FX follow projected 3D coordinates, not screen sprites.
+  const sceneDefs = '<defs><radialGradient id="of-heat"><stop offset="0" stop-color="#ffa43a" stop-opacity=".53"/><stop offset="1" stop-color="#ffa43a" stop-opacity="0"/></radialGradient><radialGradient id="of-cool"><stop offset="0" stop-color="#a2dff3" stop-opacity=".41"/><stop offset="1" stop-color="#a2dff3" stop-opacity="0"/></radialGradient><radialGradient id="of-light"><stop offset="0" stop-color="#fff4aa" stop-opacity=".79"/><stop offset="1" stop-color="#fff4aa" stop-opacity="0"/></radialGradient></defs>';
+  const halo=(p,r,kind="heat")=>{
+    const point=P(...p);
+    return '<circle cx="'+f(point[0])+'" cy="'+f(point[1])+'" r="'+f(r)+'" fill="url(#of-'+kind+')" pointer-events="none"/>';
+  };
+  const steam=(p,amount=.5,t=0,index=0)=>{
+    const point=P(...p),x=point[0],y=point[1],h=16+amount*12,dx=Math.sin(t*7+index)*4;
+    const d='M'+f(x)+' '+f(y)+' C'+f(x-7+dx)+' '+f(y-h*.3)+' '+f(x+8+dx)+' '+f(y-h*.68)+' '+f(x+dx)+' '+f(y-h);
+    return '<path class="of-steam" style="--delay:'+f(-index*.5)+'s" d="'+d+'" stroke="#86b4cc" stroke-width="1.9" fill="none" stroke-linecap="round" opacity="'+f(Math.min(.83,amount*.75))+'"/>';
+  };
+  const sheen=(x,coords,alpha=.4)=>'<path d="'+pd(on(PX(x),coords),false)+'" stroke="#fffef5" stroke-width="1.3" opacity="'+f(alpha)+'" fill="none" pointer-events="none"/>';
+  const ripple=(p,r,colour="#91dced")=>{
+    const point=P(...p);
+    return '<ellipse class="of-ripple" cx="'+f(point[0])+'" cy="'+f(point[1])+'" rx="'+f(r)+'" ry="'+f(r*.4)+'" fill="none" stroke="'+colour+'" stroke-width="1.3"/>';
+  };
   const run=(cfg)=>{
-    const ui=mountFigure({...cfg,credit:true});
+    const ui=mountFigure({...cfg,credit:true,scene:(st,m)=>sceneDefs+cfg.scene(st,m)});
     const labels=[['.idea strong','À retenir'],['label[for=wb]','Effet dessin à la main'],['#pals',null],['#lblctl label','Repères']];
     for(const [selector,title] of labels){const el=document.querySelector(selector);if(el&&title)el.textContent=title;}
     const colorLabel=document.querySelector('#pals')?.previousElementSibling;
@@ -52,6 +68,8 @@
         a+=rod([35,9,58],[46,-12,65],8,steel,toneI,1.2,4);
         a+=shape([[44,-16,65],[51,-13,65],[50,-12,70],[43,-15,70]],'#4b5964',1);
         a+=housing(10,53,13,62,7,70,13,m);
+        a+=sheen(53.2,[[16,45],[16,59],[24,65],[38,68]],.43);
+        if(st.heating)a+=halo([54,45,19],25,'heat');
         // Reservoir gauge, translucent and filled to the real state level.
         const gw=rrUV(19,19,31,54,3),gwp=on(PX(53.4),gw);
         a+=shape(gwp,'#d9f1f4',1.1);
@@ -67,12 +85,7 @@
         a+=rod([27,65,61],[26,82,54],5,dark);
         a+=rod([26,82,54],[25,81,33],5,dark);
         a+=rod([25,81,33],[29,63,29],5,dark);
-        if(st.steam>0){
-          for(let i=0;i<3;i++){
-            const x=32+i*5,y=35+i*4;
-            a+= '<path d="'+pd([[x,y,80],[x+1,y+2,86+st.steam*5],[x-2,y+3,94+st.steam*10]],false)+'" fill="none" stroke="#90b9c3" stroke-width="1.9" opacity="'+(.55*st.steam).toFixed(2)+'"/>';
-          }
-        }
+        if(st.steam>0)for(let i=0;i<4;i++)a+=steam([25+i*5,32+i*4,80],st.steam,st.hot,i);
         a+=tag([53,43,22],-56,37,'RÉSISTANCE',st.heating);
         a+=tag([53,22,43],-55,-35,'EAU',st.water>0);
         a+=tag([52,43,22],44,-39,'ARRÊT AUTO.',st.phase==='done');
@@ -108,11 +121,17 @@
           if(st.bread)a+=housing(11,39,y-8,y+8,42+lift,64+lift,5,st.hot>.2?orange:matOf('#f1d3a0'));
         }
         a+=housing(5,49,8,70,6,50,10,m);
+        a+=sheen(49.15,[[12,18],[12,38],[19,44]],.55);
+        if(st.toasting)a+=halo([27,39,50],35,'heat');
         for(let i=0;i<2;i++){
           const y=24+i*24;
           a+=shape(on(PZ(50.4),rrUV(16,y-8,39,y+8,3)),'#3e3c38',1.7);
           if(st.toasting){
-            for(let k=0;k<5;k++)a+=line([[21+k*3,y-6,50.8],[21+k*3,y+6,50.8]],1.1);
+            for(let k=0;k<5;k++){
+              const x=21+k*3;
+              a+='<path d="'+pd([[x,y-6,50.9],[x,y+6,50.9]],false)+'" stroke="#ff8132" stroke-width="2" fill="none" opacity="'+f(.4+st.hot*.57)+'"/>';
+            }
+            for(let j=0;j<2;j++)a+=steam([20+j*8,y,60],st.hot*.23,st.hot,j);
           }
         }
         // temperature selector and movable lever
@@ -132,7 +151,9 @@
         buttons:[
           {label:'Insérer le pain',onClick(st,ui){if(st.toasting)return ui.flash("Patiente jusqu'à l'éjection.");st.bread=2;st.done=false;st.hot=0;st.eject=0;}},
           {label:'Régler le brunissage',choices:st=>[1,2,3,4,5].map(n=>({label:"Niveau "+n,current:st.level===n,onClick(){st.level=n;}}))},
-          {label:'Abaisser / griller',onClick(st,ui){if(!ensure(st.bread>0,ui,"Insère d'abord une tranche."))return;if(st.toasting)return;st.toasting=true;st.done=false;st.eject=0;st.hot=0;anim(ui,2.4+st.level*.65,p=>{st.hot=p;},()=>{st.toasting=false;st.done=true;st.eject=1;ui.flash("Pop ! Chariot libéré.");});}},
+          {label:'Abaisser / griller',onClick(st,ui){if(!ensure(st.bread>0,ui,"Insère d'abord une tranche."))return;if(st.toasting)return;st.toasting=true;st.done=false;st.eject=0;st.hot=0;anim(ui,2.4+st.level*.65,p=>{st.hot=p;},()=>{st.toasting=false;st.done=true;st.eject=0;
+          anim(ui,.42,p=>{st.eject=ease(p);},()=>{st.eject=1;});
+          ui.flash("Pop ! Chariot libéré.");});}},
           {label:'Retirer le pain',onClick(st,ui){if(st.toasting)return ui.flash("Arrête la cuisson avant de retirer le pain.");if(!st.bread)return ui.flash("Aucune tranche.");st.bread=0;st.done=false;st.hot=0;st.eject=0;}}
         ]};
     },
@@ -167,6 +188,11 @@
           a+=line([[58,39+oy+8*Math.cos(t),80+8*Math.sin(t)],[58,39+oy+36*Math.cos(t),80+36*Math.sin(t)]],.65);
         }
         a+=circleFront(45,39+oy,80,6,'#414951');
+        if(st.speed>0)for(let j=0;j<4;j++){
+          const z=63+j*10,wave=Math.sin(st.turn*.33+j*.7)*4;
+          const pts=[[61,4+j*4,z],[71+wave,-9+j*4,z+2],[82+wave,-20+j*4,z+3]];
+          a+='<path class="of-air" style="--delay:'+f(-j*.27)+'s" d="'+pd(pts,false)+'" stroke="#6bb6d1" stroke-width="1.8" stroke-linecap="round" fill="none" opacity=".61"/>';
+        }
         a+=cylX(35,41,40,23,6,steel);
         a+=frontLabel(41.4,40,23,''+st.speed,3.5);
         a+=tag([45,39,81],43,-38,'MOTEUR',st.speed>0);
@@ -185,7 +211,7 @@
         ]};
     },
     lock(){
-      const s={key:false,aligned:false,locked:true,angle:0};
+      const s={key:false,aligned:false,locked:true,angle:0,turning:false};
       const W=66,D=79,H=76;
       const pins=[16,26,36,46,56];
       function scene(st,m){
@@ -195,12 +221,16 @@
         // cylindrical plug and plug face with keyhole
         a+=cylX(48,56,40,39,21,steel);
         a+=circleFront(56.2,40,39,13,st.locked?'#525a5f':'#65ad85',1.4);
+        const ang=(st.angle||0)*Math.PI/180;
+        a+=line([[56.9,40-10*Math.cos(ang),39-10*Math.sin(ang)],[56.9,40+10*Math.cos(ang),39+10*Math.sin(ang)]],1.6);
         a+=shape(on(PX(56.6),rrUV(38,32,42,43,1)),'#202329',1);
         // cutaway pins shown inside a transparent row
         a+=shape(on(PX(51.7),rrUV(17,52,65,64,2)),'#d7e3e4',1);
         for(let i=0;i<5;i++){
           const y=21+i*9.5;
           a+=box(52,y-2,st.aligned?56:54+i%3,55,y+2,62,st.aligned?green:orange);
+          const zz=st.aligned?56:54+i%3;
+          a+=line([[55,y,zz],[55,y-2,zz+2],[55,y+2,zz+4],[55,y-2,zz+6],[55,y,62]],.75);
         }
         // key bit sliding from the right-front
         if(st.key){
@@ -221,8 +251,17 @@
         readout:st=>st.locked?(st.key?'CLÉ INSÉRÉE · BARILLET PRÊT':'SERRURE VERROUILLÉE'):'DÉVERROUILLÉE',
         buttons:[
           {label:'Insérer la bonne clé',onClick(st){st.key=true;st.aligned=true;}},
-          {label:'Tourner la clé',onClick(st,ui){if(!ensure(st.key&&st.aligned,ui,"Insère la bonne clé pour aligner les goupilles."))return;st.locked=!st.locked;st.angle=st.locked?0:90;ui.flash(st.locked?'Serrure verrouillée.':'Serrure déverrouillée.');}},
-          {label:'Retirer la clé',onClick(st,ui){if(!st.key)return ui.flash("La clé n'est pas insérée.");st.key=false;st.aligned=false;}}
+          {label:'Tourner la clé',onClick(st,ui){
+            if(st.turning)return;
+            if(!ensure(st.key&&st.aligned,ui,"Insère la bonne clé pour aligner les goupilles."))return;
+            const from=st.angle,to=st.locked?90:0;
+            st.locked=!st.locked;st.turning=true;
+            anim(ui,.48,p=>{st.angle=from+(to-from)*ease(p);},()=>{
+              st.angle=to;st.turning=false;
+              ui.flash(st.locked?'Serrure verrouillée.':'Serrure déverrouillée.');
+            });
+          }},
+          {label:'Retirer la clé',onClick(st,ui){if(st.turning)return ui.flash('Attends la fin de la rotation.');if(!st.key)return ui.flash("La clé n'est pas insérée.");st.key=false;st.aligned=false;}}
         ]};
     },
     bicycle(){
@@ -248,6 +287,8 @@
         const angle=(-120+Math.min(1,st.pressure/5)*240)*Math.PI/180;
         a+=line([[42,26,37],[42,26+4*Math.cos(angle),37+4*Math.sin(angle)]],1.4);
         a+=frontLabel(42,27,30,st.pressure.toFixed(1),2.6);
+        if(st.connected)a+=ripple([55,80,20],4+st.piston*5);
+        if(st.pumping)a+=halo([25,24,20],19,'cool');
         a+=tag([25,24,82],-57,-25,'PISTON',st.pumping);
         a+=tag([54,80,20],38,20,'VALVE',st.connected);
         a+=tag([40,26,37],-44,30,'PRESSION',st.connected);
@@ -284,6 +325,11 @@
         if(st.coffee>0)a+=cyl(49,49,13,13+st.coffee*25,13,matOf('#825332'));
         a+=rod([49,67,23],[61,70,29],3,dark);
         a+=cyl(49,49,48,51,12,steel);
+        if(st.brewing||st.coffee>.45){
+          const strength=st.brewing?.55:Math.max(.2,st.coffee*.7);
+          for(let i=0;i<3;i++)a+=steam([48+i*3,45+i*4,51],strength,st.progress,i);
+        }
+        if(st.brewing)a+=ripple([49,49,17+st.coffee*25],4+st.progress*3);
         a+=circleFront(51.5,43,99,3,st.brewing?'#e34833':'#577b66');
         if(st.brewing){
           for(let i=0;i<4;i++){
@@ -307,17 +353,17 @@
         ]};
     },
     flashlight(){
-      const s={on:false,brightness:1,battery:1,open:false};
+      const s={on:false,brightness:1,battery:1,open:false,glow:0,lightToken:0};
       const W=112,D=85,H=77;
       function scene(st,m){
         let a=bench(W,D);
         a+=shadow(95,70,65);
         // Beam is rendered behind the flashlight and its lens.
-        if(st.on){
+        if(st.glow>.02){
           const far=st.brightness===2?33:23;
           const cone=[[70,29,44],[W+far,1,6],[W+far,81,6],[70,52,57]];
-          a+=fill(pd(cone),'#f7d65c','opacity="'+(st.brightness===2?'.28':'.18')+'"');
-          a+=fill(pd(on(PZ(3),ellUV(105,48,31,23,36))),'#fff2a2','opacity=".35"');
+          a+=fill(pd(cone),'#f7d65c','opacity="'+f(st.glow*(st.brightness===2?.3:.19))+'"');
+          a+=fill(pd(on(PZ(3),ellUV(105,48,31,23,36))),'#fff2a2','opacity="'+f(.38*st.glow)+'"');
         }
         // main battery tube and textured grip
         a+=cylX(14,73,40,45,12,m);
@@ -334,6 +380,12 @@
         a+=cylX(72,81,40,45,19,steel);
         a+=circleFront(81,40,45,15,st.on?'#fff5a1':'#d0e8e8',1.5);
         a+=circleFront(82,40,45,8,st.on?'#fff8c4':'#a9c9d0',.5);
+        if(st.glow>.02){
+          a+=halo([81,40,45],st.brightness===2?32:25,'light');
+          for(const rad of [0,1.1,2.2,3.4,4.5]){
+            a+=line([[82,40+21*Math.cos(rad),45+21*Math.sin(rad)],[90,40+31*Math.cos(rad),45+31*Math.sin(rad)]],.7);
+          }
+        }
         a+=tag([54,42,61],-40,-33,'INTERRUPTEUR',st.on);
         a+=tag([81,40,45],48,-30,'LED',st.on);
         a+=tag([24,52,43],-40,36,'BATTERIE',!st.open);
@@ -343,7 +395,12 @@
         idea:"La batterie alimente une LED quand l'interrupteur ferme le circuit ; la lentille dirige le faisceau.",
         readout:st=>st.open?'COMPARTIMENT PILES OUVERT':st.on?'LED ALLUMÉE · INTENSITÉ '+st.brightness:'CIRCUIT OUVERT · LAMPE ÉTEINTE',
         buttons:[
-          {label:'Marche / arrêt',onClick(st,ui){if(st.open)return ui.flash("Referme le compartiment avant l'allumage.");st.on=!st.on;}},
+          {label:'Marche / arrêt',onClick(st,ui){
+            if(st.open)return ui.flash("Referme le compartiment avant l'allumage.");
+            st.on=!st.on;
+            const from=st.glow,to=st.on?1:0,token=++st.lightToken;
+            anim(ui,.24,p=>{if(token===st.lightToken)st.glow=from+(to-from)*ease(p);},()=>{if(token===st.lightToken)st.glow=to;});
+          }},
           {label:'Intensité',choices:st=>[1,2].map(n=>({label:n===1?'Douce':'Forte',current:st.brightness===n,onClick(){st.brightness=n;}}))},
           {label:'Compartiment piles',onClick(st,ui){if(st.on)return ui.flash("Éteins la lampe avant d'ouvrir.");st.open=!st.open;ui.flash(st.open?"Compartiment ouvert.":"Compartiment refermé.");}}
         ]};

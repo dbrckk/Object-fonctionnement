@@ -17,3 +17,33 @@
 footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
 .back,.text-button,.favorite{min-height:44px}
 .favorite{min-width:44px}
+
+/* Object Fonctionnement — premium mobile visuals and sound controls. */
+.audio-toggle{
+ min-height:42px;padding:10px 12px;border:1px solid #50697b;background:#293d50;
+ color:#fff9e8;border-radius:13px;font-size:.78rem;font-weight:750;white-space:nowrap;
+ transition:background .15s ease,transform .15s ease;
+}
+.audio-toggle[aria-pressed=false]{background:#15263a;color:#adbbca}
+.audio-toggle:active{transform:scale(.97)}
+.hero{position:relative;overflow:hidden;background:linear-gradient(135deg,#142638,#1e3949 69%,#24465a)}
+.hero:after{content:"";position:absolute;right:-110px;top:-170px;width:380px;height:380px;
+ border:1px solid #d6eff424;border-radius:50%;box-shadow:0 0 0 42px #f9e6ba05,0 0 0 82px #f9e6ba05;pointer-events:none}
+.object-card{transition:transform .18s ease,box-shadow .18s ease;border-color:#e4e9ed;box-shadow:0 10px 28px #2b3f5110}
+.object-card:hover{transform:translateY(-3px);box-shadow:0 14px 32px #2b3f511b}
+.object-card:focus-within{border-color:#abb9c2}
+.object-figure{background:radial-gradient(ellipse at 50% 25%,#fffdf5,#f3efe7 68%,#eae6dc);border-bottom:1px solid #e8e1d7}
+.object-card .card-category{color:#8a6b56}
+.object-card .discover{color:#345c72}
+.simulation{border:1px solid #e3dfd5;box-shadow:0 12px 29px #20364b0c}
+.figure-frame{background:transparent;border-radius:14px}
+.detail-header{gap:10px}
+@media(max-width:520px){
+ .detail-header .brand.small{font-size:.54rem;max-width:100px;line-height:1.5;text-align:right}
+ .audio-toggle{font-size:.72rem;padding:8px 10px}
+ .detail-header{gap:6px}
+ .object-card:hover{transform:none}
+}
+@media(prefers-reduced-motion:reduce){.object-card,.audio-toggle{transition:none!important}}
+
+.detail-header .brand.small{overflow-wrap:anywhere;word-break:break-word;min-width:0}

@@ -56,3 +56,33 @@ test("all cards have safe static isometric previews",()=>{
  const script=readFileSync(join(root,"src","main.js"),"utf8");
  assert.ok(script.includes('/previews/'));
 });
+
+test("licensed visual and local audio engines are included in every figure",()=>{
+ const rootDir=join(root,"public","figures");
+ const audio=readFileSync(join(rootDir,"soundscape.js"),"utf8");
+ const css=readFileSync(join(rootDir,"studio.css"),"utf8");
+ assert.match(audio,/AudioContext/);
+ assert.match(audio,/createOscillator/);
+ assert.match(audio,/createBufferSource/);
+ assert.match(css,/of-steam/);
+ assert.match(css,/prefers-reduced-motion/);
+ const bridge=readFileSync(join(rootDir,"bridge.js"),"utf8");
+ assert.match(bridge,/soundscape\.js/);
+ assert.match(bridge,/studio\.css/);
+ for(const o of OBJECTS){
+  const html=readFileSync(join(rootDir,o.figure+".html"),"utf8");
+  assert.match(html,/bridge\.js/);
+ }
+});
+
+test("original Android launcher artwork and browser icon",()=>{
+ const source=readFileSync(join(root,"resources","app-icon.svg"),"utf8");
+ assert.match(source,/<svg/);
+ assert.match(source,/<linearGradient/);
+ const png=readFileSync(join(root,"public","app-icon.png"));
+ assert.equal(png.subarray(0,8).toString("hex"),"89504e470d0a1a0a");
+ assert.ok(png.byteLength>5000);
+ const iconScript=readFileSync(join(root,"scripts","generate-android-icons.mjs"),"utf8");
+ assert.match(iconScript,/mipmap-/);
+ assert.match(iconScript,/ic_launcher_foreground/);
+});

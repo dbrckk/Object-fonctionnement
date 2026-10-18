@@ -59,7 +59,11 @@ try{
    case 'lock':
     await click('Insérer la bonne clé');assert.equal((await state()).aligned,true);
     await click('Tourner la clé');assert.equal((await state()).locked,false);
-    await click('Tourner la clé');assert.equal((await state()).locked,true);break;
+    await page.waitForFunction(()=>!window.__st.turning,{timeout:4000});
+    assert.equal((await state()).angle,90);
+    await click('Tourner la clé');assert.equal((await state()).locked,true);
+    await page.waitForFunction(()=>!window.__st.turning,{timeout:4000});
+    assert.equal((await state()).angle,0);break;
    case 'bicycle':
     await click('Raccorder / retirer embout');assert.equal((await state()).connected,true);
     await click('Pomper');
@@ -144,6 +148,34 @@ try{
  }
  assert.deepEqual(pageErrors,[]);
  console.log('PASS French model controls and 320/768px responsive layout');
+ // Audio must be local, opt-out capable and synchronized with the parent Android shell.
+ await app.setViewportSize({width:390,height:844});
+ await app.goto(HOST+'/#kettle',{waitUntil:'load'});
+ const soundFrame=app.frameLocator('iframe.figure-frame');
+ await soundFrame.locator('#figure-sound').waitFor();
+ await app.waitForFunction(()=>document.querySelector('iframe.figure-frame')?.contentWindow!=null);
+ await soundFrame.locator('button.act').first().click();
+ const firstNotes=await soundFrame.locator('body').evaluate(()=>window.__soundDebug.notes);
+ assert.ok(firstNotes>0,'first gesture did not trigger audio synthesis');
+ await app.locator('#global-sound').click();
+ await app.waitForFunction(()=>document.querySelector('#global-sound')?.getAttribute('aria-pressed')==='false');
+ await soundFrame.locator('#figure-sound').waitFor();
+ await soundFrame.locator('body').evaluate(()=>new Promise(resolve=>{
+  const poll=()=>window.__soundDebug.enabled?setTimeout(poll,20):resolve();poll();
+ }));
+ const mutedNotes=await soundFrame.locator('body').evaluate(()=>window.__soundDebug.notes);
+ await soundFrame.locator('button.act').first().click();
+ assert.equal(await soundFrame.locator('body').evaluate(()=>window.__soundDebug.notes),mutedNotes);
+ await soundFrame.locator('#figure-sound').click();
+ await app.waitForFunction(()=>document.querySelector('#global-sound')?.getAttribute('aria-pressed')==='true');
+ assert.equal(await app.evaluate(()=>localStorage.getItem('object-fonctionnement:sound:v1')),'on');
+ await app.locator('#global-sound').click();
+ await app.reload();
+ await app.waitForFunction(()=>document.querySelector('#global-sound')?.getAttribute('aria-pressed')==='false');
+ await soundFrame.locator('#figure-sound').waitFor();
+ assert.equal(await soundFrame.locator('body').evaluate(()=>window.__soundDebug.enabled),false);
+ assert.deepEqual(pageErrors,[]);
+ console.log('PASS procedural Web Audio, mute, iframe synchronization, persisted preferences');
  console.log('PASS Android-size catalog + local WebP previews + embedded simulation');
  await app.close();
 }finally{
