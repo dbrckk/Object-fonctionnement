@@ -5,3 +5,9 @@ test("categories have no duplicates",()=>assert.equal(new Set(CATEGORIES).size,C
 test("search normalizes case",()=>assert.equal(filterObjects(OBJECTS,{query:"BOUILLOIRE"}).length,1));
 test("favorites filter only selected items",()=>assert.deepEqual(filterObjects(OBJECTS,{favoritesOnly:true,favorites:["kettle"]}).map(o=>o.id),["kettle"]));
 test("category filtering",()=>assert.ok(filterObjects(OBJECTS,{category:"Cuisine"}).every(o=>o.category==="Cuisine")));
+
+test("French accent-free search and multiple terms",()=>{
+ assert.deepEqual(filterObjects(OBJECTS,{query:"cafe filtre"}).map(o=>o.id),["coffee"]);
+ assert.deepEqual(filterObjects(OBJECTS,{query:"BOUILLOIRE ELECTRIQUE"}).map(o=>o.id),["kettle"]);
+ assert.deepEqual(filterObjects(OBJECTS,{query:"goupilles serrure"}).map(o=>o.id),["lock"]);
+});

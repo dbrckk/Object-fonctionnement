@@ -10,7 +10,11 @@ export const OBJECTS = [
   {id:"flashlight",figure:"flashlight",name:"Lampe de poche",category:"Électronique",icon:"✦",color:"#d5df8c",summary:"Une batterie fournit de l'énergie à une LED.",how:"En fermant le circuit, l'interrupteur laisse passer le courant vers une diode électroluminescente. Un circuit peut réguler son intensité.",steps:["Vérifie l'état de charge des piles ou de la batterie.","Actionne le bouton d'allumage.","Oriente le faisceau sans éblouir.","Éteins après utilisation."],safety:"Ne dirige jamais une lampe puissante vers les yeux.",action:"Allumer",states:["Éteinte","Circuit fermé","Allumée"],duration:1400}
 ];
 export const CATEGORIES=["Tout",...new Set(OBJECTS.map(object=>object.category))];
+export function normalizeSearch(text) {
+ return String(text).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("fr").trim();
+}
 export function filterObjects(objects,{query="",category="Tout",favoritesOnly=false,favorites=[]}={}) {
- const normalized=query.trim().toLocaleLowerCase("fr");
- return objects.filter(o=>(category==="Tout"||o.category===category)&&(!favoritesOnly||favorites.includes(o.id))&&(!normalized||[o.name,o.category,o.summary,o.how].some(t=>t.toLocaleLowerCase("fr").includes(normalized))));
+ const terms=normalizeSearch(query).split(/\s+/).filter(Boolean);
+ return objects.filter(o=>(category==="Tout"||o.category===category)&&(!favoritesOnly||favorites.includes(o.id))&&
+  terms.every(term=>[o.name,o.category,o.summary,o.how].some(t=>normalizeSearch(t).includes(term))));
 }

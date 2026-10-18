@@ -97,6 +97,53 @@ try{
  await app.frameLocator('iframe.figure-frame').locator('button.act').first().waitFor();
  assert.equal(await app.locator('iframe.figure-frame').count(),1);
  assert.deepEqual(pageErrors,[]);
+ // Bookmark toggles must not destroy the nested figure's progress/state.
+ const nested=app.frameLocator('iframe.figure-frame');
+ await nested.locator('button.act').first().click();
+ const stateBefore=await nested.locator('body').evaluate(()=>{window.__st.__qaSentinel='retained';return window.__st.water;});
+ const favorite=app.locator('#favorite-detail');
+ await favorite.click();
+ assert.equal(await favorite.getAttribute('aria-pressed'),'true');
+ assert.equal(await nested.locator('body').evaluate(()=>window.__st.__qaSentinel),'retained');
+ assert.equal(await nested.locator('body').evaluate(()=>window.__st.water),stateBefore);
+ await app.waitForFunction(()=>!!document.querySelector('iframe.figure-frame')?.dataset.measuredHeight,{timeout:6000});
+ const height=await app.locator('iframe.figure-frame').evaluate(el=>({measured:el.dataset.measuredHeight,actual:el.getBoundingClientRect().height}));
+ assert.ok(height.actual>=420&&height.actual<=2400,'unexpected responsive iframe height '+JSON.stringify(height));
+ console.log('PASS preserved simulation state on bookmarking and auto-resized iframe');
+ // In-app back should pop the actual history entry (rather than append another one).
+ await app.locator('#back').click();
+ await app.waitForURL(HOST+'/');
+ assert.equal(await app.locator('article.object-card').count(),9);
+ await app.goForward();
+ await app.waitForURL(HOST+'/#kettle');
+ assert.equal(await app.locator('iframe.figure-frame').count(),1);
+ // Deep-link opened without an in-app history entry must also be able to return safely.
+ await app.goto(HOST+'/#fan');
+ await app.locator('#back').click();
+ await app.waitForURL(HOST+'/');
+ assert.equal(await app.locator('article.object-card').count(),9);
+ assert.deepEqual(pageErrors,[]);
+ console.log('PASS browser history, deep links, and return navigation');
+ for(const [id,label] of [['washing','Charger le linge'],['vending','Insérer 50 cts']]){
+  await app.goto(HOST+'/#'+id,{waitUntil:'load'});
+  const model=app.frameLocator('iframe.figure-frame');
+  await model.getByRole('button',{name:label,exact:true}).waitFor();
+  assert.equal(await app.locator('iframe.figure-frame').count(),1);
+ }
+ // Narrow-phone and tablet viewports should not introduce horizontal scrolling.
+ for(const width of [320,768]){
+  await app.setViewportSize({width,height:780});
+  for(const id of ['kettle','washing','bicycle']){
+   await app.goto(HOST+'/#'+id,{waitUntil:'load'});
+   await app.waitForFunction(()=>!!document.querySelector('iframe.figure-frame')?.dataset.measuredHeight);
+   const metrics=await app.locator('iframe.figure-frame').evaluate(f=>({width:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth,frameHeight:f.getBoundingClientRect().height}));
+   assert.ok(metrics.width<=metrics.viewport+1,'horizontal overflow: '+id+' at '+width);
+   const bodyHeight=await app.frameLocator('iframe.figure-frame').locator('body').evaluate(b=>b.scrollHeight);
+   assert.ok(bodyHeight<=metrics.frameHeight+4,'nested scroll: '+id+' at '+width);
+  }
+ }
+ assert.deepEqual(pageErrors,[]);
+ console.log('PASS French model controls and 320/768px responsive layout');
  console.log('PASS Android-size catalog + local WebP previews + embedded simulation');
  await app.close();
 }finally{

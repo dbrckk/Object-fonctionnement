@@ -68,3 +68,27 @@ vérification des interactions, du rendu SVG, des images et de la navigation.
 ```sh
 npm run test:browser
 ```
+
+
+## Confort et navigation Android
+
+- Le bouton Retour physique revient à la liste lorsque la fiche d'un objet est ouverte.
+- Depuis la liste principale, Retour minimise l'application au lieu de réouvrir
+  une fiche depuis un historique artificiel.
+- Les liens directs vers un objet et la navigation navigateur sont gérés
+  sans dupliquer les entrées de l'historique.
+- L'ajout ou le retrait d'un favori pendant la simulation ne redémarre pas le modèle.
+- Les visualisations adaptent leur hauteur pour éviter un deuxième défilement
+  à l'intérieur de la fiche sur Android.
+
+
+## Recherche et accessibilité
+
+La recherche accepte les mots sans accents et plusieurs termes
+(par exemple cafe filtre ou bouilloire electrique). Les vues s'adaptent
+aux smartphones étroits et aux tablettes. Les deux exemples originaux
+ColorFigures disposent d'une traduction française de leurs contrôles.
+L'application conserve la simulation active lorsqu'un favori est modifié.
+
+GitHub Actions installe les dépendances à partir du fichier package-lock.json
+via npm ci pour des builds reproductibles.
