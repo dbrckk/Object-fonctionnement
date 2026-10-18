@@ -1,0 +1,9 @@
+{
+  "appId": "com.dbrckk.objectfonctionnement",
+  "appName": "Object Fonctionnement",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}
