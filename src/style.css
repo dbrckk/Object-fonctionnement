@@ -2,3 +2,9 @@
 
 .figure-frame{width:100%;height:min(85vh,720px);min-height:490px;border:0;border-radius:18px;background:#fbf7ea}.simulation:has(.figure-frame){padding:12px 12px 18px;background:#f6f2e8}.simulation:has(.figure-frame) .simulation-note{margin:0 10px}
 @media(max-width:600px){.figure-frame{height:625px;min-height:625px}.simulation:has(.figure-frame){margin-left:-12px;margin-right:-12px;padding:6px}}
+
+
+.object-figure{height:195px;overflow:hidden;background:#f2eee4;padding:10px;margin-bottom:18px}
+.object-figure img{display:block;width:100%;height:100%;object-fit:contain}
+@media(min-width:850px){.object-figure{height:216px}}
+@media(max-width:450px){.object-figure{height:205px}}
