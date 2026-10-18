@@ -33,8 +33,21 @@
   requestAnimationFrame(report);
  };
  if(typeof ResizeObserver!=="undefined"){
-  new ResizeObserver(queue).observe(document.body);
+  const observer=new ResizeObserver(queue);
+  const observed=new WeakSet();
+  const track=()=>{
+   // The body is height:100%. Watching only it misses changes in
+   // individual cards and CSS that load after mountFigure finishes.
+   for(const element of [document.documentElement,document.body,...document.body.children]){
+    if(!element||observed.has(element))continue;
+    observed.add(element);
+    observer.observe(element);
+   }
+  };
+  track();
+  new MutationObserver(()=>{track();queue();}).observe(document.body,{childList:true});
  }
+ if(document.fonts?.ready)void document.fonts.ready.then(queue).catch(()=>{});
  window.addEventListener("load",queue);
  window.addEventListener("resize",queue);
  window.addEventListener("orientationchange",queue);

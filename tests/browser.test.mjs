@@ -135,19 +135,43 @@ try{
   assert.equal(await app.locator('iframe.figure-frame').count(),1);
  }
  // Narrow-phone and tablet viewports should not introduce horizontal scrolling.
- for(const width of [320,768]){
+ for(const width of [320,390,768]){
   await app.setViewportSize({width,height:780});
-  for(const id of ['kettle','washing','bicycle']){
-   await app.goto(HOST+'/#'+id,{waitUntil:'load'});
+  for(const id of ids){
+   await app.goto(HOST+'/#'+(id==='washer'?'washing':id),{waitUntil:'load'});
    await app.waitForFunction(()=>!!document.querySelector('iframe.figure-frame')?.dataset.measuredHeight);
+   // Cross-document style loads and fonts can change the internal height
+   // AFTER the iframe's first resize. Wait for the final layout to settle.
+   await app.waitForFunction(()=>{
+    const frame=document.querySelector('iframe.figure-frame');
+    if(!frame?.dataset.measuredHeight)return false;
+    try{
+      // Sandboxed frame uses an opaque origin; the child reports its
+      // scrollHeight in a verified message, not through parent DOM access.
+      const reported=Number(frame.dataset.measuredHeight);
+      return reported>=420 && Math.abs(frame.getBoundingClientRect().height-reported)<=2;
+    }catch{return false;}
+   });
    const metrics=await app.locator('iframe.figure-frame').evaluate(f=>({width:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth,frameHeight:f.getBoundingClientRect().height}));
    assert.ok(metrics.width<=metrics.viewport+1,'horizontal overflow: '+id+' at '+width);
-   const bodyHeight=await app.frameLocator('iframe.figure-frame').locator('body').evaluate(b=>b.scrollHeight);
-   assert.ok(bodyHeight<=metrics.frameHeight+4,'nested scroll: '+id+' at '+width);
+   await app.frameLocator('iframe.figure-frame').locator('body').evaluate(b=>new Promise((resolve,reject)=>{
+    const start=performance.now();
+    const check=()=>{
+      // Wait until both measurements are stable across two refreshes.
+      const h=b.scrollHeight;
+      if(h<=window.innerHeight+4)return requestAnimationFrame(()=>{
+        if(b.scrollHeight<=window.innerHeight+4)resolve();
+        else check();
+      });
+      if(performance.now()-start>4500)return reject(new Error('nested scroll persists at '+window.innerWidth+'px: '+h+'/'+window.innerHeight));
+      requestAnimationFrame(check);
+    };
+    check();
+   }));
   }
  }
  assert.deepEqual(pageErrors,[]);
- console.log('PASS French model controls and 320/768px responsive layout');
+ console.log('PASS French model controls and 320/390/768px responsive layout');
  // Audio must be local, opt-out capable and synchronized with the parent Android shell.
  await app.setViewportSize({width:390,height:844});
  await app.goto(HOST+'/#kettle',{waitUntil:'load'});
