@@ -3,12 +3,75 @@ import {Capacitor} from "@capacitor/core";
 import {App} from "@capacitor/app";
 import {OBJECTS,CATEGORIES,filterObjects} from "./catalog.js";
 const root=document.getElementById("app");
+const VIEW_KEY="object-fonctionnement:view:v1";
+function initialView(){try{return localStorage.getItem(VIEW_KEY)!=="2d";}catch{return true;}}
+let currentViewer=null,loadingViewer=0,lastFigureState=null;
+function unmountViewer(){
+ loadingViewer++;
+ lastFigureState=null;
+ if(currentViewer){currentViewer.dispose();currentViewer=null;}
+}
+function postViewMode(mode){
+ const frame=document.querySelector("iframe.figure-frame");
+ if(frame?.contentWindow)frame.contentWindow.postMessage({type:"object-figure:view-mode",mode},"*");
+}
+async function mountViewer(id){
+ const token=++loadingViewer;
+ const host=document.getElementById("three-mount");
+ if(!host||!state.view3D){postViewMode("2d");return;}
+ try{
+  const {createObjectViewer}=await import("./three-viewer.js");
+  if(token!==loadingViewer||state.selected!==id||!host.isConnected)return;
+  const viewer=createObjectViewer(host,id);
+  currentViewer=viewer;
+  if(lastFigureState)currentViewer.setState(lastFigureState);
+  host.closest(".three-shell").hidden=false;
+  const stage=document.querySelector(".simulation");
+  stage?.classList.add("show-3d");
+  const button=document.getElementById("view-mode");
+  if(button){button.textContent="Voir l'illustration 2D";button.setAttribute("aria-pressed","true");}
+  const iframe=document.querySelector("iframe.figure-frame");
+  if(iframe?.contentWindow)postViewMode("3d");
+ }catch(error){
+  console.info("3D unavailable; ColorFigures fallback:",error.message);
+  if(token!==loadingViewer)return;
+  state.view3D=false;host.replaceChildren();
+  document.querySelector(".three-shell")?.setAttribute("hidden","");
+  document.querySelector(".simulation")?.classList.remove("show-3d");
+  const button=document.getElementById("view-mode");
+  if(button){button.textContent="Vue 3D indisponible — illustration 2D";button.disabled=true;}
+  postViewMode("2d");
+ }
+}
+function toggleView(){
+ state.view3D=!state.view3D;
+ try{localStorage.setItem(VIEW_KEY,state.view3D?"3d":"2d");}catch{}
+ if(!state.view3D){
+  unmountViewer();
+  document.querySelector(".three-shell")?.setAttribute("hidden","");
+  document.querySelector(".simulation")?.classList.remove("show-3d");
+  const button=document.getElementById("view-mode");
+  if(button){button.textContent="Explorer en 3D";button.setAttribute("aria-pressed","false");}
+  postViewMode("2d");
+ }else{
+  void mountViewer(state.selected);
+ }
+}
 const KEY="object-fonctionnement:favorites:v1";
 const SOUND_KEY="object-fonctionnement:sound:v1";
+const VOLUME_KEY="object-fonctionnement:volume:v1";
+function initialVolume(){try{const raw=localStorage.getItem(VOLUME_KEY);return raw==null?75:Math.max(0,Math.min(100,parseInt(raw,10)||0));}catch{return 75;}}
 function initialSound(){try{return localStorage.getItem(SOUND_KEY)!=="off";}catch{return true;}}
 function postSoundSetting(){
  const frame=document.querySelector("iframe.figure-frame");
- if(frame?.contentWindow)frame.contentWindow.postMessage({type:"object-figure:sound-setting",enabled:state.soundEnabled},"*");
+ if(frame?.contentWindow)frame.contentWindow.postMessage({type:"object-figure:sound-setting",enabled:state.soundEnabled,volume:state.volume/100},"*");
+}
+function setVolume(volume){
+ state.volume=Math.min(100,Math.max(0,Number(volume)||0));
+ try{localStorage.setItem(VOLUME_KEY,String(state.volume));}catch{}
+ const text=document.getElementById("volume-number");
+ if(text)text.textContent=String(state.volume)+" %";
+ postSoundSetting();
 }
 function setSound(enabled){
  state.soundEnabled=Boolean(enabled);
@@ -19,12 +82,12 @@ function setSound(enabled){
 }
 
 function readFavorites(){try {const data=JSON.parse(localStorage.getItem(KEY)||"[]");return Array.isArray(data)?data.filter(x=>typeof x==="string"):[];}catch{return [];}}
-const state={query:"",category:"Tout",favoritesOnly:false,favorites:readFavorites(),selected:null,running:false,phase:0,soundEnabled:initialSound()};
+const state={view3D:initialView(),query:"",category:"Tout",favoritesOnly:false,favorites:readFavorites(),selected:null,running:false,phase:0,soundEnabled:initialSound(),volume:initialVolume()};
 let timeoutA;
 const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(state.favorites));}catch{}}
 function clearTimers(){clearTimeout(timeoutA);state.running=false;state.phase=0;}
-function display(){const selected=OBJECTS.find(o=>o.id===state.selected);if(selected){renderDetail(selected);return;}renderCatalog();}
+function display(){unmountViewer();const selected=OBJECTS.find(o=>o.id===state.selected);if(selected){renderDetail(selected);return;}renderCatalog();}
 function renderCatalog(){
  const results=filterObjects(OBJECTS,state);
  root.innerHTML='<header class="hero"><div class="brand">OBJET<span>·</span>FONCTIONNEMENT</div><p class="eyebrow">LE MONDE, EXPLIQUÉ</p><h1>Comment ça <em>marche ?</em></h1><p>Explore les objets du quotidien. Comprends leur mécanisme et apprends à les utiliser.</p><div class="hero-stat">'+OBJECTS.length+' objets à découvrir <span>•</span> 100 % hors ligne</div></header><main><div class="search-bar"><span aria-hidden="true">⌕</span><input id="search" aria-label="Rechercher un objet" placeholder="Rechercher un objet..." autocomplete="off" value="'+escapeHtml(state.query)+'"></div><div class="filters" aria-label="Catégories">'+CATEGORIES.map(c=>'<button class="chip '+(state.category===c?'active':'')+'" data-category="'+escapeHtml(c)+'">'+escapeHtml(c)+'</button>').join("")+'</div><div class="section-header"><h2>'+ (state.favoritesOnly?"Mes favoris":"Explorer les objets")+'</h2><button id="fav-filter" class="text-button" aria-pressed="'+state.favoritesOnly+'">'+(state.favoritesOnly?"Voir tout":"☆ Favoris")+'</button></div><div class="object-grid">'+(results.length?results.map(o=>'<article class="object-card" style="--object:'+o.color+'"><button class="card-open" data-open="'+o.id+'" aria-label="Découvrir '+escapeHtml(o.name)+'"><div class="object-figure" aria-hidden="true"><img src="/previews/'+escapeHtml(o.figure)+'.webp" alt="" width="480" height="360" loading="lazy" decoding="async"></div><div class="card-category">'+escapeHtml(o.category)+'</div><h3>'+escapeHtml(o.name)+'</h3><p>'+escapeHtml(o.summary)+'</p><span class="discover">Découvrir <span aria-hidden="true">↗</span></span></button><button class="favorite" data-favorite="'+o.id+'" aria-label="'+(state.favorites.includes(o.id)?"Retirer des favoris":"Ajouter aux favoris")+'" aria-pressed="'+state.favorites.includes(o.id)+'">'+(state.favorites.includes(o.id)?"★":"☆")+'</button></article>').join(""):'<p class="empty">Aucun objet trouvé. Essaie une autre recherche.</p>')+'</div></main><footer>Explications pédagogiques — toujours suivre la notice du fabricant.</footer>';
@@ -50,11 +113,23 @@ function toggleFavorite(id){
  display();
 }
 function renderDetail(o){
- root.innerHTML='<header class="detail-header"><button id="back" class="back">← Catalogue</button><button id="global-sound" class="audio-toggle" aria-label="Activer ou désactiver les bruitages" aria-pressed="'+state.soundEnabled+'">'+(state.soundEnabled?"♫ Son activé":"♪ Son coupé")+'</button><span class="brand small">OBJET<span>·</span>FONCTIONNEMENT</span></header><main class="detail"><p class="eyebrow">'+escapeHtml(o.category)+' / COMPRENDRE</p><h1>'+escapeHtml(o.name)+'</h1><p class="intro">'+escapeHtml(o.summary)+'</p><div class="simulation" style="--object:'+o.color+'">'+(o.figure ? '<iframe class="figure-frame" title="Démonstration interactive : '+escapeHtml(o.name)+'" src="/figures/'+o.figure+'.html" sandbox="allow-scripts" loading="eager" referrerpolicy="no-referrer"></iframe><p class="simulation-note">Manipule les commandes du modèle isométrique ci-dessus. Modèle isométrique interactif basé sur ColorFigures (licence MIT). Les commandes simulent le principe de fonctionnement.</p>' : '<div class="simulation-figure '+(state.running?'animated':'')+'" aria-hidden="true"><span>'+o.icon+'</span></div><div class="simulation-status" role="status" aria-live="polite">'+escapeHtml(o.states[state.phase])+'</div><button id="simulate" class="primary" '+(state.running?'disabled':'')+'>'+(state.running?'Simulation en cours…':'▶ '+escapeHtml(o.action))+'</button><p class="simulation-note">Animation pédagogique simplifiée, non représentative de toutes les pièces internes.</p>')+'</div><section class="information"><h2>Comment ça fonctionne ?</h2><p>'+escapeHtml(o.how)+'</p></section><section class="information"><h2>Mode d’utilisation</h2><ol class="steps">'+o.steps.map(s=>'<li>'+escapeHtml(s)+'</li>').join("")+'</ol></section><section class="safety"><strong>À savoir</strong><p>'+escapeHtml(o.safety)+'</p></section><button id="favorite-detail" class="secondary" aria-pressed="'+state.favorites.includes(o.id)+'">'+(state.favorites.includes(o.id)?"★ Retirer des favoris":"☆ Ajouter aux favoris")+'</button></main><footer>Les indications peuvent varier selon le modèle. Consulte sa notice.</footer>';
+ root.innerHTML='<header class="detail-header"><button id="back" class="back">← Catalogue</button><button id="global-sound" class="audio-toggle" aria-label="Activer ou désactiver les bruitages" aria-pressed="'+state.soundEnabled+'">'+(state.soundEnabled?"♫ Son activé":"♪ Son coupé")+'</button><span class="brand small">OBJET<span>·</span>FONCTIONNEMENT</span></header><main class="detail"><p class="eyebrow">'+escapeHtml(o.category)+' / COMPRENDRE</p><h1>'+escapeHtml(o.name)+'</h1><p class="intro">'+escapeHtml(o.summary)+'</p><div class="audio-mix-row"><label for="global-volume">Volume des bruitages</label><input type="range" id="global-volume" min="0" max="100" step="5" value="'+state.volume+'" aria-label="Volume des bruitages"><output id="volume-number" for="global-volume">'+state.volume+' %</output></div><div class="simulation" style="--object:'+o.color+'">'+(o.figure ? '<div class="three-shell" hidden><div class="three-header"><span class="three-label">MODÈLE 3D INTERACTIF</span><div class="three-actions"><button id="three-explore" aria-pressed="false">Voir les pièces internes</button><button id="three-reset" aria-label="Recentrer la caméra 3D">↺ Recentrer</button></div></div><div id="three-mount"></div><p class="three-help">Fais glisser pour tourner · Pince pour zoomer</p></div><button id="view-mode" class="view-switch" aria-pressed="false">Explorer en 3D</button><iframe class="figure-frame"  title="Démonstration interactive : '+escapeHtml(o.name)+'" src="/figures/'+o.figure+'.html" sandbox="allow-scripts" loading="eager" referrerpolicy="no-referrer"></iframe><p class="simulation-note">Manipule les commandes du modèle isométrique ci-dessus. Modèle isométrique interactif basé sur ColorFigures (licence MIT). Les commandes simulent le principe de fonctionnement.</p>' : '<div class="simulation-figure '+(state.running?'animated':'')+'" aria-hidden="true"><span>'+o.icon+'</span></div><div class="simulation-status" role="status" aria-live="polite">'+escapeHtml(o.states[state.phase])+'</div><button id="simulate" class="primary" '+(state.running?'disabled':'')+'>'+(state.running?'Simulation en cours…':'▶ '+escapeHtml(o.action))+'</button><p class="simulation-note">Animation pédagogique simplifiée, non représentative de toutes les pièces internes.</p>')+'</div><section class="information"><h2>Comment ça fonctionne ?</h2><p>'+escapeHtml(o.how)+'</p></section><section class="information"><h2>Mode d’utilisation</h2><ol class="steps">'+o.steps.map(s=>'<li>'+escapeHtml(s)+'</li>').join("")+'</ol></section><section class="safety"><strong>À savoir</strong><p>'+escapeHtml(o.safety)+'</p></section><button id="favorite-detail" class="secondary" aria-pressed="'+state.favorites.includes(o.id)+'">'+(state.favorites.includes(o.id)?"★ Retirer des favoris":"☆ Ajouter aux favoris")+'</button></main><footer>Les indications peuvent varier selon le modèle. Consulte sa notice.</footer>';
  document.getElementById("back").addEventListener("click",returnToCatalog);
  document.getElementById("global-sound").addEventListener("click",()=>setSound(!state.soundEnabled));
+ document.getElementById("global-volume").addEventListener("input",event=>setVolume(event.target.value));
  const frame=document.querySelector("iframe.figure-frame");
- if(frame)frame.addEventListener("load",postSoundSetting);
+ if(frame)frame.addEventListener("load",()=>{postSoundSetting();postViewMode(currentViewer?"3d":"2d");});
+ document.getElementById("view-mode").addEventListener("click",toggleView);
+ document.getElementById("three-reset").addEventListener("click",()=>currentViewer?.resetCamera());
+ document.getElementById("three-explore").addEventListener("click",event=>{
+  if(!currentViewer)return;
+  const button=event.currentTarget;
+  const next=button.getAttribute("aria-pressed")!=="true";
+  const active=currentViewer.setXray(next);
+  button.setAttribute("aria-pressed",String(active));
+  button.textContent=active?"Extérieur normal":"Voir les pièces internes";
+ });
+ if(state.view3D)void mountViewer(o.id);
 
  document.getElementById("favorite-detail").addEventListener("click",()=>toggleFavorite(o.id));
  if(!o.figure)document.getElementById("simulate").addEventListener("click",()=>{if(state.running)return;state.running=true;state.phase=1;display();timeoutA=setTimeout(()=>{state.phase=2;state.running=false;display();},o.duration);});
@@ -81,6 +156,14 @@ if(Capacitor.isNativePlatform()){
 window.addEventListener("message",event=>{
  const iframe=document.querySelector("iframe.figure-frame");
  if(!iframe||event.source!==iframe.contentWindow)return;
+ if(event.data?.type==="object-figure:state"){
+  if(event.data.value&&typeof event.data.value==="object"){
+   lastFigureState=event.data.value;
+   currentViewer?.setState(lastFigureState);
+  }
+  return;
+ }
+ if(event.data?.type==="object-figure:ready"){postViewMode(currentViewer?"3d":"2d");return;}
  if(event.data?.type==="object-figure:sound-ready"){postSoundSetting();return;}
  if(event.data?.type==="object-figure:sound-preference"){
   if(typeof event.data.enabled==="boolean")setSound(event.data.enabled);
@@ -95,5 +178,12 @@ window.addEventListener("message",event=>{
   iframe.dataset.measuredHeight=String(rounded);
  }
 });
-window.addEventListener("popstate",()=>{clearTimers();const key=decodeURIComponent(location.hash.slice(1));state.selected=OBJECTS.some(o=>o.id===key)?key:null;display();});
+function syncRoute(){
+ clearTimers();
+ const key=decodeURIComponent(location.hash.slice(1));
+ state.selected=OBJECTS.some(o=>o.id===key)?key:null;
+ display();
+}
+window.addEventListener("popstate",syncRoute);
+window.addEventListener("hashchange",syncRoute);
 const hash=decodeURIComponent(location.hash.slice(1));if(OBJECTS.some(o=>o.id===hash))state.selected=hash;display();

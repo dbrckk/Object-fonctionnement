@@ -47,3 +47,31 @@ footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
 @media(prefers-reduced-motion:reduce){.object-card,.audio-toggle{transition:none!important}}
 
 .detail-header .brand.small{overflow-wrap:anywhere;word-break:break-word;min-width:0}
+
+/* Real-time WebGL PBR viewport. SVG ColorFigures remains a full fallback. */
+.three-shell{width:100%;overflow:hidden;border:1px solid #cad8df;border-radius:18px;
+ background:linear-gradient(155deg,#f5f7f2,#e7eef0);box-shadow:0 8px 24px #22354b14}
+.three-shell[hidden]{display:none}
+.three-header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 14px 5px}
+.three-label{color:#496277;font-size:.7rem;font-weight:850;letter-spacing:.14em}
+.three-header button{border:1px solid #b9cad3;background:#fffdf8;color:#30445a;border-radius:12px;padding:7px 12px;font-size:.74rem;font-weight:750;min-height:36px}
+#three-mount{width:100%;min-height:265px;touch-action:pan-y}
+.object-three-canvas{display:block;width:100%;outline:none;touch-action:none}
+.three-help{text-align:center;color:#64778a;font-size:.76rem;margin:0;padding:6px 10px 12px}
+.view-switch{background:#fefcf5;border:1px solid #a9bfcc;border-radius:12px;color:#304b5f;
+ padding:10px 16px;min-height:42px;font-size:.78rem;font-weight:750}
+.view-switch[aria-pressed=true]{background:#233d51;color:#fffdf4;border-color:#233d51}
+.simulation.show-3d{background:#f7f9f8;border-color:#dce9e9}
+@media(max-width:520px){.three-header{padding:10px 11px 3px}.three-label{font-size:.63rem}}
+
+.audio-mix-row{display:flex;align-items:center;gap:12px;justify-content:flex-end;
+ background:#fffcf6;border:1px solid #e0e7ea;border-radius:12px;padding:10px 14px;
+ font-size:.79rem;color:#3c5666;margin-top:15px}
+.audio-mix-row label{font-weight:750;white-space:nowrap}
+.audio-mix-row input{accent-color:#ce8061;flex:1;max-width:195px;min-width:65px;touch-action:pan-x}
+.audio-mix-row output{font-size:.77rem;font-weight:700;min-width:42px;text-align:right;font-variant-numeric:tabular-nums}
+@media(max-width:390px){.audio-mix-row{gap:8px;padding:9px}.audio-mix-row label{font-size:.71rem}}
+
+.three-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.three-actions button[aria-pressed=true]{background:#244256;color:#fff7e7;border-color:#244256}
+@media(max-width:430px){.three-header{flex-wrap:wrap}.three-actions{width:100%;justify-content:space-between}}

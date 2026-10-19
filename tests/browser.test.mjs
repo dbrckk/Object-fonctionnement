@@ -91,6 +91,10 @@ try{
  const app=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
  const pageErrors=[];app.on('pageerror',e=>pageErrors.push(e.message));
  await app.goto(HOST+'/',{waitUntil:'load'});
+ // Exercise established ColorFigures functionality without allocating dozens
+ // of WebGL contexts during the 27 responsive viewport checks.
+ await app.evaluate(()=>localStorage.setItem("object-fonctionnement:view:v1","2d"));
+ await app.reload();
  assert.equal(await app.locator('article.object-card').count(),9);
  for(const img of await app.locator('.object-figure img').all()){
   await img.scrollIntoViewIfNeeded();
@@ -193,13 +197,87 @@ try{
  await soundFrame.locator('#figure-sound').click();
  await app.waitForFunction(()=>document.querySelector('#global-sound')?.getAttribute('aria-pressed')==='true');
  assert.equal(await app.evaluate(()=>localStorage.getItem('object-fonctionnement:sound:v1')),'on');
+ const slider=app.locator("#global-volume");
+ await slider.evaluate(el=>{el.value="25";el.dispatchEvent(new Event("input",{bubbles:true}));});
+ await app.waitForFunction(()=>localStorage.getItem("object-fonctionnement:volume:v1")==="25");
+ await soundFrame.locator("body").evaluate(()=>new Promise(resolve=>{
+  const wait=()=>window.__soundDebug.volume===.25?resolve():setTimeout(wait,20);wait();
+ }));
  await app.locator('#global-sound').click();
  await app.reload();
  await app.waitForFunction(()=>document.querySelector('#global-sound')?.getAttribute('aria-pressed')==='false');
  await soundFrame.locator('#figure-sound').waitFor();
  assert.equal(await soundFrame.locator('body').evaluate(()=>window.__soundDebug.enabled),false);
+ assert.equal(await app.evaluate(()=>localStorage.getItem("object-fonctionnement:volume:v1")),"25");
  assert.deepEqual(pageErrors,[]);
  console.log('PASS procedural Web Audio, mute, iframe synchronization, persisted preferences');
+ // Dedicated WebGL feature test with GPU fallback for environments without WebGL.
+ const webgl=await app.evaluate(()=>{
+  try{
+   const canvas=document.createElement('canvas');
+   return Boolean(canvas.getContext("webgl2")||canvas.getContext("webgl"));
+  }catch{return false;}
+ });
+ if(webgl){
+  await app.evaluate(()=>localStorage.setItem("object-fonctionnement:view:v1","3d"));
+  await app.reload();
+  for(const id of ids){
+   const route=id==='washer'?'washing':id;
+   await app.goto(HOST+'/#'+route,{waitUntil:'load'});
+   await app.locator('.object-three-canvas').waitFor({timeout:12000});
+   const info=await app.locator('.object-three-canvas').evaluate(el=>({
+    width:el.width,height:el.height,visible:el.getBoundingClientRect().height>260
+   }));
+   assert.ok(info.width>=250&&info.height>=240&&info.visible,"3D stage not rendered for "+id);
+   assert.equal(await app.getByRole('button',{name:"Voir l'illustration 2D"}).count(),1);
+   await app.getByRole('button',{name:"Voir les pièces internes"}).click();
+   assert.equal(await app.locator("#three-explore").getAttribute("aria-pressed"),"true");
+   await app.getByRole('button',{name:"Extérieur normal"}).click();
+   assert.equal(await app.locator("#three-explore").getAttribute("aria-pressed"),"false");
+   assert.equal(await app.frameLocator('iframe.figure-frame').locator('#fig').evaluate(el=>getComputedStyle(el).display),"none");
+   // State-changing 2D command must still work while the SVG is hidden.
+   if(id==='fan'){
+    await app.frameLocator('iframe.figure-frame').getByRole('button',{name:'Marche / arrêt'}).click();
+    assert.equal(await app.frameLocator('iframe.figure-frame').locator('body').evaluate(()=>window.__st.speed),1);
+   }
+   if(id==='kettle'){
+    await app.getByRole('button',{name:"Voir l'illustration 2D"}).click();
+    assert.equal(await app.locator('.object-three-canvas').count(),0);
+    assert.notEqual(await app.frameLocator('iframe.figure-frame').locator('#fig').evaluate(el=>getComputedStyle(el).display),"none");
+    await app.getByRole('button',{name:'Explorer en 3D'}).click();
+    await app.locator('.object-three-canvas').waitFor();
+    await app.getByRole('button',{name:'Recentrer la caméra 3D'}).click();
+   }
+   assert.deepEqual(pageErrors,[],"3D page JS errors: "+id);
+   console.log("PASS Three.js PBR "+id);
+  }
+  for(const width of [320,768]){
+   await app.setViewportSize({width,height:780});
+   await app.goto(HOST+'/#kettle',{waitUntil:'load'});
+   await app.locator(".object-three-canvas").waitFor();
+   const view=await app.evaluate(()=>({scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth}));
+   assert.ok(view.scroll<=view.client+1,"3D layout overflow at "+width+"px");
+  }
+  await app.setViewportSize({width:390,height:844});
+ }else{
+  console.log("SKIP GPU-dependent WebGL test: no WebGL context on runner");
+ }
+ // Validate graceful fallback on Android/WebViews without usable WebGL.
+ const noGpu=await browser.newPage({viewport:{width:390,height:844}});
+ await noGpu.addInitScript(()=>{
+  const original=HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext=function(type,...args){
+   if(type==="webgl"||type==="webgl2"||type==="experimental-webgl")return null;
+   return original.call(this,type,...args);
+  };
+ });
+ await noGpu.goto(HOST+'/#kettle',{waitUntil:'load'});
+ await noGpu.getByRole("button",{name:"Vue 3D indisponible — illustration 2D"}).waitFor({timeout:14000});
+ assert.equal(await noGpu.locator(".object-three-canvas").count(),0);
+ await noGpu.frameLocator("iframe.figure-frame").locator("#fig").waitFor();
+ assert.notEqual(await noGpu.frameLocator("iframe.figure-frame").locator("#fig").evaluate(el=>getComputedStyle(el).display),"none");
+ await noGpu.close();
+ console.log('PASS automatic 2D fallback when WebGL is unavailable');
  console.log('PASS Android-size catalog + local WebP previews + embedded simulation');
  await app.close();
 }finally{

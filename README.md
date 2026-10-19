@@ -126,3 +126,49 @@ densités Android, après la génération de la plateforme Capacitor.
 
 La CI génère les icônes Android et renseigne versionCode 2 / versionName
 0.2.0 pour cette évolution graphique et sonore.
+
+
+## Version 0.3 — 3D en temps réel
+
+Neuf scènes Three.js fonctionnent hors ligne avec de véritables
+géométries, éclairages et matériaux PBR.
+
+- Rotation tactile à un doigt et zoom à deux doigts.
+- Recentrage caméra et vue technique translucide des pièces internes.
+- Synchronisation des modèles 3D avec les commandes ColorFigures.
+- Bascule 2D/3D sans perte des interactions et repli 2D si WebGL échoue.
+- Mise au repos du GPU à l'arrêt, résolution plafonnée, libération des
+  contextes graphiques lors des changements de fiche.
+- Volume 0–100 % mémorisé et léger panoramique stéréo des bruitages.
+
+Tous les sons sont synthétisés localement. Les géométries et matériaux
+sont originaux. Aucun serveur, téléchargement de modèle ou pisteur.
+
+Ces coupes et simulations sont pédagogiques, non des plans de démontage
+ou d'entretien. Les performances et sons devront être contrôlés sur
+plusieurs appareils Android physiques.
+
+### Licences tierces
+
+ColorFigures : MIT (COLORFIGURES-LICENSE).
+Three.js : MIT (licenses/THREE-LICENSE), https://threejs.org/.
+
+### Validation
+
+npm ci, npm run check, npm run test:browser, npm run build,
+npm run android:sync.
+
+La CI génère l'APK Android de test 0.3.0, versionCode 3.
+
+
+### Aperçus de la 3D temps réel
+
+![Bouilloire en 3D](docs/previews/kettle.webp)
+![Ventilateur en 3D](docs/previews/fan.webp)
+![Distributeur en 3D](docs/previews/vending.webp)
+
+Pour régénérer ces captures via Chromium :
+
+    npm run generate:3d-previews
+
+Les rendus sont construits depuis les mêmes modèles Three.js que l'APK.

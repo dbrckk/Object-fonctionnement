@@ -11,6 +11,28 @@
  sound.src="./soundscape.js";
  document.body.appendChild(sound);
  if(window.parent===window)return;
+ window.addEventListener("message",event=>{
+  if(event.source!==window.parent)return;
+  if(event.data?.type!=="object-figure:view-mode")return;
+  document.documentElement.classList.toggle("three-active",event.data.mode==="3d");
+  queue();
+ });
+ let previousState="";
+ const emitState=()=>{
+  if(!window.__st)return;
+  const next={};
+  for(const [key,value] of Object.entries(window.__st)){
+   if(value==null||["string","number","boolean"].includes(typeof value))next[key]=value;
+  }
+  const serialized=JSON.stringify(next);
+  if(serialized!==previousState){
+   previousState=serialized;
+   window.parent.postMessage({type:"object-figure:state",value:next},"*");
+  }
+ };
+ setInterval(emitState,120);
+ window.parent.postMessage({type:"object-figure:ready"},"*");
+
  let last=0,scheduled=false;
  const report=()=>{
   scheduled=false;

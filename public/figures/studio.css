@@ -176,3 +176,12 @@ body .toast.show{
 @keyframes of-wind{0%{stroke-dashoffset:0;opacity:.19}40%{opacity:.65}100%{stroke-dashoffset:-36;opacity:.19}}
 @keyframes of-ripple{0%{opacity:.85;transform:scale(.65)}100%{opacity:0;transform:scale(1.32)}}
 @media(prefers-reduced-motion:reduce){#fig .of-steam,#fig .of-air,#fig .of-ripple{animation:none!important}}
+
+/* Compact illustration controls when the synchronized Three.js canvas is visible above. */
+html.three-active .stage{padding:12px 12px 3px;background:#fffaf1;box-shadow:none;border-style:dashed;margin-top:7px}
+html.three-active #fig{display:none!important}
+html.three-active .actions{position:static!important;max-width:none;display:flex;flex-flow:row wrap;gap:7px!important;margin:3px 0!important}
+html.three-active .stats{position:static!important;flex-direction:row;justify-content:flex-end;gap:8px}
+html.three-active .stage:after,html.three-active .stage:before{display:none}
+html.three-active .stepwrap .chips{z-index:12}
+@media(max-width:560px){html.three-active .stage{padding:10px}}

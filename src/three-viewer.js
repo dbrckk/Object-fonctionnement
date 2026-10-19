@@ -1,0 +1,496 @@
+/* Offline product-quality 3D object viewer.
+ * Three.js / MIT, procedural geometry only; no texture downloads or model licenses.
+ * Models are intentionally didactic, not geometrically exact appliance reproductions.
+ */
+import * as THREE from "three";
+import {OrbitControls} from "three/addons/controls/OrbitControls.js";
+
+const M={
+  enamel: {color:0xeef2f0,metalness:.22,roughness:.27},
+  ivory:{color:0xfff4e3,metalness:.08,roughness:.42},
+  steel:{color:0xaebac4,metalness:.82,roughness:.28},
+  stainless:{color:0xd8e2e5,metalness:.78,roughness:.23},
+  charcoal:{color:0x273443,metalness:.24,roughness:.42},
+  dark:{color:0x172333,metalness:.48,roughness:.34},
+  glass:{color:0xbfeaf0,metalness:.1,roughness:.12,transparent:true,opacity:.34,depthWrite:false},
+  amber:{color:0xde9a57,metalness:.12,roughness:.52},
+  rubber:{color:0x28333a,metalness:0,roughness:.85},
+  turquoise:{color:0x55b7c9,metalness:.34,roughness:.33},
+  warm:{color:0xf4a16f,metalness:.23,roughness:.38},
+  coffee:{color:0x68412d,metalness:0,roughness:.62},
+  bread:{color:0xeec18e,metalness:0,roughness:.89},
+  leaf:{color:0x6cb9a2,metalness:.14,roughness:.48}
+};
+const material=(p)=>new THREE.MeshStandardMaterial(p);
+const mats=Object.fromEntries(Object.entries(M).map(([key,value])=>[key,material(value)]));
+const glow=new THREE.MeshStandardMaterial({color:0xffdfa0,roughness:.21,emissive:0xffb95e,emissiveIntensity:.72});
+const steamMaterial=new THREE.MeshBasicMaterial({color:0xa7dce5,transparent:true,opacity:.29,depthWrite:false});
+const frosted=new THREE.MeshPhysicalMaterial({color:0xd1f0f4,metalness:0,roughness:.2,transmission:.48,thickness:.15,transparent:true,opacity:.64,side:THREE.DoubleSide,depthWrite:false});
+const liquid=new THREE.MeshStandardMaterial({color:0x58bdde,metalness:.05,roughness:.3,transparent:true,opacity:.65,depthWrite:false});
+const alertMat=new THREE.MeshStandardMaterial({color:0xf9a878,emissive:0xe85f36,emissiveIntensity:.22});
+const brassy=material({color:0xe2bb72,metalness:.77,roughness:.23});
+const blue=material({color:0x7fbcd1,metalness:.3,roughness:.35});
+const white=material({color:0xffffff,metalness:.08,roughness:.4});
+const tint=material({color:0xf1a580,metalness:.23,roughness:.4});
+// Offline equirectangular softbox environment for true PBR metal reflections.
+function studioEnvironment(){
+ const c=document.createElement("canvas");
+ c.width=512;c.height=256;
+ const g=c.getContext("2d");
+ const vertical=g.createLinearGradient(0,0,0,256);
+ vertical.addColorStop(0,"#c1d9e3");
+ vertical.addColorStop(.32,"#f1efe8");
+ vertical.addColorStop(.68,"#dce7e6");
+ vertical.addColorStop(1,"#9baeb5");
+ g.fillStyle=vertical;g.fillRect(0,0,512,256);
+ const softbox=(x,y,w,h,color)=>{
+   g.shadowColor=color;g.shadowBlur=28;
+   g.fillStyle=color;g.fillRect(x,y,w,h);
+   g.shadowBlur=0;
+ };
+ softbox(55,24,130,77,"#ffffff");
+ softbox(278,19,70,103,"#fff2db");
+ softbox(425,38,56,65,"#e5f6ff");
+ const t=new THREE.CanvasTexture(c);
+ t.mapping=THREE.EquirectangularReflectionMapping;
+ t.colorSpace=THREE.SRGBColorSpace;
+ return t;
+}
+const shadowGeo=new THREE.PlaneGeometry(200,200);
+const truncate=(n,min,max)=>Math.max(min,Math.min(max,Number(n)||0));
+
+function cylinder(parent,r1,r2,h,mat,x=0,y=0,z=0,n=40){
+ const object=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,n),mat);
+ object.position.set(x,y,z);parent.add(object);object.castShadow=true;object.receiveShadow=true;return object;
+}
+function block(parent,w,h,d,mat,x=0,y=0,z=0,r=.06){
+ const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+ mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);
+ if(r>0){
+  const line=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry,23),new THREE.LineBasicMaterial({color:0x24374a,transparent:true,opacity:.16}));
+  line.position.copy(mesh.position);parent.add(line);
+ }
+ return mesh;
+}
+function sphere(parent,r,mat,x=0,y=0,z=0){
+ const o=new THREE.Mesh(new THREE.SphereGeometry(r,24,16),mat);
+ o.position.set(x,y,z);o.castShadow=true;parent.add(o);return o;
+}
+function ring(parent,r,t,mat,x=0,y=0,z=0,rotX=0,rotY=0){
+ const o=new THREE.Mesh(new THREE.TorusGeometry(r,t,12,72),mat);
+ o.position.set(x,y,z);o.rotation.set(rotX,rotY,0);o.castShadow=true;parent.add(o);return o;
+}
+function rod(parent,a,b,r,mat){
+ const A=new THREE.Vector3(...a),B=new THREE.Vector3(...b),v=new THREE.Vector3().subVectors(B,A);
+ const mesh=new THREE.Mesh(new THREE.CylinderGeometry(r,r,v.length(),12),mat);
+ mesh.position.copy(A).add(B).multiplyScalar(.5);
+ mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v.normalize());
+ mesh.castShadow=true;parent.add(mesh);return mesh;
+}
+function hose(parent,points,r,mat){
+ const path=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));
+ const mesh=new THREE.Mesh(new THREE.TubeGeometry(path,45,r,9,false),mat);
+ parent.add(mesh);mesh.castShadow=true;return mesh;
+}
+function group(parent,x=0,y=0,z=0){const g=new THREE.Group();g.position.set(x,y,z);parent.add(g);return g;}
+function labelPanel(parent,w,h,x,y,z){return block(parent,w,h,.025,mats.dark,x,y,z,0);}
+function badge(parent,title,x,y,z,width=.68,height=.18,tone="#f0e3d1",ink="#334d5c"){
+ const canvas=document.createElement("canvas");
+ canvas.width=512;canvas.height=128;
+ const context=canvas.getContext("2d");
+ context.clearRect(0,0,512,128);
+ context.fillStyle=tone;context.fillRect(0,0,512,128);
+ context.strokeStyle="#ffffffaa";context.lineWidth=5;context.strokeRect(8,8,496,112);
+ context.fillStyle=ink;
+ context.textAlign="center";context.textBaseline="middle";
+ context.font="bold 48px system-ui, sans-serif";
+ context.fillText(title,256,66,480);
+ const texture=new THREE.CanvasTexture(canvas);
+ texture.colorSpace=THREE.SRGBColorSpace;
+ texture.anisotropy=2;
+ const material=new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide,transparent:true});
+ const plane=new THREE.Mesh(new THREE.PlaneGeometry(width,height),material);
+ plane.position.set(x,y,z);parent.add(plane);
+ plane.userData.isDecal=true;
+ return plane;
+}
+function gauge(parent,x,y,z,r=.2){
+ const g=group(parent,x,y,z);
+ cylinder(g,r,r,.06,mats.stainless,0,0,0).rotation.x=Math.PI/2;
+ cylinder(g,r*.83,r*.83,.068,mats.ivory,0,0,.02).rotation.x=Math.PI/2;
+ for(let i=0;i<10;i++){
+  const a=-Math.PI*.78+i*(Math.PI*1.58/9);
+  rod(g,[Math.cos(a)*r*.58,Math.sin(a)*r*.58,.07],[Math.cos(a)*r*.72,Math.sin(a)*r*.72,.07],.008,mats.dark);
+ }
+ const needle=group(g,0,0,.09);
+ rod(needle,[0,0,0],[0,r*.6,0],.016,alertMat);
+ sphere(g,.025,mats.dark,0,0,.1);
+ return needle;
+}
+function marker(parent,x,y,z,mat=mats.charcoal,r=.035){return sphere(parent,r,mat,x,y,z);}
+function led(parent,x,y,z,color=glow){return sphere(parent,.055,color,x,y,z);}
+function plate(parent,w,d,y=0){
+ block(parent,w,.09,d,mats.ivory,0,y,0);
+ cylinder(parent,.06,.06,.06,mats.rubber,-w*.39,y-.07,d*.34);
+ cylinder(parent,.06,.06,.06,mats.rubber,w*.39,y-.07,d*.34);
+}
+function makeKettle(root){
+ plate(root,2.6,2.1,.12);
+ const base=cylinder(root,.67,.73,.13,mats.dark,0,.24,0);
+ const shell=cylinder(root,.56,.64,1.3,mats.stainless,0,1.0,0);
+ const band=cylinder(root,.64,.64,.14,mats.dark,0,.4,0);
+ const lip=cylinder(root,.55,.55,.045,mats.steel,0,1.68,0);
+ const lid=cylinder(root,.44,.44,.08,mats.charcoal,0,1.75,0);
+ cylinder(root,.12,.1,.1,mats.stainless,0,1.83,0);
+ // Curved insulated handle and hollow pouring spout.
+ hose(root,[[.47,1.47,-.08],[.82,1.58,-.05],[1.05,1.44,0],[1.08,.72,0],[.78,.6,0]],.065,mats.rubber);
+ const spout=rod(root,[-.47,1.42,0],[-.93,1.66,0],.15,mats.steel);
+ const nozzle=cylinder(root,.185,.13,.09,mats.stainless,-.98,1.67,0);
+ nozzle.rotation.z=-Math.PI*.34;
+ const window=block(root,.025,.6,.11,mats.glass,-.57,1.02,.04);
+ const level=cylinder(root,.54,.54,.42,liquid,0,.58,0);
+ led(root,.2,.49,.51,alertMat);
+ const steam=group(root,-.96,1.7,0);
+ const puffs=[];
+ for(let i=0;i<7;i++)puffs.push(sphere(steam,.08+((i*7)%5)*.009,steamMaterial,0,i*.18,0));
+ return {shells:[shell],update(s,time){
+  const water=truncate(s.water,0,1);
+  level.scale.y=Math.max(.02,water*2.3);level.position.y=.42+water*.57;
+  const hot=truncate(s.hot,0,1);
+  alertMat.emissiveIntensity=s.heating?(.25+hot*.85):.1;
+  for(let i=0;i<puffs.length;i++){
+   const p=puffs[i],a=(time*.33+i/7)%1;
+   p.position.set(Math.sin(i*2.7+time*.6)*.08,a*.72,Math.cos(i*1.7+time*.5)*.05);
+   p.scale.setScalar((.4+.85*a)*((s.heating||s.steam)?1:.001));
+  }
+  lid.position.y=s.lid?2.05:1.75;
+  }};
+}
+function makeToaster(root){
+ plate(root,2.6,2.1,.12);
+ const body=block(root,1.65,1.35,.98,mats.warm,0,.86,0);
+ const rim=block(root,1.54,.08,.9,mats.stainless,0,1.54,0);
+ const slotMat=new THREE.MeshStandardMaterial({color:0x17191d,roughness:.84});
+ const breads=[];
+ for(const x of [-.37,.37]){
+  block(root,.42,.01,.78,slotMat,x,1.588,0);
+  const bread=block(root,.38,.55,.58,mats.bread,x,1.57,0);
+  breads.push(bread);
+ }
+ const lever=group(root,.87,1.1,.45);
+ cylinder(lever,.085,.085,.31,mats.stainless,0,0,0).rotation.z=Math.PI/2;
+ block(lever,.31,.14,.21,mats.dark,.17,0,0);
+ const dial=cylinder(root,.18,.18,.11,mats.dark,.7,.64,.51);
+ dial.rotation.x=Math.PI/2;
+ badge(root,"TOAST  01–05",0,.91,.515,.92,.18,"#272f3a","#ffe6b6");
+ const heating=group(root,0,.7,.5);
+ const filament=block(heating,1.2,.065,.01,alertMat,0,0,0);
+ return {shells:[body],update(s){
+  const lifting=s.toasting?.03:s.done?(.7+(s.eject||0)*.18):s.bread?.4:-.12;
+  breads.forEach(b=>{b.visible=!!s.bread;b.position.y=1.18+lifting;const t=truncate(s.hot,0,1);b.material=t>.55?mats.amber:mats.bread;});
+  lever.position.y=s.toasting?.65:1.1;
+  filament.material.emissiveIntensity=s.toasting?.7+truncate(s.hot,0,1)*.7:.05;
+  }};
+}
+function makeFan(root){
+ plate(root,2.5,2.2,.12);
+ cylinder(root,.65,.75,.13,mats.dark,0,.25,0);
+ cylinder(root,.13,.13,1.58,mats.steel,0,1.04,0);
+ const pivot=group(root,0,1.95,0);
+ const motor=cylinder(pivot,.36,.36,.55,mats.stainless,0,0,-.28);
+ motor.rotation.x=Math.PI/2;
+ const disc=cylinder(pivot,.12,.12,.24,mats.charcoal,0,0,.14);disc.rotation.x=Math.PI/2;
+ const rotor=group(pivot,0,0,.23);
+ for(let i=0;i<5;i++){
+  const blade=block(rotor,.34,.82,.042,mats.turquoise,0,.51,0);
+  blade.rotation.z=i*2*Math.PI/5;
+  blade.rotation.y=.3;
+  const bladeShape=sphere(rotor,.06,mats.stainless,Math.sin(i*2*Math.PI/5)*.3,Math.cos(i*2*Math.PI/5)*.3,0);
+ }
+ ring(pivot,.99,.028,mats.steel,0,0,.38);
+ ring(pivot,.69,.014,mats.steel,0,0,.37);
+ for(let i=0;i<22;i++){
+  const a=i*Math.PI/11;rod(pivot,[0,0,.42],[Math.cos(a)*.99,Math.sin(a)*.99,.42],.007,mats.steel);
+ }
+ badge(root,"FAN  /  01–03",0,.24,.42,.52,.11);
+ const button=cylinder(root,.08,.08,.075,mats.turquoise,.35,.33,.41);button.rotation.x=Math.PI/2;
+ return {shells:[motor],update(s,dt,time){
+  rotor.rotation.z=-(Number(s.turn)||0);
+  pivot.rotation.y=s.oscillate?Math.sin(Number(s.angle)||time*.7)*.32:0;
+ }};
+}
+function makeLock(root){
+ plate(root,2.4,2,.12);
+ const body=block(root,1.4,1.25,.52,mats.steel,0,.92,0);
+ const shackle=group(root,0,1.47,0);
+ hose(shackle,[[-.43,0,0],[-.43,.49,0],[-.28,.77,0],[0,.87,0],[.28,.77,0],[.43,.49,0],[.43,0,0]],.12,mats.stainless);
+ const dial=cylinder(root,.32,.32,.14,mats.dark,0,.9,.34);dial.rotation.x=Math.PI/2;
+ const face=cylinder(root,.25,.25,.155,mats.stainless,0,.9,.41);face.rotation.x=Math.PI/2;
+ badge(root,"LOCK  ·  05",0,.48,.283,.79,.12);
+ const key=group(root,0,.93,.66);
+ const shaft=rod(key,[0,0,0],[0,0,.48],.04,brassy);
+ ring(key,.135,.036,brassy,0,0,.55);
+ for(let i=0;i<3;i++)block(key,.11,.06,.06,brassy,.06,.0,.2+i*.075);
+ // semi-transparent cutaway reveals individual pin stacks.
+ const cut=group(root,0,1.08,.46);
+ const pins=[];
+ for(let i=0;i<5;i++){
+  const p=cylinder(cut,.046,.046,.25,mats.amber,-.46+i*.23,0,.0);pins.push(p);
+ }
+ return {shells:[body],update(s){
+  key.visible=!!s.key;
+  key.rotation.z=Number(s.angle||0)*Math.PI/180;
+  shackle.position.y=s.locked?1.47:1.73;
+  pins.forEach((p,i)=>p.position.y=s.aligned?.01:.05*Math.sin(i*2));
+ }};
+}
+function makeBicycle(root){
+ plate(root,3.1,2.4,.12);
+ const wheel=group(root,.65,.81,-.38);
+ ring(wheel,.72,.1,mats.rubber,0,0,0,0,0);
+ ring(wheel,.57,.025,mats.stainless);
+ for(let i=0;i<12;i++){
+  const a=i*Math.PI/6;
+  rod(wheel,[0,0,0],[Math.sin(a)*.57,Math.cos(a)*.57,0],.009,mats.steel);
+ }
+ cylinder(wheel,.1,.1,.08,mats.dark).rotation.x=Math.PI/2;
+ const stem=cylinder(root,.13,.13,1.58,mats.stainless,-.65,1.04,.2);
+ cylinder(root,.19,.22,.15,mats.dark,-.65,.31,.2);
+ const handle=group(root,-.65,1.93,.2);
+ rod(handle,[-.42,0,0],[.42,0,0],.085,mats.rubber);
+ cylinder(handle,.065,.065,.15,mats.stainless,0,-.25,0);
+ hose(root,[[-.54,.39,.2],[-.14,.22,.52],[.55,.38,.3],[.79,.56,-.2]],.032,mats.rubber);
+ badge(root,"AIR  /  PISTON",-.65,.67,.36,.48,.12);
+ const needle=gauge(root,-.48,.94,.44,.17);
+ return {shells:[stem],update(s){
+  handle.position.y=1.93-.36*truncate(s.piston,0,1);
+  needle.rotation.z=(truncate(s.pressure,0,5)-2.5)*.37;
+ }};
+}
+function makeCoffee(root){
+ plate(root,2.8,2.2,.12);
+ const body=block(root,1.2,1.95,.95,mats.stainless,-.44,1.27,-.12);
+ block(root,1.6,.21,1.18,mats.dark,0,2.31,-.09);
+ block(root,.96,.12,.81,mats.dark,.42,1.41,.35);
+ const tank=block(root,.34,1.2,.6,frosted,-.97,1.37,-.08);
+ const level=block(root,.28,.7,.54,liquid,-.98,1.04,-.08);
+ const filter=cylinder(root,.36,.12,.39,mats.dark,.42,1.79,.19);
+ const jug=group(root,.49,.7,.47);
+ cylinder(jug,.39,.32,.81,frosted,0,0,0);
+ cylinder(jug,.34,.34,.05,mats.steel,0,.44,0);
+ hose(jug,[[.32,.16,0],[.65,.19,0],[.66,-.28,0],[.34,-.28,0]],.055,mats.rubber);
+ const coffee=cylinder(jug,.32,.32,.25,mats.coffee,0,-.23,0);
+ const drip=group(root,.43,1.36,.43);
+ const drops=Array.from({length:5},()=>sphere(drip,.025,liquid,0,0,0));
+ const hot=led(root,.06,1.59,.49,alertMat);
+ badge(root,"BREW  /  FILTER",-.47,1.99,.39,.9,.16,"#304456","#fdf5e5");
+ return {shells:[body],update(s,time){
+  const v=truncate(s.coffee,0,1);
+  coffee.scale.y=Math.max(.01,v*2.2);coffee.position.y=-.38+v*.36;
+  level.scale.y=Math.max(.02,truncate(s.water,0,1));level.position.y=.71+truncate(s.water,0,1)*.35;
+  drops.forEach((p,i)=>{const k=(time*1.9+i*.19)%1;p.visible=!!s.brewing;p.position.y=-k*.45;});
+  hot.material.emissiveIntensity=s.brewing?1:.15;
+ }};
+}
+function makeFlashlight(root){
+ plate(root,3.2,2.1,.12);
+ const shell=group(root,0,.7,0);
+ const shaft=cylinder(shell,.27,.29,1.94,mats.charcoal,0,0,0);
+ shaft.rotation.z=Math.PI/2;
+ const back=cylinder(shell,.32,.32,.24,mats.dark,-1,0,0);back.rotation.z=Math.PI/2;
+ const hood=cylinder(shell,.46,.25,.49,mats.steel,1.1,0,0);hood.rotation.z=Math.PI/2;
+ const lens=cylinder(shell,.35,.35,.07,frosted,1.34,0,0);lens.rotation.z=Math.PI/2;
+ const bulb=sphere(shell,.13,glow,1.41,0,0);
+ for(let i=0;i<9;i++){
+  const tread=ring(shell,.27,.014,mats.rubber,-.68+i*.11,0,0,0,Math.PI/2);
+ }
+ const switcher=block(shell,.33,.1,.21,mats.turquoise,-.12,.31,0);
+ badge(shell,"LED",.12,.38,.04,.31,.14,"#f1ddab","#243e50");
+ const light=new THREE.SpotLight(0xffefb4,0,8,.32,.5,1);
+ light.position.set(1.45,.77,0);light.target.position.set(3,.5,0);
+ root.add(light,light.target);
+ const beam=group(root,1.65,.74,0);
+ const cone=new THREE.Mesh(new THREE.ConeGeometry(.87,2.9,40,1,true),new THREE.MeshBasicMaterial({color:0xffe6a5,transparent:true,opacity:.12,depthWrite:false,side:THREE.DoubleSide}));
+ cone.rotation.z=-Math.PI/2;cone.position.x=1.42;beam.add(cone);
+ return {shells:[shaft],update(s){
+  const v=s.on?Math.max(.02,Number(s.glow)||.6):0;
+  light.intensity=v*(s.brightness===2?11:5);
+  beam.visible=v>.01;cone.material.opacity=v*(s.brightness===2?.15:.09);
+  glow.emissiveIntensity=.35+v*1.7;
+  switcher.position.y=s.on?.37:.31;
+ }};
+}
+function makeWashing(root){
+ plate(root,3,2.6,.12);
+ const body=block(root,2.0,2.38,1.57,mats.enamel,0,1.36,0);
+ block(root,2.0,.38,1.57,mats.stainless,0,2.31,.0);
+ const door=group(root,0,1.35,.88);
+ ring(door,.65,.11,mats.dark);
+ ring(door,.49,.035,mats.stainless);
+ const glass=sphere(door,.46,frosted,0,0,-.02);glass.scale.z=.18;
+ const drum=group(door,0,0,-.12);
+ ring(drum,.38,.035,mats.stainless);
+ for(let i=0;i<10;i++) {
+  const a=i*Math.PI/5;
+  sphere(drum,.027,mats.dark,.31*Math.cos(a),.31*Math.sin(a),.06);
+ }
+ const water=block(root,1.18,.23,.06,liquid,0,1.02,.79);
+ const dial=cylinder(root,.2,.2,.13,mats.dark,-.47,2.35,.81);dial.rotation.x=Math.PI/2;
+ labelPanel(root,.65,.13,.45,2.35,.82);
+ badge(root,"WASH  ·  ECO",.37,2.36,.838,.65,.12,"#29394b","#fff4db");
+ for(let i=0;i<3;i++)led(root,.25+i*.2,2.36,.84,i===0?glow:mats.steel);
+ const drawer=block(root,.46,.12,.32,mats.stainless,-.7,2.36,.7);
+ return {shells:[body],update(s,time){
+  const active=!!s.run;
+  drum.rotation.z=active?time*1.9:0;
+  const waterLevel=active?.22:0;
+  water.scale.y=Math.max(.02,waterLevel);
+  door.rotation.y=Number(s.door||0)*-.65;
+  drawer.position.z=.7+Math.max(0,Number(s.drawer)||0)*.18;
+ }};
+}
+function makeVending(root){
+ plate(root,3.1,2.6,.12);
+ const body=block(root,2.22,2.75,1.35,mats.turquoise,0,1.56,0);
+ const face=block(root,1.65,2.05,.025,mats.dark,-.25,1.75,.7);
+ const vendingGlass=new THREE.MeshPhysicalMaterial({color:0xe5f8fa,roughness:.08,metalness:0,transparent:true,opacity:.16,depthWrite:false,side:THREE.DoubleSide});
+ const glass=block(root,1.57,1.93,.026,vendingGlass,-.25,1.75,.73);
+ badge(root,"SNACK  STATION",0,2.73,.68,1.44,.22,"#273b4d","#f5dcad");
+ for(let shelf=0;shelf<3;shelf++){
+  const y=1.13+shelf*.59;
+  block(root,1.48,.08,1.0,mats.stainless,-.27,y,.06);
+  for(let item=0;item<4;item++){
+   const mat=[mats.amber,mats.warm,mats.leaf,mats.ivory][(shelf+item)%4];
+   const x=-.85+item*.36;
+   const can=cylinder(root,.13,.13,.28,mat,x,y+.19,.13);
+   ring(root,.13,.008,mats.steel,x,y+.33,.13,Math.PI/2);
+  }
+ }
+ block(root,.43,1.18,.08,mats.dark,.83,1.7,.73);
+ for(let j=0;j<10;j++) {
+  const x=.7+(j%3)*.12,y=2.05-Math.floor(j/3)*.13;
+  sphere(root,.037,mats.stainless,x,y,.81);
+ }
+ block(root,.51,.25,.045,mats.charcoal,.76,.94,.75);
+ block(root,1.4,.34,.08,mats.dark,-.19,.46,.71);
+ badge(root,"01  02  03  04",-.28,2.37,.77,1.33,.12);
+ const slot=group(root,0,.47,.81);
+ const hatch=block(slot,1.1,.19,.06,mats.steel,-.26,.0,0);
+ return {shells:[body],update(s,time){
+  const busy=!!s.drop||!!s.run;
+  hatch.rotation.x=busy?-.4*Math.sin(time*7):0;
+ }};
+}
+const builders={kettle:makeKettle,toaster:makeToaster,fan:makeFan,lock:makeLock,bicycle:makeBicycle,
+  coffee:makeCoffee,flashlight:makeFlashlight,washing:makeWashing,vending:makeVending};
+
+export function createObjectViewer(container,id){
+  if(!container||!Object.hasOwn(builders,id))throw Error("Unknown 3D object: "+id);
+  let renderer;
+  try{
+    renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:"low-power"});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.25));
+    renderer.setSize(container.clientWidth||320,340);
+    renderer.outputColorSpace=THREE.SRGBColorSpace;
+    renderer.toneMapping=THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure=1.32;
+    renderer.shadowMap.enabled=true;
+    renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  }catch(e){renderer?.dispose();throw new Error("WebGL unavailable: "+e.message);}
+  renderer.domElement.className="object-three-canvas";
+  renderer.domElement.setAttribute("aria-label","Objet 3D manipulable au toucher");
+  renderer.domElement.setAttribute("role","img");
+  container.append(renderer.domElement);
+  const scene=new THREE.Scene();scene.background=new THREE.Color(0xf2f0e9);
+  const environment=studioEnvironment();
+  scene.environment=environment;
+  scene.fog=new THREE.FogExp2(0xf2f0e9,.027);
+  const camera=new THREE.PerspectiveCamera(34,1,.1,90);
+  camera.position.set(5,4.1,7.5);
+  const controls=new OrbitControls(camera,renderer.domElement);
+  controls.enablePan=false;controls.enableDamping=true;controls.dampingFactor=.1;
+  controls.minPolarAngle=.18;controls.maxPolarAngle=Math.PI*.57;
+  controls.minDistance=4.4;controls.maxDistance=12;
+  controls.target.set(0,1.05,0);controls.update();
+  scene.add(new THREE.HemisphereLight(0xc9eaff,0x755d49,2.3));
+  const sun=new THREE.DirectionalLight(0xfff1df,3.3);
+  sun.position.set(-3,7,4);sun.castShadow=true;
+  sun.shadow.mapSize.set(window.innerWidth<520?512:1024,window.innerWidth<520?512:1024);
+  sun.shadow.camera.left=-7;sun.shadow.camera.right=7;sun.shadow.camera.top=7;sun.shadow.camera.bottom=-7;
+  sun.shadow.normalBias=.025;
+  sun.shadow.blurSamples=6;scene.add(sun);
+  const fill=new THREE.DirectionalLight(0xc3e4ff,1.15);fill.position.set(3,3,-5);scene.add(fill);
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.ShadowMaterial({opacity:.18}));
+  floor.rotation.x=-Math.PI/2;floor.position.y=.03;floor.receiveShadow=true;scene.add(floor);
+  const root=group(scene,0,0,0);
+  const machine=builders[id](root);
+  const technical=(machine.shells||[]).map(mesh=>{
+    const normal=mesh.material;
+    const cut=normal.clone();
+    cut.transparent=true;cut.opacity=.18;cut.depthWrite=false;
+    cut.side=THREE.DoubleSide;cut.roughness=.35;
+    return {mesh,normal,cut};
+  });
+  let xray=false;
+  const clock=new THREE.Clock();
+  let state={},active=true,disposed=false,frame=0,dirty=true,last=0;
+  controls.addEventListener("change",()=>{dirty=true;});
+  const prefersReduce=window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  function resize(){
+    if(disposed)return;
+    const width=Math.max(200,container.clientWidth||320);
+    const height=Math.round(Math.max(265,Math.min(460,width*.82)));
+    renderer.setSize(width,height,false);
+    camera.aspect=width/height;camera.updateProjectionMatrix();dirty=true;
+  }
+  const observer=new ResizeObserver(resize);observer.observe(container);resize();
+  const visibleObserver=new IntersectionObserver(entries=>{
+    active=entries[0]?.isIntersecting??true;
+    if(active)dirty=true;
+  },{threshold:0.01});visibleObserver.observe(container);
+  const onVisibility=()=>{active=!document.hidden;dirty=true;};
+  document.addEventListener("visibilitychange",onVisibility);
+  renderer.domElement.addEventListener("webglcontextlost",event=>{event.preventDefault();active=false;container.dispatchEvent(new CustomEvent("object-3d-error"));});
+  function tick(timestamp){
+    if(disposed)return;
+    frame=requestAnimationFrame(tick);
+    if(!active||!renderer.domElement.isConnected)return;
+    const running=Boolean(state.run||state.speed||state.heating||state.brewing||state.toasting||state.pumping||state.oscillate||(Number(state.steam)>0));
+    if(!running&&!dirty)return; // static model: let the GPU sleep
+    const period=running?33:66; // active ~30 fps, changing/camera ~15 fps
+    if(timestamp-last<period&&!dirty)return;
+    last=timestamp;
+    const dt=Math.min(.05,clock.getDelta()),time=timestamp/1000;
+    machine.update(state,dt,time);
+    controls.update();
+    renderer.render(scene,camera);
+    dirty=false;
+  }
+  frame=requestAnimationFrame(tick);
+  return {
+    setState(next){if(disposed)return;state={...next};dirty=true;},
+    setXray(value){
+      if(disposed)return false;
+      xray=Boolean(value);
+      for(const {mesh,normal,cut} of technical)mesh.material=xray?cut:normal;
+      dirty=true;
+      return xray;
+    },
+    resetCamera(){camera.position.set(5,4.1,7.5);controls.target.set(0,1.05,0);controls.update();dirty=true;},
+    dispose(){
+      if(disposed)return;disposed=true;cancelAnimationFrame(frame);
+      observer.disconnect();visibleObserver.disconnect();document.removeEventListener("visibilitychange",onVisibility);
+      controls.dispose();scene.traverse(o=>{
+        if(o.geometry)o.geometry.dispose();
+        if(o.userData?.isDecal){o.material.map?.dispose();o.material.dispose();}
+      });
+      for(const {mesh,normal,cut} of technical){mesh.material=normal;cut.dispose();}
+      // Shared material instances live for the module lifetime; disposing them
+      // here would affect the next object opened from the same module.
+      environment.dispose();
+      renderer.dispose();
+      renderer.forceContextLoss(); // explicitly release scarce mobile WebGL contexts
+      renderer.domElement.remove();
+    }
+  };
+}

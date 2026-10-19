@@ -86,3 +86,19 @@ test("original Android launcher artwork and browser icon",()=>{
  assert.match(iconScript,/mipmap-/);
  assert.match(iconScript,/ic_launcher_foreground/);
 });
+
+test("nine offline 3D PBR models and Third Party MIT attribution",()=>{
+ const js=readFileSync(join(root,"src","three-viewer.js"),"utf8");
+ for(const id of ["kettle","toaster","fan","lock","bicycle","coffee","flashlight","washing","vending"]){
+  assert.ok(js.includes(id+":"),"missing 3D builder for "+id);
+ }
+ assert.match(js,/OrbitControls/);
+ assert.match(js,/forceContextLoss/);
+ assert.match(js,/setXray/);
+ const license=readFileSync(join(root,"licenses","THREE-LICENSE"),"utf8");
+ assert.match(license,/MIT License/);
+ assert.match(license,/three\.js/i);
+ const app=readFileSync(join(root,"src","main.js"),"utf8");
+ assert.match(app,/VIEW_KEY/);
+ assert.match(app,/volume:v1/);
+});

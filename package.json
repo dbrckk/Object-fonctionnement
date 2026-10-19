@@ -1,6 +1,6 @@
 {
   "name": "object-fonctionnement",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,12 +12,14 @@
     "android:open": "cap open android",
     "test:browser": "node tests/browser.test.mjs",
     "generate:previews": "node scripts/generate-previews.mjs",
-    "android:icons": "node scripts/generate-android-icons.mjs"
+    "android:icons": "node scripts/generate-android-icons.mjs",
+    "generate:3d-previews": "node scripts/create-doc-previews.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.0",
     "@capacitor/app": "^7.1.2",
-    "@capacitor/core": "^7.4.0"
+    "@capacitor/core": "^7.4.0",
+    "three": "^0.180.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.0",
