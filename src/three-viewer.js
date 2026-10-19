@@ -663,6 +663,13 @@ export function createObjectViewer(container,id){
       dirty=true;
       return true;
     },
+    focusPartById(partId){
+      const index=points.findIndex(point=>point.part.id===partId);
+      if(index<0||disposed)return false;
+      showParts=true;markerLayer.hidden=false;
+      focusPart(index);dirty=true;
+      return true;
+    },
     setAnnotations(visible){
       if(disposed)return false;
       if(!visible)endTour(false);

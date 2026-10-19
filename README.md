@@ -271,3 +271,24 @@ Une bonne réponse explique le mécanisme puis verrouille la question
 pour éviter les saisies répétées. Les résultats réussis sont conservés.
 
 GitHub Actions construit l'APK Android 0.7.0 (versionCode 7).
+
+
+## Version 0.8 — glossaire interactif
+
+Le catalogue dispose d'un glossaire hors ligne qui indexe
+automatiquement les composants de la vue 3D (27 fiches pour neuf objets).
+Il ne duplique pas les explications : les descriptions proviennent directement
+du fichier src/part-annotations.js, la source utilisée par les modèles.
+
+- Recherche en français, sans distinction d'accents ou de casse.
+- Recherche sur plusieurs mots, le composant, l'objet et l'explication.
+- Depuis une fiche de glossaire, Voir en 3D ouvre le modèle concerné
+  et cadre automatiquement la caméra sur le composant décrit.
+- Le texte recherché est conservé pendant le retour au catalogue.
+- Si WebGL est indisponible, la fiche de l'objet reste accessible en mode 2D.
+- Tout le contenu fonctionne hors ligne, sans compte ni collecte de données.
+
+Tests ajoutés : exhaustivité du glossaire, recherche multi-termes,
+ouverture d'un composant et navigation retour.
+
+La CI construit l'APK Android 0.8.0 (versionCode 8).

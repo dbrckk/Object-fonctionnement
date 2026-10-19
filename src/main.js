@@ -4,6 +4,7 @@ import {App} from "@capacitor/app";
 import {OBJECTS,CATEGORIES,filterObjects} from "./catalog.js";
 import {QUESTIONS,QUIZ_STORAGE_KEY,parseQuizProgress,progressCount} from "./quiz.js";
 import {readTours,saveTours} from "./learning-progress.js";
+import {buildGlossary,filterGlossary} from "./glossary.js";
 const root=document.getElementById("app");
 let quizProgress={};
 try{quizProgress=parseQuizProgress(localStorage.getItem(QUIZ_STORAGE_KEY));}catch{}
@@ -11,7 +12,7 @@ function saveQuizProgress(){try{localStorage.setItem(QUIZ_STORAGE_KEY,JSON.strin
 
 const VIEW_KEY="object-fonctionnement:view:v1";
 function initialView(){try{return localStorage.getItem(VIEW_KEY)!=="2d";}catch{return true;}}
-let currentViewer=null,loadingViewer=0,lastFigureState=null;
+let currentViewer=null,loadingViewer=0,lastFigureState=null,pendingPart=null;
 function unmountViewer(){
  loadingViewer++;
  lastFigureState=null;
@@ -47,6 +48,14 @@ async function mountViewer(id){
   const viewer=createObjectViewer(host,id);
   currentViewer=viewer;
   host.addEventListener("object-3d-error",fallback,{once:true});
+  if(pendingPart?.objectId===id){
+   const found=viewer.focusPartById(pendingPart.partId);
+   if(found){
+    const annotations=document.getElementById("three-parts");
+    if(annotations){annotations.setAttribute("aria-pressed","true");annotations.textContent="Masquer les repères";}
+   }
+   pendingPart=null;
+  }
   if(lastFigureState)currentViewer.setState(lastFigureState);
   host.closest(".three-shell").hidden=false;
   const stage=document.querySelector(".simulation");
@@ -100,6 +109,7 @@ function setSound(enabled){
 
 function readFavorites(){try {const data=JSON.parse(localStorage.getItem(KEY)||"[]");return Array.isArray(data)?data.filter(x=>typeof x==="string"):[];}catch{return [];}}
 const allObjectIds=OBJECTS.map(o=>o.id);
+const glossaryEntries=buildGlossary(OBJECTS);
 function markTourFinished(id){
  if(!allObjectIds.includes(id)||state.completedTours.includes(id))return;
  state.completedTours=saveTours(localStorage,[...state.completedTours,id],allObjectIds);
@@ -109,7 +119,7 @@ function markTourFinished(id){
  if(btn)btn.textContent="Revoir les pièces";
 }
 
-const state={view3D:initialView(),query:"",category:"Tout",favoritesOnly:false,reviewOnly:false,favorites:readFavorites(),completedTours:readTours(localStorage,allObjectIds),selected:null,running:false,phase:0,soundEnabled:initialSound(),volume:initialVolume()};
+const state={view3D:initialView(),query:"",category:"Tout",favoritesOnly:false,reviewOnly:false,glossaryOpen:false,glossaryQuery:"",favorites:readFavorites(),completedTours:readTours(localStorage,allObjectIds),selected:null,running:false,phase:0,soundEnabled:initialSound(),volume:initialVolume()};
 let timeoutA;
 const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(state.favorites));}catch{}}
@@ -117,13 +127,46 @@ function clearTimers(){clearTimeout(timeoutA);state.running=false;state.phase=0;
 function display(){unmountViewer();const selected=OBJECTS.find(o=>o.id===state.selected);if(selected){renderDetail(selected);return;}renderCatalog();}
 function renderCatalog(){
  const results=filterObjects(OBJECTS,state).filter(o=>!state.reviewOnly||quizProgress[o.id]!==true);
- root.innerHTML='<header class="hero"><div class="brand">OBJET<span>·</span>FONCTIONNEMENT</div><p class="eyebrow">LE MONDE, EXPLIQUÉ</p><h1>Comment ça <em>marche ?</em></h1><p>Explore les objets du quotidien. Comprends leur mécanisme et apprends à les utiliser.</p><div class="hero-stat">'+OBJECTS.length+' objets à découvrir <span>•</span> 100 % hors ligne <span>•</span> '+state.completedTours.length+'/'+OBJECTS.length+' visites effectuées <span>•</span> '+progressCount(quizProgress)+'/'+OBJECTS.length+' connaissances validées</div></header><main><div class="search-bar"><span aria-hidden="true">⌕</span><input id="search" aria-label="Rechercher un objet" placeholder="Rechercher un objet..." autocomplete="off" value="'+escapeHtml(state.query)+'"></div><div class="filters" aria-label="Catégories">'+CATEGORIES.map(c=>'<button class="chip '+(state.category===c?'active':'')+'" data-category="'+escapeHtml(c)+'">'+escapeHtml(c)+'</button>').join("")+'</div><div class="section-header"><h2>'+ (state.reviewOnly?"Objets à réviser":state.favoritesOnly?"Mes favoris":"Explorer les objets")+'</h2><div class="catalog-actions"><button id="review-filter" class="text-button" aria-pressed="'+state.reviewOnly+'">'+(state.reviewOnly?"✓ Voir tous les objets":"À réviser ("+(OBJECTS.length-progressCount(quizProgress))+")")+'</button><button id="fav-filter" class="text-button" aria-pressed="'+state.favoritesOnly+'">'+(state.favoritesOnly?"Voir tout":"☆ Favoris")+'</button></div></div><div class="object-grid">'+(results.length?results.map(o=>'<article class="object-card" style="--object:'+o.color+'"><button class="card-open" data-open="'+o.id+'" aria-label="Découvrir '+escapeHtml(o.name)+'"><div class="object-figure" aria-hidden="true"><img src="/previews/'+escapeHtml(o.figure)+'.webp" alt="" width="480" height="360" loading="lazy" decoding="async"></div><div class="card-category">'+escapeHtml(o.category)+'</div>'+(state.completedTours.includes(o.id)?'<span class="tour-completed-card">✓ Visite effectuée</span>':'')+'<h3>'+escapeHtml(o.name)+'</h3><p>'+escapeHtml(o.summary)+'</p><span class="discover">Découvrir <span aria-hidden="true">↗</span></span></button><button class="favorite" data-favorite="'+o.id+'" aria-label="'+(state.favorites.includes(o.id)?"Retirer des favoris":"Ajouter aux favoris")+'" aria-pressed="'+state.favorites.includes(o.id)+'">'+(state.favorites.includes(o.id)?"★":"☆")+'</button></article>').join(""):'<p class="empty">Aucun objet trouvé. Essaie une autre recherche.</p>')+'</div></main><footer>Explications pédagogiques — toujours suivre la notice du fabricant.</footer>';
+ root.innerHTML='<header class="hero"><div class="brand">OBJET<span>·</span>FONCTIONNEMENT</div><p class="eyebrow">LE MONDE, EXPLIQUÉ</p><h1>Comment ça <em>marche ?</em></h1><p>Explore les objets du quotidien. Comprends leur mécanisme et apprends à les utiliser.</p><div class="hero-stat">'+OBJECTS.length+' objets à découvrir <span>•</span> 100 % hors ligne <span>•</span> '+state.completedTours.length+'/'+OBJECTS.length+' visites effectuées <span>•</span> '+progressCount(quizProgress)+'/'+OBJECTS.length+' connaissances validées</div></header><main><div class="search-bar"><span aria-hidden="true">⌕</span><input id="search" aria-label="Rechercher un objet" placeholder="Rechercher un objet..." autocomplete="off" value="'+escapeHtml(state.query)+'"></div><div class="filters" aria-label="Catégories">'+CATEGORIES.map(c=>'<button class="chip '+(state.category===c?'active':'')+'" data-category="'+escapeHtml(c)+'">'+escapeHtml(c)+'</button>').join("")+'</div><div class="glossary-toggle-row"><button id="glossary-toggle" class="text-button" aria-expanded="'+state.glossaryOpen+'" aria-controls="glossary-panel">'+(state.glossaryOpen?"Fermer le glossaire":"Glossaire des mécanismes ("+glossaryEntries.length+")")+'</button></div><section id="glossary-panel" class="glossary-panel" aria-label="Glossaire technique" '+(state.glossaryOpen?"":"hidden")+'><div class="glossary-intro"><h2>Comprendre les pièces</h2><p>27 composants expliqués, accessibles hors ligne. Sélectionne une pièce pour la retrouver en 3D.</p></div><label for="glossary-search">Rechercher un composant</label><input id="glossary-search" type="search" autocomplete="off" placeholder="Ex. moteur, thermostat, goupilles…" value="'+escapeHtml(state.glossaryQuery)+'"><div id="glossary-results" class="glossary-results"></div></section><div class="section-header"><h2>'+ (state.reviewOnly?"Objets à réviser":state.favoritesOnly?"Mes favoris":"Explorer les objets")+'</h2><div class="catalog-actions"><button id="review-filter" class="text-button" aria-pressed="'+state.reviewOnly+'">'+(state.reviewOnly?"✓ Voir tous les objets":"À réviser ("+(OBJECTS.length-progressCount(quizProgress))+")")+'</button><button id="fav-filter" class="text-button" aria-pressed="'+state.favoritesOnly+'">'+(state.favoritesOnly?"Voir tout":"☆ Favoris")+'</button></div></div><div class="object-grid">'+(results.length?results.map(o=>'<article class="object-card" style="--object:'+o.color+'"><button class="card-open" data-open="'+o.id+'" aria-label="Découvrir '+escapeHtml(o.name)+'"><div class="object-figure" aria-hidden="true"><img src="/previews/'+escapeHtml(o.figure)+'.webp" alt="" width="480" height="360" loading="lazy" decoding="async"></div><div class="card-category">'+escapeHtml(o.category)+'</div>'+(state.completedTours.includes(o.id)?'<span class="tour-completed-card">✓ Visite effectuée</span>':'')+'<h3>'+escapeHtml(o.name)+'</h3><p>'+escapeHtml(o.summary)+'</p><span class="discover">Découvrir <span aria-hidden="true">↗</span></span></button><button class="favorite" data-favorite="'+o.id+'" aria-label="'+(state.favorites.includes(o.id)?"Retirer des favoris":"Ajouter aux favoris")+'" aria-pressed="'+state.favorites.includes(o.id)+'">'+(state.favorites.includes(o.id)?"★":"☆")+'</button></article>').join(""):'<p class="empty">Aucun objet trouvé. Essaie une autre recherche.</p>')+'</div></main><footer>Explications pédagogiques — toujours suivre la notice du fabricant.</footer>';
  document.getElementById("search").addEventListener("input",e=>{const position=e.target.selectionStart;state.query=e.target.value;renderCatalog();const input=document.getElementById("search");input.focus();input.setSelectionRange(position,position);});
  document.querySelectorAll("[data-category]").forEach(el=>el.addEventListener("click",()=>{state.category=el.dataset.category;display();}));
  document.querySelectorAll("[data-open]").forEach(el=>el.addEventListener("click",()=>{state.selected=el.dataset.open;history.pushState({source:"object-fonctionnement",object:state.selected},"","#"+state.selected);display();window.scrollTo(0,0);}));
  document.querySelectorAll("[data-favorite]").forEach(el=>el.addEventListener("click",()=>toggleFavorite(el.dataset.favorite)));
  document.getElementById("fav-filter").addEventListener("click",()=>{state.favoritesOnly=!state.favoritesOnly;display();});
  document.getElementById("review-filter").addEventListener("click",()=>{state.reviewOnly=!state.reviewOnly;display();});
+ document.getElementById("glossary-toggle").addEventListener("click",()=>{
+  state.glossaryOpen=!state.glossaryOpen;
+  const panel=document.getElementById("glossary-panel");
+  panel.hidden=!state.glossaryOpen;
+  document.getElementById("glossary-toggle").setAttribute("aria-expanded",String(state.glossaryOpen));
+  document.getElementById("glossary-toggle").textContent=state.glossaryOpen?"Fermer le glossaire":"Glossaire des mécanismes ("+glossaryEntries.length+")";
+  if(state.glossaryOpen)renderGlossaryResults();
+ });
+ const glossaryInput=document.getElementById("glossary-search");
+ glossaryInput.addEventListener("input",event=>{
+  state.glossaryQuery=event.target.value;
+  renderGlossaryResults();
+ });
+ if(state.glossaryOpen)renderGlossaryResults();
+}
+function renderGlossaryResults(){
+ const target=document.getElementById("glossary-results");
+ if(!target)return;
+ const matches=filterGlossary(glossaryEntries,state.glossaryQuery);
+ target.innerHTML=matches.length?matches.map((part)=>
+  '<article class="glossary-item"><div><h3>'+escapeHtml(part.label)+'</h3><span class="glossary-object">'+escapeHtml(part.objectName)+'</span><p>'+escapeHtml(part.detail)+'</p></div><button type="button" data-glossary-object="'+escapeHtml(part.objectId)+'" data-glossary-part="'+escapeHtml(part.partId)+'" aria-label="Voir '+escapeHtml(part.label)+' sur '+escapeHtml(part.objectName)+' en 3D">Voir en 3D ↗</button></article>'
+ ).join(""):'<p class="empty">Aucun composant trouvé.</p>';
+ target.querySelectorAll("[data-glossary-part]").forEach(button=>button.addEventListener("click",()=>{
+  const objectId=button.dataset.glossaryObject;
+  const partId=button.dataset.glossaryPart;
+  if(!glossaryEntries.some(p=>p.objectId===objectId&&p.partId===partId))return;
+  pendingPart={objectId,partId};
+  state.selected=objectId;
+  state.view3D=true;
+  try{localStorage.setItem(VIEW_KEY,"3d");}catch{}
+  history.pushState({source:"object-fonctionnement",object:objectId},"","#"+objectId);
+  display();window.scrollTo(0,0);
+ }));
 }
 function toggleFavorite(id){
  state.favorites=state.favorites.includes(id)?state.favorites.filter(x=>x!==id):[...state.favorites,id];
