@@ -200,24 +200,44 @@ function makeFan(root){
  const pivot=group(root,0,1.95,0);
  const motor=cylinder(pivot,.36,.36,.55,mats.stainless,0,0,-.28);
  motor.rotation.x=Math.PI/2;
- const disc=cylinder(pivot,.12,.12,.24,mats.charcoal,0,0,.14);disc.rotation.x=Math.PI/2;
- const rotor=group(pivot,0,0,.23);
+ const rotor=group(pivot,0,0,.24);
+ cylinder(rotor,.14,.14,.17,mats.charcoal,0,0,.03).rotation.x=Math.PI/2;
+ // All blades have their own pivot at the real shaft centre.
+ // The face of each blade has a gentle twist for a pitched airflow profile.
  for(let i=0;i<5;i++){
-  const blade=block(rotor,.34,.82,.042,mats.turquoise,0,.51,0);
-  blade.rotation.z=i*2*Math.PI/5;
-  blade.rotation.y=.3;
-  const bladeShape=sphere(rotor,.06,mats.stainless,Math.sin(i*2*Math.PI/5)*.3,Math.cos(i*2*Math.PI/5)*.3,0);
+  const spoke=group(rotor);
+  spoke.rotation.z=i*Math.PI*2/5;
+  const blade=group(spoke,0,.45,0);
+  const shape=new THREE.Shape();
+  shape.moveTo(-.10,-.38);
+  shape.bezierCurveTo(-.28,-.12,-.36,.31,-.10,.53);
+  shape.bezierCurveTo(.15,.71,.30,.41,.29,.17);
+  shape.bezierCurveTo(.16,-.12,.13,-.35,-.10,-.38);
+  const geo=new THREE.ExtrudeGeometry(shape,{
+   depth:.075,bevelEnabled:true,bevelThickness:.025,bevelSize:.025,bevelSegments:2,curveSegments:12
+  });
+  const surface=new THREE.Mesh(geo,mats.turquoise);
+  surface.rotation.y=.24;
+  surface.castShadow=true;surface.receiveShadow=true;blade.add(surface);
  }
- ring(pivot,.99,.028,mats.steel,0,0,.38);
- ring(pivot,.69,.014,mats.steel,0,0,.37);
+ const hub=cylinder(rotor,.17,.17,.16,mats.stainless,0,0,.12);
+ hub.rotation.x=Math.PI/2;
+ sphere(rotor,.085,mats.dark,0,0,.22);
+ // The protective cage is stationary, not parented to the moving rotor.
+ ring(pivot,.99,.028,mats.steel,0,0,.48);
+ ring(pivot,.69,.014,mats.steel,0,0,.47);
  for(let i=0;i<22;i++){
-  const a=i*Math.PI/11;rod(pivot,[0,0,.42],[Math.cos(a)*.99,Math.sin(a)*.99,.42],.007,mats.steel);
+  const a=i*Math.PI/11;
+  rod(pivot,[0,0,.5],[Math.cos(a)*.99,Math.sin(a)*.99,.5],.007,mats.steel);
  }
+ const speedLeds=[-.18,0,.18].map((x)=>sphere(root,.055,mats.dark,x,.36,.54));
  badge(root,"FAN  /  01–03",0,.24,.42,.52,.11);
- const button=cylinder(root,.08,.08,.075,mats.turquoise,.35,.33,.41);button.rotation.x=Math.PI/2;
- return {shells:[motor],update(s,dt,time){
+ // State is supplied by the existing ColorFigures simulation.
+ return {shells:[motor],update(s){
+  const speed=truncate(s.speed,0,3);
   rotor.rotation.z=-(Number(s.turn)||0);
-  pivot.rotation.y=s.oscillate?Math.sin(Number(s.angle)||time*.7)*.32:0;
+  pivot.rotation.y=s.oscillate?Math.sin(Number(s.angle)||0)*.32:0;
+  speedLeds.forEach((led,i)=>{led.scale.setScalar(i<speed?1.25:.65);});
  }};
 }
 function makeLock(root){

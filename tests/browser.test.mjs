@@ -293,6 +293,13 @@ try{
    if(id==='fan'){
     await app.frameLocator('iframe.figure-frame').getByRole('button',{name:'Marche / arrêt'}).click();
     assert.equal(await app.frameLocator('iframe.figure-frame').locator('body').evaluate(()=>window.__st.speed),1);
+    const rotationStart=await app.frameLocator('iframe.figure-frame').locator('body').evaluate(()=>window.__st.turn);
+    await app.waitForTimeout(400);
+    const rotationEnd=await app.frameLocator('iframe.figure-frame').locator('body').evaluate(()=>window.__st.turn);
+    assert.ok(rotationEnd>rotationStart+.1,"fan must rotate while powered");
+    await app.frameLocator('iframe.figure-frame').getByRole('button',{name:'Oscillation'}).click();
+    await app.waitForTimeout(300);
+    assert.equal(await app.frameLocator('iframe.figure-frame').locator('body').evaluate(()=>window.__st.oscillate),true);
    }
    if(id==='kettle'){
     await app.getByRole('button',{name:"Voir l'illustration 2D"}).click();

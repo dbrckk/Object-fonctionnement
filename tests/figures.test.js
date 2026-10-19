@@ -102,3 +102,15 @@ test("nine offline 3D PBR models and Third Party MIT attribution",()=>{
  assert.match(app,/VIEW_KEY/);
  assert.match(app,/volume:v1/);
 });
+
+
+test("fan PBR geometry has pivoted, curved blades and a stationary guard",()=>{
+ const source=readFileSync(join(root,"src","three-viewer.js"),"utf8");
+ const fan=source.slice(source.indexOf("function makeFan(root){"),source.indexOf("function makeLock(root){"));
+ assert.match(fan,/for\(let i=0;i<5;i\+\+\)/);
+ assert.match(fan,/ExtrudeGeometry/);
+ assert.match(fan,/spoke\.rotation\.z=i\*Math\.PI\*2\/5/);
+ assert.match(fan,/rotor\.rotation\.z=\-\(Number\(s\.turn\)\|\|0\)/);
+ assert.match(fan,/pivot\.rotation\.y=s\.oscillate/);
+ assert.ok(fan.indexOf("ring(pivot")>fan.indexOf("const rotor=group"),"guard must be attached to pivot, not rotor");
+});

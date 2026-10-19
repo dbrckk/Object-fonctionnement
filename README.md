@@ -292,3 +292,18 @@ Tests ajoutés : exhaustivité du glossaire, recherche multi-termes,
 ouverture d'un composant et navigation retour.
 
 La CI construit l'APK Android 0.8.0 (versionCode 8).
+
+
+## Version 0.9 — moteur du ventilateur
+
+Le modèle 3D du ventilateur bénéficie d'une hélice profilée à cinq pales,
+disposées autour du même axe, ainsi que d'un moyeu distinct et d'une grille
+de protection fixe. La rotation suit l'état réellement fourni par la
+simulation ColorFigures ; la vitesse et l'oscillation restent contrôlées
+par les commandes existantes. Les détails sont générés hors ligne par
+Three.js, sans texture ni ressource tierce.
+
+Des tests navigateur vérifient le mouvement sous tension et l'oscillation.
+Un test de régression vérifie l'architecture de l'hélice et de la cage.
+
+VersionCode Android 9, versionName 0.9.0.
