@@ -153,3 +153,15 @@ footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
 @media(max-width:380px){
  #three-mount .three-part-description.tour-active{padding:10px 12px}
 }
+
+.quiz-panel{margin:20px 0;padding:20px;border:1px solid #c6d7de;border-radius:16px;background:#f9fbfa}
+.quiz-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.quiz-heading h2{margin:0;font-size:1.1rem}
+.quiz-heading span{color:#347067;font-size:.79rem;font-weight:750}
+.quiz-panel p{line-height:1.55}
+.quiz-choices{display:grid;gap:9px}
+.quiz-choices button{padding:12px 14px;text-align:left;border-radius:12px;border:1px solid #acbdc9;background:#fff;color:#263d50;min-height:44px}
+.quiz-choices button:hover,.quiz-choices button:focus-visible{border-color:#4c819e}
+.quiz-choices button.quiz-correct{border:2px solid #2d8270;background:#e8f4ed}
+.quiz-choices button[aria-pressed=true]:not(.quiz-correct){border:2px solid #ae6d43}
+#quiz-feedback{margin:12px 0 0;color:#305268;font-size:.91rem}

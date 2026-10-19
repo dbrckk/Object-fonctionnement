@@ -238,3 +238,20 @@ la navigation avant/arrière, la persistance et les tailles d'écran
 320, 390 et 768 px.
 
 La CI produit l'APK Android de test **0.5.0 (versionCode 5)**.
+
+
+## Version 0.6 — Vérification des connaissances
+
+Après avoir consulté un objet, l'utilisateur peut répondre à une question
+sur le mécanisme ou sa fonction. Les neuf questions possèdent trois réponses
+possibles et une explication pédagogique. Une réponse incorrecte ne compte
+pas comme réussie, mais affiche la correction pour apprendre.
+
+Les validations sont sauvegardées localement sur l'appareil, sans compte,
+serveur, télémétrie ni connexion réseau. Le catalogue indique le nombre
+de connaissances validées parmi les neuf objets. Les questions ne
+réinitialisent pas les simulations 2D ou 3D en cours.
+
+Les 9 fiches sont couvertes par les tests unitaires, et le scénario de
+réponse incorrecte, réponse correcte et persistance par un test Chromium.
+La CI prépare l'APK de test Android 0.6.0 (versionCode 6).

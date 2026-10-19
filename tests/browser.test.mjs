@@ -351,6 +351,21 @@ try{
  assert.notEqual(await noGpu.frameLocator("iframe.figure-frame").locator("#fig").evaluate(el=>getComputedStyle(el).display),"none");
  await noGpu.close();
  console.log('PASS automatic 2D fallback when WebGL is unavailable');
+ // Quiz operates within the live figure page without resetting its iframe.
+ await app.goto(HOST+'/#kettle',{waitUntil:'load'});
+ await app.locator('.quiz-panel').waitFor();
+ await app.frameLocator('iframe.figure-frame').locator('body').evaluate(()=>{window.__st.__quizSentinel='held';});
+ await app.getByRole('button',{name:'Réponse 2 : La poignée isolante'}).click();
+ assert.match(await app.locator('#quiz-feedback').innerText(),/Pas tout à fait/);
+ assert.equal(await app.evaluate(()=>localStorage.getItem('object-fonctionnement:quiz:v1')),null);
+ await app.getByRole('button',{name:'Réponse 1 : La résistance électrique'}).click();
+ assert.match(await app.locator('#quiz-feedback').innerText(),/Bonne réponse/);
+ assert.match(await app.locator('#quiz-status').innerText(),/Connaissance validée/);
+ assert.equal(await app.frameLocator('iframe.figure-frame').locator('body').evaluate(()=>window.__st.__quizSentinel),'held');
+ assert.equal(await app.evaluate(()=>JSON.parse(localStorage.getItem('object-fonctionnement:quiz:v1')).kettle),true);
+ await app.reload();
+ assert.match(await app.locator('#quiz-status').innerText(),/Connaissance validée/);
+ console.log('PASS offline interactive learning check, correction and persisted progress');
  console.log('PASS Android-size catalog + local WebP previews + embedded simulation');
  await app.close();
 }finally{
