@@ -4,6 +4,7 @@
  */
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
+import {getObjectParts} from "./part-annotations.js";
 
 const M={
   enamel: {color:0xeef2f0,metalness:.22,roughness:.27},
@@ -56,7 +57,7 @@ function studioEnvironment(){
  t.colorSpace=THREE.SRGBColorSpace;
  return t;
 }
-const shadowGeo=new THREE.PlaneGeometry(200,200);
+const edgeMaterial=new THREE.LineBasicMaterial({color:0x24374a,transparent:true,opacity:.16});
 const truncate=(n,min,max)=>Math.max(min,Math.min(max,Number(n)||0));
 
 function cylinder(parent,r1,r2,h,mat,x=0,y=0,z=0,n=40){
@@ -67,7 +68,7 @@ function block(parent,w,h,d,mat,x=0,y=0,z=0,r=.06){
  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
  mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);
  if(r>0){
-  const line=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry,23),new THREE.LineBasicMaterial({color:0x24374a,transparent:true,opacity:.16}));
+  const line=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry,23),edgeMaterial);
   line.position.copy(mesh.position);parent.add(line);
  }
  return mesh;
@@ -424,6 +425,120 @@ export function createObjectViewer(container,id){
   floor.rotation.x=-Math.PI/2;floor.position.y=.03;floor.receiveShadow=true;scene.add(floor);
   const root=group(scene,0,0,0);
   const machine=builders[id](root);
+  const annotations=getObjectParts(id);
+  const markerLayer=document.createElement("div");
+  markerLayer.className="three-parts";
+  markerLayer.hidden=true;
+  markerLayer.setAttribute("aria-label","Points d'intérêt du modèle 3D");
+  const ns="http://www.w3.org/2000/svg";
+  const leaders=document.createElementNS(ns,"svg");
+  leaders.setAttribute("class","three-part-leaders");
+  leaders.setAttribute("aria-hidden","true");
+  markerLayer.append(leaders);
+  const points=annotations.map((part,index)=>{
+    const button=document.createElement("button");
+    button.type="button";button.className="three-part-pin";
+    button.textContent=String(index+1);
+    button.title=part.label;
+    button.setAttribute("aria-label","Examiner : "+part.label);
+    button.setAttribute("aria-pressed","false");
+    markerLayer.append(button);
+    const leader=document.createElementNS(ns,"line");
+    leader.setAttribute("class","three-part-leader");
+    leaders.append(leader);
+    return {part,button,leader,world:new THREE.Vector3(...part.position)};
+  });
+  const description=document.createElement("div");
+  description.className="three-part-description";
+  description.hidden=true;
+  description.setAttribute("role","status");
+  description.setAttribute("aria-live","polite");
+  const label=document.createElement("strong"),text=document.createElement("p");
+  const close=document.createElement("button");
+  close.type="button";close.textContent="Fermer";
+  close.setAttribute("aria-label","Fermer l'explication de la pièce");
+  description.append(label,text,close);
+  markerLayer.append(description);
+  container.append(markerLayer);
+  let showParts=false,cameraMove=null;
+  const projected=new THREE.Vector3();
+  const cameraTarget=new THREE.Vector3();
+  function updatePartPositions(){
+    if(!showParts)return;
+    const width=renderer.domElement.clientWidth,height=renderer.domElement.clientHeight;
+    if(width===0||height===0)return;
+    leaders.setAttribute("viewBox","0 0 "+width+" "+height);
+    const occupied=[];
+    const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+    for(const point of points){
+      projected.copy(point.world).project(camera);
+      const visible=projected.z>=-1&&projected.z<=1
+        &&Math.abs(projected.x)<1.12&&Math.abs(projected.y)<1.12;
+      point.button.hidden=!visible;
+      point.leader.style.display=visible?"":"none";
+      if(!visible)continue;
+      const anchorX=clamp((projected.x*.5+.5)*width,18,width-18);
+      const anchorY=clamp((-projected.y*.5+.5)*height,18,height-18);
+      // Spread close markers around the exact 3D anchor. Never let a marker
+      // overlap another button on a narrow Android screen.
+      const offsets=[[0,0],[53,-36],[-53,-36],[53,36],[-53,36],[0,-56],[0,56],[64,0],[-64,0],[67,-50],[-67,50]];
+      let placed=null,bestScore=-Infinity;
+      for(const [dx,dy] of offsets){
+        const x=clamp(anchorX+dx,23,width-23),y=clamp(anchorY+dy,23,height-23);
+        const nearest=occupied.length?Math.min(...occupied.map(p=>Math.hypot(x-p.x,y-p.y))):Infinity;
+        const score=Math.min(nearest,65)-Math.hypot(dx,dy)*.12;
+        if(nearest>=46 && score>bestScore){placed={x,y};bestScore=score;}
+      }
+      if(!placed){
+        // Fallback is deterministic even if the camera is nearly edge-on.
+        placed={x:anchorX,y:anchorY};
+      }
+      occupied.push(placed);
+      point.button.style.left=placed.x.toFixed(1)+"px";
+      point.button.style.top=placed.y.toFixed(1)+"px";
+      point.leader.setAttribute("x1",anchorX.toFixed(1));
+      point.leader.setAttribute("y1",anchorY.toFixed(1));
+      point.leader.setAttribute("x2",placed.x.toFixed(1));
+      point.leader.setAttribute("y2",placed.y.toFixed(1));
+      point.leader.style.opacity=Math.hypot(placed.x-anchorX,placed.y-anchorY)<9?"0":"1";
+    }
+  }
+  function focusPart(index){
+    if(disposed||!showParts)return;
+    const selected=points[index];
+    if(!selected)return;
+    for(const point of points)point.button.setAttribute("aria-pressed",String(point===selected));
+    label.textContent=selected.part.label;
+    text.textContent=selected.part.detail;
+    description.hidden=false;
+    const startTarget=controls.target.clone(),startCamera=camera.position.clone();
+    const delta=camera.position.clone().sub(controls.target).multiplyScalar(.82);
+    const finishTarget=selected.world.clone();
+    const finishCamera=finishTarget.clone().add(delta);
+    if(prefersReduce){
+      camera.position.copy(finishCamera);
+      controls.target.copy(finishTarget);
+      controls.update();
+      cameraMove=null;
+    }else{
+      cameraMove={start:performance.now(),startTarget,startCamera,finishTarget,finishCamera};
+    }
+    dirty=true;
+  }
+  points.forEach((point,i)=>point.button.addEventListener("click",()=>focusPart(i)));
+  function dismissDescription(){
+    const selected=points.find(p=>p.button.getAttribute("aria-pressed")==="true");
+    description.hidden=true;
+    for(const point of points)point.button.setAttribute("aria-pressed","false");
+    selected?.button.focus();
+  }
+  close.addEventListener("click",dismissDescription);
+  markerLayer.addEventListener("keydown",event=>{
+    if(event.key==="Escape"&&!description.hidden){
+      event.preventDefault();
+      dismissDescription();
+    }
+  });
   const technical=(machine.shells||[]).map(mesh=>{
     const normal=mesh.material;
     const cut=normal.clone();
@@ -440,8 +555,9 @@ export function createObjectViewer(container,id){
     if(disposed)return;
     const width=Math.max(200,container.clientWidth||320);
     const height=Math.round(Math.max(265,Math.min(460,width*.82)));
-    renderer.setSize(width,height,false);
+    renderer.setSize(width,height,true);
     camera.aspect=width/height;camera.updateProjectionMatrix();dirty=true;
+    updatePartPositions();
   }
   const observer=new ResizeObserver(resize);observer.observe(container);resize();
   const visibleObserver=new IntersectionObserver(entries=>{
@@ -450,12 +566,25 @@ export function createObjectViewer(container,id){
   },{threshold:0.01});visibleObserver.observe(container);
   const onVisibility=()=>{active=!document.hidden;dirty=true;};
   document.addEventListener("visibilitychange",onVisibility);
-  renderer.domElement.addEventListener("webglcontextlost",event=>{event.preventDefault();active=false;container.dispatchEvent(new CustomEvent("object-3d-error"));});
+  renderer.domElement.addEventListener("webglcontextlost",event=>{
+    event.preventDefault();
+    if(disposed)return; // intentional forceContextLoss() during cleanup
+    active=false;
+    container.dispatchEvent(new CustomEvent("object-3d-error"));
+  });
   function tick(timestamp){
     if(disposed)return;
     frame=requestAnimationFrame(tick);
     if(!active||!renderer.domElement.isConnected)return;
     const running=Boolean(state.run||state.speed||state.heating||state.brewing||state.toasting||state.pumping||state.oscillate||(Number(state.steam)>0));
+    if(cameraMove){
+      const elapsed=Math.min(1,(timestamp-cameraMove.start)/440);
+      const eased=1-(1-elapsed)**3;
+      camera.position.lerpVectors(cameraMove.startCamera,cameraMove.finishCamera,eased);
+      controls.target.lerpVectors(cameraMove.startTarget,cameraMove.finishTarget,eased);
+      if(elapsed>=1)cameraMove=null;
+      dirty=true;
+    }
     if(!running&&!dirty)return; // static model: let the GPU sleep
     const period=running?33:66; // active ~30 fps, changing/camera ~15 fps
     if(timestamp-last<period&&!dirty)return;
@@ -464,6 +593,7 @@ export function createObjectViewer(container,id){
     machine.update(state,dt,time);
     controls.update();
     renderer.render(scene,camera);
+    updatePartPositions();
     dirty=false;
   }
   frame=requestAnimationFrame(tick);
@@ -476,15 +606,41 @@ export function createObjectViewer(container,id){
       dirty=true;
       return xray;
     },
-    resetCamera(){camera.position.set(5,4.1,7.5);controls.target.set(0,1.05,0);controls.update();dirty=true;},
+    setAnnotations(visible){
+      if(disposed)return false;
+      showParts=Boolean(visible);
+      markerLayer.hidden=!showParts;
+      if(!showParts){description.hidden=true;cameraMove=null;}
+      else updatePartPositions();
+      dirty=true;
+      return showParts;
+    },
+    resetCamera(){
+      cameraMove=null;
+      camera.position.set(5,4.1,7.5);controls.target.set(0,1.05,0);controls.update();dirty=true;
+      description.hidden=true;
+      for(const point of points)point.button.setAttribute("aria-pressed","false");
+    },
     dispose(){
       if(disposed)return;disposed=true;cancelAnimationFrame(frame);
       observer.disconnect();visibleObserver.disconnect();document.removeEventListener("visibilitychange",onVisibility);
-      controls.dispose();scene.traverse(o=>{
+      controls.dispose();
+      const shared=new Set([...Object.values(mats),glow,steamMaterial,frosted,liquid,alertMat,brassy,blue,white,tint,edgeMaterial]);
+      const unique=new Set();
+      scene.traverse(o=>{
         if(o.geometry)o.geometry.dispose();
-        if(o.userData?.isDecal){o.material.map?.dispose();o.material.dispose();}
+        if(o.material)for(const mat of (Array.isArray(o.material)?o.material:[o.material])){
+          if(!shared.has(mat))unique.add(mat);
+        }
       });
-      for(const {mesh,normal,cut} of technical){mesh.material=normal;cut.dispose();}
+      // Restore original shell materials and include materials that were
+      // swapped out for the transient technical-view cutaway.
+      for(const {mesh,normal,cut} of technical){
+        mesh.material=normal;
+        unique.add(cut);
+      }
+      for(const mat of unique){mat.map?.dispose();mat.dispose();}
+      markerLayer.remove();
       // Shared material instances live for the module lifetime; disposing them
       // here would affect the next object opened from the same module.
       environment.dispose();

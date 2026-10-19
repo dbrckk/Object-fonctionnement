@@ -75,3 +75,43 @@ footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
 .three-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
 .three-actions button[aria-pressed=true]{background:#244256;color:#fff7e7;border-color:#244256}
 @media(max-width:430px){.three-header{flex-wrap:wrap}.three-actions{width:100%;justify-content:space-between}}
+
+
+/* Camera-projected hotspots are HTML buttons, accessible to touch and keyboard. */
+#three-mount{position:relative;isolation:isolate}
+.three-parts{position:absolute;inset:0;z-index:4;pointer-events:none}
+.three-parts[hidden],.three-part-description[hidden],.three-part-pin[hidden]{display:none!important}
+.three-part-pin{
+ position:absolute;transform:translate(-50%,-50%);
+ min-width:44px;min-height:44px;width:44px;height:44px;
+ border:2px solid #fff9e8;border-radius:50%;
+ background:#245a77;color:#fffdf5;
+ font-weight:800;font-size:.84rem;font-variant-numeric:tabular-nums;
+ box-shadow:0 2px 10px #1635497a,0 0 0 4px #82c6da54;
+ pointer-events:auto;touch-action:manipulation;cursor:pointer;
+ transition:background .16s,box-shadow .16s;
+}
+.three-part-pin:hover,.three-part-pin:focus-visible,.three-part-pin[aria-pressed=true]{
+ background:#cf7650;box-shadow:0 2px 10px #1635497a,0 0 0 5px #f8bb8799;
+ outline:2px solid #304c5e;outline-offset:1px;
+}
+.three-part-description{
+ position:absolute;left:10px;right:10px;bottom:12px;
+ background:#fffdf8f5;color:#2b3c4b;
+ border:1px solid #9dafba;border-radius:12px;
+ padding:12px 14px 10px;box-shadow:0 7px 26px #192e4060;
+ pointer-events:auto;max-height:42%;overflow:auto;
+ backdrop-filter:blur(8px);
+}
+.three-part-description strong{display:block;font-size:.86rem;margin-bottom:4px}
+.three-part-description p{margin:0;font-size:.78rem;line-height:1.5}
+.three-part-description button{
+ background:transparent;color:#285a73;
+ border:0;border-radius:7px;padding:6px 5px 2px;
+ font-weight:750;font-size:.78rem;text-decoration:underline;
+ min-height:30px
+}
+@media(prefers-reduced-motion:reduce){.three-part-pin{transition:none}}
+
+.three-part-leaders{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.three-part-leader{stroke:#31576e;stroke-width:1.5;stroke-dasharray:4 3;opacity:.8;vector-effect:non-scaling-stroke}

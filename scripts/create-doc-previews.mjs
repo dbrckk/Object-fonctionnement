@@ -30,6 +30,18 @@ try{
    console.log(id,'preview',webp.length,'bytes');
   }finally{await page.close();}
  }
+ const page=await browser.newPage({viewport:{width:700,height:870},deviceScaleFactor:1.5});
+ try{
+  await page.goto(url+'/#lock',{waitUntil:'load'});
+  await page.locator('.object-three-canvas').waitFor({timeout:16000});
+  await page.getByRole('button',{name:'Identifier les pièces'}).click();
+  await page.locator('.three-part-pin:visible').first().click();
+  await page.waitForTimeout(530);
+  const buffer=await page.locator('#three-mount').screenshot({animations:'disabled'});
+  const webp=await sharp(buffer).resize({width:1000}).webp({quality:84,effort:6}).toBuffer();
+  await writeFile(path.join(folder,'lock-inspection.webp'),webp);
+  console.log('lock-inspection','preview',webp.length,'bytes');
+ }finally{await page.close();}
 }finally{
  if(browser)await browser.close();
  server.kill('SIGTERM');

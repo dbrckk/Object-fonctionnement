@@ -172,3 +172,38 @@ Pour régénérer ces captures via Chromium :
     npm run generate:3d-previews
 
 Les rendus sont construits depuis les mêmes modèles Three.js que l'APK.
+
+
+## Version 0.4 — inspection des mécanismes
+
+Les neuf modèles 3D peuvent désormais être explorés directement avec le
+bouton **Identifier les pièces**. Chaque objet propose trois composants
+documentés (27 au total), dont les repères sont ancrés sur la géométrie.
+Appuyer sur un repère affiche une explication en français et cadre la caméra
+sur le composant. Les repères proches sont automatiquement espacés et reliés
+à leur ancrage par un trait de rappel.
+
+Utilisation : ouvrir un objet, afficher la 3D, choisir « Identifier les
+pièces », sélectionner un numéro puis « Fermer » pour poursuivre
+l'exploration. Le mode coupe/transparence demeure disponible. Les modèles
+restent des simplifications pédagogiques, pas des instructions de réparation.
+
+Améliorations techniques :
+- Le canevas WebGL occupe désormais toute la largeur de son conteneur
+  après l'ouverture d'une fiche (correction d'une ancienne largeur fixe).
+- Les cibles tactiles des repères mesurent 44 × 44 px, et l'explication
+  est accessible au clavier et avec un lecteur d'écran.
+- Le cadrage animé respecte le réglage système de réduction des animations.
+- Retour automatique à ColorFigures 2D lorsque le contexte WebGL est perdu.
+- Libération des géométries, textures et matériaux créés par chaque scène.
+- Tests automatisés des 27 positions, de la sélection des pièces, du
+  chevauchement des repères, du redimensionnement et de la perte WebGL.
+
+Capture réelle de la nouvelle fonctionnalité :
+
+![Mode inspection — cadenas](docs/previews/lock-inspection.webp)
+
+Pour régénérer les captures des objets et de l'inspection :
+npm run generate:3d-previews.
+
+GitHub Actions construit l'APK de test Android 0.4.0, versionCode 4.

@@ -19,11 +19,28 @@ async function mountViewer(id){
  const token=++loadingViewer;
  const host=document.getElementById("three-mount");
  if(!host||!state.view3D){postViewMode("2d");return;}
+ const fallback=()=>{
+  if(token!==loadingViewer)return;
+  state.view3D=false;
+  try{localStorage.setItem(VIEW_KEY,"2d");}catch{}
+  unmountViewer();
+  host.replaceChildren();
+  host.closest(".three-shell")?.setAttribute("hidden","");
+  document.querySelector(".simulation")?.classList.remove("show-3d");
+  const button=document.getElementById("view-mode");
+  if(button){
+   button.textContent="Vue 3D indisponible — illustration 2D";
+   button.setAttribute("aria-pressed","false");
+   button.disabled=true;
+  }
+  postViewMode("2d");
+ };
  try{
   const {createObjectViewer}=await import("./three-viewer.js");
   if(token!==loadingViewer||state.selected!==id||!host.isConnected)return;
   const viewer=createObjectViewer(host,id);
   currentViewer=viewer;
+  host.addEventListener("object-3d-error",fallback,{once:true});
   if(lastFigureState)currentViewer.setState(lastFigureState);
   host.closest(".three-shell").hidden=false;
   const stage=document.querySelector(".simulation");
@@ -34,13 +51,7 @@ async function mountViewer(id){
   if(iframe?.contentWindow)postViewMode("3d");
  }catch(error){
   console.info("3D unavailable; ColorFigures fallback:",error.message);
-  if(token!==loadingViewer)return;
-  state.view3D=false;host.replaceChildren();
-  document.querySelector(".three-shell")?.setAttribute("hidden","");
-  document.querySelector(".simulation")?.classList.remove("show-3d");
-  const button=document.getElementById("view-mode");
-  if(button){button.textContent="Vue 3D indisponible — illustration 2D";button.disabled=true;}
-  postViewMode("2d");
+  fallback();
  }
 }
 function toggleView(){
@@ -113,13 +124,20 @@ function toggleFavorite(id){
  display();
 }
 function renderDetail(o){
- root.innerHTML='<header class="detail-header"><button id="back" class="back">← Catalogue</button><button id="global-sound" class="audio-toggle" aria-label="Activer ou désactiver les bruitages" aria-pressed="'+state.soundEnabled+'">'+(state.soundEnabled?"♫ Son activé":"♪ Son coupé")+'</button><span class="brand small">OBJET<span>·</span>FONCTIONNEMENT</span></header><main class="detail"><p class="eyebrow">'+escapeHtml(o.category)+' / COMPRENDRE</p><h1>'+escapeHtml(o.name)+'</h1><p class="intro">'+escapeHtml(o.summary)+'</p><div class="audio-mix-row"><label for="global-volume">Volume des bruitages</label><input type="range" id="global-volume" min="0" max="100" step="5" value="'+state.volume+'" aria-label="Volume des bruitages"><output id="volume-number" for="global-volume">'+state.volume+' %</output></div><div class="simulation" style="--object:'+o.color+'">'+(o.figure ? '<div class="three-shell" hidden><div class="three-header"><span class="three-label">MODÈLE 3D INTERACTIF</span><div class="three-actions"><button id="three-explore" aria-pressed="false">Voir les pièces internes</button><button id="three-reset" aria-label="Recentrer la caméra 3D">↺ Recentrer</button></div></div><div id="three-mount"></div><p class="three-help">Fais glisser pour tourner · Pince pour zoomer</p></div><button id="view-mode" class="view-switch" aria-pressed="false">Explorer en 3D</button><iframe class="figure-frame"  title="Démonstration interactive : '+escapeHtml(o.name)+'" src="/figures/'+o.figure+'.html" sandbox="allow-scripts" loading="eager" referrerpolicy="no-referrer"></iframe><p class="simulation-note">Manipule les commandes du modèle isométrique ci-dessus. Modèle isométrique interactif basé sur ColorFigures (licence MIT). Les commandes simulent le principe de fonctionnement.</p>' : '<div class="simulation-figure '+(state.running?'animated':'')+'" aria-hidden="true"><span>'+o.icon+'</span></div><div class="simulation-status" role="status" aria-live="polite">'+escapeHtml(o.states[state.phase])+'</div><button id="simulate" class="primary" '+(state.running?'disabled':'')+'>'+(state.running?'Simulation en cours…':'▶ '+escapeHtml(o.action))+'</button><p class="simulation-note">Animation pédagogique simplifiée, non représentative de toutes les pièces internes.</p>')+'</div><section class="information"><h2>Comment ça fonctionne ?</h2><p>'+escapeHtml(o.how)+'</p></section><section class="information"><h2>Mode d’utilisation</h2><ol class="steps">'+o.steps.map(s=>'<li>'+escapeHtml(s)+'</li>').join("")+'</ol></section><section class="safety"><strong>À savoir</strong><p>'+escapeHtml(o.safety)+'</p></section><button id="favorite-detail" class="secondary" aria-pressed="'+state.favorites.includes(o.id)+'">'+(state.favorites.includes(o.id)?"★ Retirer des favoris":"☆ Ajouter aux favoris")+'</button></main><footer>Les indications peuvent varier selon le modèle. Consulte sa notice.</footer>';
+ root.innerHTML='<header class="detail-header"><button id="back" class="back">← Catalogue</button><button id="global-sound" class="audio-toggle" aria-label="Activer ou désactiver les bruitages" aria-pressed="'+state.soundEnabled+'">'+(state.soundEnabled?"♫ Son activé":"♪ Son coupé")+'</button><span class="brand small">OBJET<span>·</span>FONCTIONNEMENT</span></header><main class="detail"><p class="eyebrow">'+escapeHtml(o.category)+' / COMPRENDRE</p><h1>'+escapeHtml(o.name)+'</h1><p class="intro">'+escapeHtml(o.summary)+'</p><div class="audio-mix-row"><label for="global-volume">Volume des bruitages</label><input type="range" id="global-volume" min="0" max="100" step="5" value="'+state.volume+'" aria-label="Volume des bruitages"><output id="volume-number" for="global-volume">'+state.volume+' %</output></div><div class="simulation" style="--object:'+o.color+'">'+(o.figure ? '<div class="three-shell" hidden><div class="three-header"><span class="three-label">MODÈLE 3D INTERACTIF</span><div class="three-actions"><button id="three-parts" aria-pressed="false">Identifier les pièces</button><button id="three-explore" aria-pressed="false">Voir les pièces internes</button><button id="three-reset" aria-label="Recentrer la caméra 3D">↺ Recentrer</button></div></div><div id="three-mount"></div><p class="three-help">Glisser : rotation · Pincer : zoom · Identifier les pièces : explications</p></div><button id="view-mode" class="view-switch" aria-pressed="false">Explorer en 3D</button><iframe class="figure-frame"  title="Démonstration interactive : '+escapeHtml(o.name)+'" src="/figures/'+o.figure+'.html" sandbox="allow-scripts" loading="eager" referrerpolicy="no-referrer"></iframe><p class="simulation-note">Manipule les commandes du modèle isométrique ci-dessus. Modèle isométrique interactif basé sur ColorFigures (licence MIT). Les commandes simulent le principe de fonctionnement.</p>' : '<div class="simulation-figure '+(state.running?'animated':'')+'" aria-hidden="true"><span>'+o.icon+'</span></div><div class="simulation-status" role="status" aria-live="polite">'+escapeHtml(o.states[state.phase])+'</div><button id="simulate" class="primary" '+(state.running?'disabled':'')+'>'+(state.running?'Simulation en cours…':'▶ '+escapeHtml(o.action))+'</button><p class="simulation-note">Animation pédagogique simplifiée, non représentative de toutes les pièces internes.</p>')+'</div><section class="information"><h2>Comment ça fonctionne ?</h2><p>'+escapeHtml(o.how)+'</p></section><section class="information"><h2>Mode d’utilisation</h2><ol class="steps">'+o.steps.map(s=>'<li>'+escapeHtml(s)+'</li>').join("")+'</ol></section><section class="safety"><strong>À savoir</strong><p>'+escapeHtml(o.safety)+'</p></section><button id="favorite-detail" class="secondary" aria-pressed="'+state.favorites.includes(o.id)+'">'+(state.favorites.includes(o.id)?"★ Retirer des favoris":"☆ Ajouter aux favoris")+'</button></main><footer>Les indications peuvent varier selon le modèle. Consulte sa notice.</footer>';
  document.getElementById("back").addEventListener("click",returnToCatalog);
  document.getElementById("global-sound").addEventListener("click",()=>setSound(!state.soundEnabled));
  document.getElementById("global-volume").addEventListener("input",event=>setVolume(event.target.value));
  const frame=document.querySelector("iframe.figure-frame");
  if(frame)frame.addEventListener("load",()=>{postSoundSetting();postViewMode(currentViewer?"3d":"2d");});
  document.getElementById("view-mode").addEventListener("click",toggleView);
+ document.getElementById("three-parts").addEventListener("click",event=>{
+  if(!currentViewer)return;
+  const button=event.currentTarget;
+  const visible=currentViewer.setAnnotations(button.getAttribute("aria-pressed")!=="true");
+  button.setAttribute("aria-pressed",String(visible));
+  button.textContent=visible?"Masquer les repères":"Identifier les pièces";
+ });
  document.getElementById("three-reset").addEventListener("click",()=>currentViewer?.resetCamera());
  document.getElementById("three-explore").addEventListener("click",event=>{
   if(!currentViewer)return;

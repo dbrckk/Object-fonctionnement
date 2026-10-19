@@ -229,11 +229,36 @@ try{
     width:el.width,height:el.height,visible:el.getBoundingClientRect().height>260
    }));
    assert.ok(info.width>=250&&info.height>=240&&info.visible,"3D stage not rendered for "+id);
+   const widthMatches=await app.locator('.object-three-canvas').evaluate(el=>
+     Math.abs(el.getBoundingClientRect().width-el.parentElement.getBoundingClientRect().width)<=2);
+   assert.ok(widthMatches,"3D canvas does not fill available viewport: "+id);
    assert.equal(await app.getByRole('button',{name:"Voir l'illustration 2D"}).count(),1);
    await app.getByRole('button',{name:"Voir les pièces internes"}).click();
    assert.equal(await app.locator("#three-explore").getAttribute("aria-pressed"),"true");
    await app.getByRole('button',{name:"Extérieur normal"}).click();
    assert.equal(await app.locator("#three-explore").getAttribute("aria-pressed"),"false");
+   await app.getByRole('button',{name:"Identifier les pièces"}).click();
+   assert.equal(await app.locator('#three-parts').getAttribute('aria-pressed'),"true");
+   const hotspots=app.locator('.three-part-pin:visible');
+   assert.ok(await hotspots.count()>=1,"missing anchored part markers: "+id);
+   const markerCenters=await hotspots.evaluateAll(items=>items.map(b=>{
+    const r=b.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};
+   }));
+   for(let a=0;a<markerCenters.length;a++)for(let b=a+1;b<markerCenters.length;b++){
+    const A=markerCenters[a],B=markerCenters[b];
+    assert.ok(Math.hypot(A.x-B.x,A.y-B.y)>=43,
+      "overlapping 3D hotspots: "+id);
+   }
+   await hotspots.first().click();
+   const popup=app.locator('.three-part-description');
+   await popup.waitFor({state:"visible"});
+   assert.ok((await popup.locator('strong').innerText()).length>=5);
+   assert.ok((await popup.locator('p').innerText()).length>60);
+   assert.equal(await app.locator('.three-part-pin[aria-pressed="true"]').count(),1);
+   await popup.getByRole('button',{name:"Fermer l'explication de la pièce"}).click();
+   await popup.waitFor({state:"hidden"});
+   await app.getByRole('button',{name:"Masquer les repères"}).click();
+   assert.equal(await app.locator('.three-part-pin:visible').count(),0);
    assert.equal(await app.frameLocator('iframe.figure-frame').locator('#fig').evaluate(el=>getComputedStyle(el).display),"none");
    // State-changing 2D command must still work while the SVG is hidden.
    if(id==='fan'){
@@ -255,10 +280,23 @@ try{
    await app.setViewportSize({width,height:780});
    await app.goto(HOST+'/#kettle',{waitUntil:'load'});
    await app.locator(".object-three-canvas").waitFor();
-   const view=await app.evaluate(()=>({scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth}));
+   const view=await app.evaluate(()=>{
+    const canvas=document.querySelector('.object-three-canvas');
+    return {scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth,
+      canvas:canvas.getBoundingClientRect().width,host:canvas.parentElement.getBoundingClientRect().width};
+   });
    assert.ok(view.scroll<=view.client+1,"3D layout overflow at "+width+"px");
+   assert.ok(Math.abs(view.canvas-view.host)<=2,"3D canvas width mismatch at "+width+"px");
   }
   await app.setViewportSize({width:390,height:844});
+  await app.goto(HOST+'/#kettle',{waitUntil:'load'});
+  await app.locator(".object-three-canvas").waitFor();
+  await app.locator(".object-three-canvas").dispatchEvent("webglcontextlost",{cancelable:true});
+  await app.getByRole("button",{name:"Vue 3D indisponible — illustration 2D"}).waitFor({timeout:8000});
+  assert.equal(await app.locator(".object-three-canvas").count(),0);
+  assert.equal(await app.evaluate(()=>localStorage.getItem("object-fonctionnement:view:v1")),"2d");
+  assert.notEqual(await app.frameLocator("iframe.figure-frame").locator("#fig").evaluate(el=>getComputedStyle(el).display),"none");
+  console.log("PASS runtime WebGL loss degrades gracefully to intact 2D figure");
  }else{
   console.log("SKIP GPU-dependent WebGL test: no WebGL context on runner");
  }
