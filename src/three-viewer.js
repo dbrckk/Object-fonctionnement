@@ -223,21 +223,39 @@ function makeFan(root){
  const hub=cylinder(rotor,.17,.17,.16,mats.stainless,0,0,.12);
  hub.rotation.x=Math.PI/2;
  sphere(rotor,.085,mats.dark,0,0,.22);
- // The protective cage is stationary, not parented to the moving rotor.
- ring(pivot,.99,.028,mats.steel,0,0,.48);
- ring(pivot,.69,.014,mats.steel,0,0,.47);
- for(let i=0;i<22;i++){
-  const a=i*Math.PI/11;
-  rod(pivot,[0,0,.5],[Math.cos(a)*.99,Math.sin(a)*.99,.5],.007,mats.steel);
+ // Front and rear safety grilles stay fixed while the five pitched blades rotate.
+ // Separate front/rear cages create real parallax in the orbitable 3D scene.
+ for(const depth of [-.02,.49]){
+  ring(pivot,1.02,.025,mats.steel,0,0,depth);
+  ring(pivot,.72,.012,mats.steel,0,0,depth);
+  ring(pivot,.37,.009,mats.steel,0,0,depth);
+  for(let i=0;i<24;i++){
+   const a=i*Math.PI/12;
+   rod(pivot,[0,0,depth],[Math.cos(a)*1.02,Math.sin(a)*1.02,depth],.006,mats.steel);
+  }
  }
- const speedLeds=[-.18,0,.18].map((x)=>sphere(root,.055,mats.dark,x,.36,.54));
+ // Four longitudinal guards join both cages, preserving the visible depth.
+ for(let i=0;i<4;i++){
+  const a=(i+.5)*Math.PI/2;
+  const x=Math.cos(a)*1.02,y=Math.sin(a)*1.02;
+  rod(pivot,[x,y,-.02],[x,y,.49],.012,mats.stainless);
+ }
+ // Speed indicators and the actual tactile selector on the pedestal.
+ const selector=cylinder(root,.12,.12,.08,mats.charcoal,.0,.36,.54);
+ selector.rotation.x=Math.PI/2;
+ const pointer=block(root,.022,.11,.014,mats.ivory,0,.39,.6);
+ const speedLeds=[-.26,0,.26].map((x)=>sphere(root,.044,mats.dark,x,.19,.53));
  badge(root,"FAN  /  01–03",0,.24,.42,.52,.11);
  // State is supplied by the existing ColorFigures simulation.
  return {shells:[motor],update(s){
   const speed=truncate(s.speed,0,3);
   rotor.rotation.z=-(Number(s.turn)||0);
   pivot.rotation.y=s.oscillate?Math.sin(Number(s.angle)||0)*.32:0;
-  speedLeds.forEach((led,i)=>{led.scale.setScalar(i<speed?1.25:.65);});
+  speedLeds.forEach((led,i)=>{
+   led.scale.setScalar(i<speed?1.28:.72);
+   led.material=i<speed?glow:mats.dark;
+  });
+  pointer.rotation.z=(speed-1.5)*-.22;
  }};
 }
 function makeLock(root){

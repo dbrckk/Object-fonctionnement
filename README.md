@@ -307,3 +307,17 @@ Des tests navigateur vérifient le mouvement sous tension et l'oscillation.
 Un test de régression vérifie l'architecture de l'hélice et de la cage.
 
 VersionCode Android 9, versionName 0.9.0.
+
+
+## Version 0.10 — ventilateur 3D plus détaillé
+
+Le ventilateur dispose désormais de deux grilles de protection distinctes,
+avant et arrière, avec des cercles concentriques et quatre traverses
+latérales. Leur parallaxe est visible lors de la rotation de la caméra.
+Le rotor à cinq pales courbes continue de tourner indépendamment de
+la cage. La base intègre un sélecteur de vitesse et trois voyants
+dont l'état est synchronisé avec la simulation existante.
+
+La géométrie reste entièrement procédurale et disponible hors ligne.
+Les tests de catalogue, d'interaction et de rendu 3D restent actifs.
+La CI construit l'APK Android 0.10.0 (versionCode 10).
