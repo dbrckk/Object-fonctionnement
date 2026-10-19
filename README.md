@@ -321,3 +321,37 @@ dont l'état est synchronisé avec la simulation existante.
 La géométrie reste entièrement procédurale et disponible hors ligne.
 Les tests de catalogue, d'interaction et de rendu 3D restent actifs.
 La CI construit l'APK Android 0.10.0 (versionCode 10).
+
+
+## Version 0.11 — trois appareils 3D améliorés
+
+Cette version approfondit les visualisations procédurales sans ajouter
+de ressources distantes :
+
+- **Bouilloire :** jauge d'eau graduée nettement visible sur la face avant,
+  niveau lié aux actions, couvercle sur charnière qui s'ouvre
+  progressivement, anneau chauffant et vapeur.
+- **Grille-pain :** deux chambres avec résistances visibles et protections,
+  tranches arrondies avec croûte et mie qui brunissent selon la cuisson,
+  chariot à levier et éjection synchronisés.
+- **Cafetière filtre :** réservoir transparent déplacé sur la face visible,
+  eau à niveau variable, filtre avec café moulu, gouttes d'eau chaude,
+  verseuse qui se remplit et vapeur stylisée.
+- **Animations :** correction du passage du temps absolu au moteur pour
+  la bouilloire, la cafetière, le lave-linge et le distributeur.
+  Le couvercle continue son interpolation jusqu'à sa position finale.
+- **Tests visuels :** Playwright et Sharp comparent les images réelles du
+  WebGL avant et après une action sur les trois appareils. Le mouvement
+  du couvercle est également vérifié.
+
+Captures générées depuis les modèles réels :
+
+![Bouilloire 3D améliorée](docs/previews/kettle.webp)
+![Grille-pain 3D amélioré](docs/previews/toaster.webp)
+![Cafetière 3D améliorée](docs/previews/coffee.webp)
+
+Ces modèles restent des schémas pédagogiques stylisés, et non des
+reconstitutions industrielles exactes. Les sons existants demeurent
+générés localement, sans piste audio téléchargée.
+
+GitHub Actions produit l'APK Android de test 0.11.0 (versionCode 11).

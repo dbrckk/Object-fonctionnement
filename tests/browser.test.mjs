@@ -3,10 +3,29 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import sharp from 'sharp';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const HOST=process.env.TEST_BASE_URL ?? 'http://127.0.0.1:4174';
 const ids=['kettle','toaster','fan','lock','bicycle','coffee','flashlight','washer','vending'];
+// Real pixel comparison rather than only checking 2D control state.
+async function changedPixelRatio(before,after){
+ const [a,b]=await Promise.all([
+  sharp(before).ensureAlpha().raw().toBuffer({resolveWithObject:true}),
+  sharp(after).ensureAlpha().raw().toBuffer({resolveWithObject:true})
+ ]);
+ assert.equal(a.info.width,b.info.width);
+ assert.equal(a.info.height,b.info.height);
+ let changed=0;
+ for(let i=0;i<a.data.length;i+=4){
+  const delta=Math.abs(a.data[i]-b.data[i])
+   +Math.abs(a.data[i+1]-b.data[i+1])
+   +Math.abs(a.data[i+2]-b.data[i+2]);
+  if(delta>54)changed++;
+ }
+ return changed/(a.info.width*a.info.height);
+}
+
 
 async function waitReady(url,ms=15000){
  const start=Date.now();
@@ -311,6 +330,32 @@ try{
    }
    assert.deepEqual(pageErrors,[],"3D page JS errors: "+id);
    console.log("PASS Three.js PBR "+id);
+  }
+  for(const [id,actions] of [
+   ['kettle',["Remplir d'eau"]],
+   ['toaster',['Insérer le pain']],
+   ['coffee',["Ajouter de l'eau"]]
+  ]){
+   await app.goto(HOST+'/#'+id,{waitUntil:'load'});
+   const canvas=app.locator('.object-three-canvas');
+   await canvas.waitFor();
+   await app.waitForTimeout(300);
+   const before=await canvas.screenshot();
+   for(const action of actions)await app.frameLocator('iframe.figure-frame').getByRole('button',{name:action,exact:true}).click();
+   await app.waitForTimeout(440);
+   const after=await canvas.screenshot();
+   const ratio=await changedPixelRatio(before,after);
+   assert.ok(ratio>.0006,"3D state did not produce visible geometric/material change: "+id+" ratio="+ratio);
+   console.log("PASS state-reactive 3D visual "+id+" changed "+(ratio*100).toFixed(2)+"% of pixels");
+   if(id==='kettle'){
+    await app.frameLocator('iframe.figure-frame').getByRole('button',{name:'Ouvrir / fermer couvercle'}).click();
+    await canvas.scrollIntoViewIfNeeded();
+    await app.waitForTimeout(950);
+    const open=await canvas.screenshot();
+    const lidChange=await changedPixelRatio(after,open);
+    assert.ok(lidChange>.0006,"kettle hinged lid did not move visibly: "+lidChange);
+    console.log("PASS spring-animated kettle lid changed "+(lidChange*100).toFixed(2)+"% of pixels");
+   }
   }
   await app.goto(HOST+'/',{waitUntil:'load'});
   assert.equal(await app.locator('.tour-completed-card').count(),9);

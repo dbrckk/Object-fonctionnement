@@ -18,12 +18,20 @@ try{
  if(!available)throw Error('Vite could not start');
  await mkdir(folder,{recursive:true});
  browser=await chromium.launch({headless:true,args:['--no-sandbox']});
- for(const id of ['kettle','fan','vending']){
+ for(const id of ['kettle','toaster','coffee','fan','vending']){
   const page=await browser.newPage({viewport:{width:700,height:870},deviceScaleFactor:1.5});
   try{
    await page.goto(url+'/#'+id,{waitUntil:'load'});
    await page.locator('.object-three-canvas').waitFor({timeout:16000});
-   await page.waitForTimeout(380);
+   const actions={
+    kettle:["Remplir d'eau"],
+    toaster:["Insérer le pain","Abaisser / griller"],
+    coffee:["Ajouter de l'eau","Mettre le café moulu","Préparer le café"]
+   };
+   for(const action of actions[id]||[]){
+    await page.frameLocator('iframe.figure-frame').getByRole('button',{name:action,exact:true}).click();
+   }
+   await page.waitForTimeout(actions[id]?650:380);
    const buffer=await page.locator('.object-three-canvas').screenshot({animations:'disabled'});
    const webp=await sharp(buffer).resize({width:1000}).webp({quality:84,effort:6}).toBuffer();
    await writeFile(path.join(folder,id+'.webp'),webp);

@@ -139,44 +139,95 @@ function makeKettle(root){
  plate(root,2.6,2.1,.12);
  const base=cylinder(root,.67,.73,.13,mats.dark,0,.24,0);
  const shell=cylinder(root,.56,.64,1.3,mats.stainless,0,1.0,0);
- const band=cylinder(root,.64,.64,.14,mats.dark,0,.4,0);
- const lip=cylinder(root,.55,.55,.045,mats.steel,0,1.68,0);
- const lid=cylinder(root,.44,.44,.08,mats.charcoal,0,1.75,0);
- cylinder(root,.12,.1,.1,mats.stainless,0,1.83,0);
- // Curved insulated handle and hollow pouring spout.
+ cylinder(root,.64,.64,.14,mats.dark,0,.4,0);
+ cylinder(root,.55,.55,.045,mats.steel,0,1.68,0);
+ // The lid pivots around the back: the knob follows the lid rather
+ // than teleporting vertically when the user opens the vessel.
+ const lidHinge=group(root,0,1.7,-.39);
+ cylinder(lidHinge,.44,.44,.08,mats.charcoal,0,.05,.39);
+ cylinder(lidHinge,.12,.1,.1,mats.stainless,0,.12,.39);
+ rod(root,[-.18,1.7,-.41],[.18,1.7,-.41],.04,mats.steel);
  hose(root,[[.47,1.47,-.08],[.82,1.58,-.05],[1.05,1.44,0],[1.08,.72,0],[.78,.6,0]],.065,mats.rubber);
- const spout=rod(root,[-.47,1.42,0],[-.93,1.66,0],.15,mats.steel);
+ rod(root,[-.47,1.42,0],[-.93,1.66,0],.15,mats.steel);
  const nozzle=cylinder(root,.185,.13,.09,mats.stainless,-.98,1.67,0);
  nozzle.rotation.z=-Math.PI*.34;
- const window=block(root,.025,.6,.11,mats.glass,-.57,1.02,.04);
- const level=cylinder(root,.54,.54,.42,liquid,0,.58,0);
- led(root,.2,.49,.51,alertMat);
+ // Exterior calibrated sight glass stays visible even though the body
+ // is opaque. Its level is driven by the actual ColorFigures water state.
+ block(root,.37,.91,.045,mats.dark,.1,1.05,.662);
+ block(root,.31,.85,.055,frosted,.1,1.05,.696);
+ const visibleWater=block(root,.25,.79,.06,liquid,.1,.86,.745);
+ for(let i=0;i<5;i++){
+  const y=.78+i*.135;
+  rod(root,[.22,y,.66],[.29,y,.66],.008,mats.stainless);
+ }
+ badge(root,"H2O",.10,1.46,.68,.18,.095,"#273c4a","#e6f5fb");
+ // An orange heating-ring and LED expose the hidden heating resistor.
+ const heaterMaterial=material({color:0xda693d,emissive:0xfa672b,emissiveIntensity:.07,metalness:.18,roughness:.35});
+ const heater=ring(root,.59,.023,heaterMaterial,0,.42,0,Math.PI/2);
+ const ledMat=material({color:0xfbb673,emissive:0xff5b21,emissiveIntensity:.07});
+ led(root,.23,.48,.54,ledMat);
  const steam=group(root,-.96,1.7,0);
  const puffs=[];
- for(let i=0;i<7;i++)puffs.push(sphere(steam,.08+((i*7)%5)*.009,steamMaterial,0,i*.18,0));
- return {shells:[shell],update(s,time){
+ for(let i=0;i<8;i++)puffs.push(sphere(steam,.073+(i%4)*.012,steamMaterial,0,i*.17,0));
+ let lidAngle=0,lidTarget=0;
+ return {
+  shells:[shell],
+  needsAnimation:()=>Math.abs(lidAngle-(lidTarget||0))>.007,
+  update(s,dt,time){
   const water=truncate(s.water,0,1);
-  level.scale.y=Math.max(.02,water*2.3);level.position.y=.42+water*.57;
+  const height=.75*water;
+  visibleWater.scale.y=Math.max(.005,height/.79);
+  visibleWater.position.y=.655+height/2;
   const hot=truncate(s.hot,0,1);
-  alertMat.emissiveIntensity=s.heating?(.25+hot*.85):.1;
+  heaterMaterial.emissiveIntensity=s.heating?.35+hot*1.25:.035;
+  ledMat.emissiveIntensity=s.heating?1.35:.06;
+  const vapor=truncate((s.heating?hot*.92:0)+Number(s.steam||0),0,1);
   for(let i=0;i<puffs.length;i++){
-   const p=puffs[i],a=(time*.33+i/7)%1;
-   p.position.set(Math.sin(i*2.7+time*.6)*.08,a*.72,Math.cos(i*1.7+time*.5)*.05);
-   p.scale.setScalar((.4+.85*a)*((s.heating||s.steam)?1:.001));
+   const puff=puffs[i],a=(time*.28+i/puffs.length)%1;
+   puff.position.set(Math.sin(i*2.7+time*.8)*.10,a*.85,Math.cos(i*1.7+time*.7)*.08);
+   puff.scale.setScalar(vapor*(.45+.95*a)+.0001);
   }
-  lid.position.y=s.lid?2.05:1.75;
-  }};
+  // Frame-rate-independent easing; keeps rendering until the lid arrives.
+  lidTarget=s.lid?-.74:0;
+  const alpha=1-Math.exp(-9*Math.min(Math.max(dt,0),.05));
+  lidAngle+=(lidTarget-lidAngle)*alpha;
+  if(Math.abs(lidAngle-lidTarget)<.006)lidAngle=lidTarget;
+  lidHinge.rotation.x=lidAngle;
+ }};
 }
 function makeToaster(root){
  plate(root,2.6,2.1,.12);
  const body=block(root,1.65,1.35,.98,mats.warm,0,.86,0);
- const rim=block(root,1.54,.08,.9,mats.stainless,0,1.54,0);
- const slotMat=new THREE.MeshStandardMaterial({color:0x17191d,roughness:.84});
+ block(root,1.54,.08,.9,mats.stainless,0,1.54,0);
+ const slotMat=material({color:0x191e24,roughness:.88});
+ const heatMat=material({color:0x773d2c,emissive:0xff6328,emissiveIntensity:.06,metalness:.28,roughness:.52});
  const breads=[];
  for(const x of [-.37,.37]){
-  block(root,.42,.01,.78,slotMat,x,1.588,0);
-  const bread=block(root,.38,.55,.58,mats.bread,x,1.57,0);
-  breads.push(bread);
+  block(root,.42,.012,.78,slotMat,x,1.588,0);
+  // Recessed glass-front heating chamber reveals glowing coils behind
+  // a protective wire guard.
+  block(root,.56,.82,.027,mats.dark,x,.99,.51);
+  for(let i=0;i<6;i++){
+   const xx=x-.21+i*.084;
+   rod(root,[xx,.67,.545],[xx,1.33,.545],.021,heatMat);
+  }
+  for(let i=0;i<3;i++){
+   const yy=.73+i*.24;
+   rod(root,[x-.24,yy,.565],[x+.24,yy,.565],.008,mats.steel);
+  }
+  const crust=material({color:0xdba56c,roughness:.8});
+  const crumb=material({color:0xf4d8a5,roughness:.88});
+  const shape=new THREE.Shape();
+  shape.moveTo(-.20,-.27);
+  shape.lineTo(-.20,.13);
+  shape.bezierCurveTo(-.24,.40,.20,.41,.20,.13);
+  shape.lineTo(.20,-.27);shape.closePath();
+  const slice=group(root,x,1.57,0);
+  const outline=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:.10,bevelEnabled:true,bevelThickness:.028,bevelSize:.025,bevelSegments:2,curveSegments:9}),crust);
+  outline.scale.set(1.09,1.1,1.01);outline.castShadow=true;slice.add(outline);
+  const center=new THREE.Mesh(new THREE.ShapeGeometry(shape,12),crumb);
+  center.position.z=.137;slice.add(center);
+  breads.push({slice,crumb,crust});
  }
  const lever=group(root,.87,1.1,.45);
  cylinder(lever,.085,.085,.31,mats.stainless,0,0,0).rotation.z=Math.PI/2;
@@ -184,14 +235,22 @@ function makeToaster(root){
  const dial=cylinder(root,.18,.18,.11,mats.dark,.7,.64,.51);
  dial.rotation.x=Math.PI/2;
  badge(root,"TOAST  01–05",0,.91,.515,.92,.18,"#272f3a","#ffe6b6");
- const heating=group(root,0,.7,.5);
- const filament=block(heating,1.2,.065,.01,alertMat,0,0,0);
+ const power=led(root,-.7,.47,.53,heatMat);
  return {shells:[body],update(s){
-  const lifting=s.toasting?.03:s.done?(.7+(s.eject||0)*.18):s.bread?.4:-.12;
-  breads.forEach(b=>{b.visible=!!s.bread;b.position.y=1.18+lifting;const t=truncate(s.hot,0,1);b.material=t>.55?mats.amber:mats.bread;});
-  lever.position.y=s.toasting?.65:1.1;
-  filament.material.emissiveIntensity=s.toasting?.7+truncate(s.hot,0,1)*.7:.05;
-  }};
+  const hot=truncate(s.hot,0,1);
+  const lift=s.toasting?-.27:s.done?.12+(truncate(s.eject,0,1)*.28):s.bread?-.09:-.4;
+  breads.forEach(({slice,crumb,crust})=>{
+   slice.visible=!!s.bread;
+   slice.position.y=1.59+lift;
+   const shade=Math.pow(hot,.75);
+   crumb.color.set(0xf4d8a5).lerp(new THREE.Color(0xb57a48),shade*.85);
+   crust.color.set(0xdba56c).lerp(new THREE.Color(0x8f5234),shade*.75);
+  });
+  lever.position.y=s.toasting?.67:1.1;
+  heatMat.emissiveIntensity=s.toasting?.38+hot*1.1:Math.max(.04,hot*.1);
+  power.scale.setScalar(s.toasting?1.18:.7);
+  dial.rotation.z=(truncate(s.level||2,1,5)-3)*-.23;
+ }};
 }
 function makeFan(root){
  plate(root,2.5,2.2,.12);
@@ -311,24 +370,59 @@ function makeCoffee(root){
  const body=block(root,1.2,1.95,.95,mats.stainless,-.44,1.27,-.12);
  block(root,1.6,.21,1.18,mats.dark,0,2.31,-.09);
  block(root,.96,.12,.81,mats.dark,.42,1.41,.35);
- const tank=block(root,.34,1.2,.6,frosted,-.97,1.37,-.08);
- const level=block(root,.28,.7,.54,liquid,-.98,1.04,-.08);
+ // A translucent water reservoir with moving water level.
+ // Place the water sight glass on the *outside* of the opaque chassis.
+ // Otherwise the water disappears behind the body at typical camera angles.
+ block(root,.41,1.17,.11,mats.dark,-.82,1.37,.435);
+ block(root,.35,1.10,.12,frosted,-.82,1.37,.505);
+ const waterColumn=block(root,.28,.90,.11,liquid,-.82,1.03,.582);
+ badge(root,"H2O",-.82,1.96,.596,.2,.12);
+ // Exposed filter funnel, removable brown grounds and pouring nozzle.
  const filter=cylinder(root,.36,.12,.39,mats.dark,.42,1.79,.19);
+ const grounds=cylinder(root,.27,.25,.06,mats.coffee,.42,1.98,.19);
+ cylinder(root,.10,.10,.14,mats.steel,.42,1.49,.26);
+ const shower=group(root,.4,2.18,.19);
+ const showerDrops=Array.from({length:3},(_,i)=>sphere(shower,.023,liquid,(i-1)*.08,0,0));
+ // Transparent jug with its liquid level moving up during extraction.
  const jug=group(root,.49,.7,.47);
  cylinder(jug,.39,.32,.81,frosted,0,0,0);
  cylinder(jug,.34,.34,.05,mats.steel,0,.44,0);
  hose(jug,[[.32,.16,0],[.65,.19,0],[.66,-.28,0],[.34,-.28,0]],.055,mats.rubber);
  const coffee=cylinder(jug,.32,.32,.25,mats.coffee,0,-.23,0);
  const drip=group(root,.43,1.36,.43);
- const drops=Array.from({length:5},()=>sphere(drip,.025,liquid,0,0,0));
- const hot=led(root,.06,1.59,.49,alertMat);
+ const drops=Array.from({length:6},()=>sphere(drip,.027,liquid,0,0,0));
+ const hotMat=material({color:0xf6a36a,emissive:0xff6a24,emissiveIntensity:.08});
+ led(root,.06,1.59,.49,hotMat);
+ const steam=group(root,.48,1.17,.48);
+ const puffs=Array.from({length:6},(_,i)=>sphere(steam,.06+(i%3)*.012,steamMaterial,0,0,0));
  badge(root,"BREW  /  FILTER",-.47,1.99,.39,.9,.16,"#304456","#fdf5e5");
- return {shells:[body],update(s,time){
-  const v=truncate(s.coffee,0,1);
-  coffee.scale.y=Math.max(.01,v*2.2);coffee.position.y=-.38+v*.36;
-  level.scale.y=Math.max(.02,truncate(s.water,0,1));level.position.y=.71+truncate(s.water,0,1)*.35;
-  drops.forEach((p,i)=>{const k=(time*1.9+i*.19)%1;p.visible=!!s.brewing;p.position.y=-k*.45;});
-  hot.material.emissiveIntensity=s.brewing?1:.15;
+ return {shells:[body],update(s,dt,time){
+  const volume=truncate(s.coffee,0,1),water=truncate(s.water,0,1);
+  const coffeeHeight=.56*volume;
+  coffee.scale.y=Math.max(.006,coffeeHeight/.25);
+  coffee.position.y=-.38+coffeeHeight/2;
+  const waterHeight=.80*water;
+  waterColumn.scale.y=Math.max(.006,waterHeight/.90);
+  waterColumn.position.y=.84+waterHeight/2;
+  grounds.visible=!!s.grounds;
+  const brewing=!!s.brewing;
+  drops.forEach((p,i)=>{
+   const k=(time*1.7+i/drops.length)%1;
+   p.visible=brewing;
+   p.position.y=-k*.48;
+   p.scale.setScalar(.75+.32*Math.sin(k*Math.PI));
+  });
+  showerDrops.forEach((p,i)=>{
+   const k=(time*1.4+i/showerDrops.length)%1;
+   p.visible=brewing;
+   p.position.y=-k*.17;
+  });
+  puffs.forEach((p,i)=>{
+   const k=(time*.34+i/puffs.length)%1;
+   p.position.set(Math.sin(time*.5+i)*.055,k*.38,Math.cos(i*2)*.055);
+   p.scale.setScalar((brewing||volume>.1)?(.35+.65*k):.0001);
+  });
+  hotMat.emissiveIntensity=brewing?1.3:.08;
  }};
 }
 function makeFlashlight(root){
@@ -379,7 +473,7 @@ function makeWashing(root){
  badge(root,"WASH  ·  ECO",.37,2.36,.838,.65,.12,"#29394b","#fff4db");
  for(let i=0;i<3;i++)led(root,.25+i*.2,2.36,.84,i===0?glow:mats.steel);
  const drawer=block(root,.46,.12,.32,mats.stainless,-.7,2.36,.7);
- return {shells:[body],update(s,time){
+ return {shells:[body],update(s,dt,time){
   const active=!!s.run;
   drum.rotation.z=active?time*1.9:0;
   const waterLevel=active?.22:0;
@@ -415,7 +509,7 @@ function makeVending(root){
  badge(root,"01  02  03  04",-.28,2.37,.77,1.33,.12);
  const slot=group(root,0,.47,.81);
  const hatch=block(slot,1.1,.19,.06,mats.steel,-.26,.0,0);
- return {shells:[body],update(s,time){
+ return {shells:[body],update(s,dt,time){
   const busy=!!s.drop||!!s.run;
   hatch.rotation.x=busy?-.4*Math.sin(time*7):0;
  }};
@@ -657,7 +751,7 @@ export function createObjectViewer(container,id){
     if(disposed)return;
     frame=requestAnimationFrame(tick);
     if(!active||!renderer.domElement.isConnected)return;
-    const running=Boolean(state.run||state.speed||state.heating||state.brewing||state.toasting||state.pumping||state.oscillate||(Number(state.steam)>0));
+    const running=Boolean(machine.needsAnimation?.()||state.run||state.speed||state.heating||state.brewing||state.toasting||state.pumping||state.oscillate||(Number(state.steam)>0));
     if(cameraMove){
       const elapsed=Math.min(1,(timestamp-cameraMove.start)/440);
       const eased=1-(1-elapsed)**3;
