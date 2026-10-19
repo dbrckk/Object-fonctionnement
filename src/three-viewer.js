@@ -360,9 +360,23 @@ function makeBicycle(root){
  hose(root,[[-.54,.39,.2],[-.14,.22,.52],[.55,.38,.3],[.79,.56,-.2]],.032,mats.rubber);
  badge(root,"AIR  /  PISTON",-.65,.67,.36,.48,.12);
  const needle=gauge(root,-.48,.94,.44,.17);
+ // Mechanical plunger: the inner rod moves with the handle, while the
+ // outer metal cylinder and pressure gauge remain stationary.
+ const plunger=group(root,-.65,0,.2);
+ cylinder(plunger,.043,.043,.94,mats.stainless,0,1.47,0);
+ cylinder(plunger,.12,.12,.09,mats.rubber,0,1.01,0);
+ // Foot rests stabilize the pump when the user pushes the handle.
+ block(root,.48,.08,.30,mats.rubber,-.65,.25,.2);
+ for(const x of [-.93,-.37])block(root,.13,.12,.34,mats.dark,x,.30,.2);
+ // Valve cap and coupling at the end of the air hose.
+ cylinder(root,.075,.075,.19,mats.stainless,.79,.56,-.2).rotation.x=Math.PI/2;
+ const warning=led(root,-.33,1.10,.46,mats.dark);
  return {shells:[stem],update(s){
-  handle.position.y=1.93-.36*truncate(s.piston,0,1);
+  const stroke=truncate(s.piston,0,1);
+  handle.position.y=1.93-.36*stroke;
+  plunger.position.y=-.36*stroke;
   needle.rotation.z=(truncate(s.pressure,0,5)-2.5)*.37;
+  warning.material=Number(s.pressure||0)>4.4?glow:mats.dark;
  }};
 }
 function makeCoffee(root){

@@ -355,3 +355,16 @@ reconstitutions industrielles exactes. Les sons existants demeurent
 générés localement, sans piste audio téléchargée.
 
 GitHub Actions produit l'APK Android de test 0.11.0 (versionCode 11).
+
+
+## Version 0.12 — pompe à vélo : cinématique du piston
+
+Le modèle 3D de la pompe à vélo présente désormais une tige de piston
+reliée au déplacement de la poignée. Un joint, des repose-pieds,
+un raccord de valve et un témoin de pression enrichissent la mécanique
+visible. L'aiguille du manomètre reste synchronisée avec la pression
+de la simulation ColorFigures existante. Aucun téléchargement ni
+permission Android supplémentaire n'est nécessaire.
+
+Tests : 25 vérifications unitaires, tous les scénarios navigateur
+et les neuf modèles 3D. APK de test Android 0.12.0 (versionCode 12).
