@@ -159,16 +159,30 @@
       speed:+(s.speed||0),run:!!s.run,pumping:!!s.pumping,
       done:!!s.done,phase:s.phase,drop:!!s.drop,
       credit:+(s.credit||0),tray:!!s.tray,
-      on:!!s.on,locked:s.locked,
+      on:!!s.on,locked:s.locked,paused:!!s.paused,
+      prog:+(s.prog||0),tau:+(s.tau||0),
       pressure:+(s.pressure||0)
     };
+  }
+  // Audio follows the same compact programme timeline as the original
+  // ColorFigures washing simulation. No new sound files or downloads.
+  function washerPhase(s){
+    if(!s.run)return "idle";
+    const p=[{fill:1.4,wash:6,drain:7},{fill:1,wash:3.6,drain:4.4},{fill:0,wash:0,drain:0}][Math.max(0,Math.min(2,Math.floor(s.prog)))];
+    return s.tau<p.fill?"fill":s.tau<p.wash?"wash":s.tau<p.drain?"drain":"spin";
   }
   function sync(){
     if(!document.body)return;
     const s=snapshot(window.__st);
     if(enabled&&volume>0&&ctx&&ctx.state==="running"){
-      const intensity=s.heating?.7:s.toasting?.5:s.brewing?.75:s.speed>0?s.speed*.35:s.run?.8:s.drop?.6:0;
-      const base=tag==="fan"?145:tag==="washer"?125:tag==="coffee"?195:tag==="kettle"?245:160;
+      const washPhase=tag==="washer"?washerPhase(s):null;
+      const washerActive=tag==="washer"&&s.run&&!s.paused;
+      const washerIntensity=washerActive?(washPhase==="spin"?.95:washPhase==="wash"?.53:washPhase==="drain"?.23:0):0;
+      const intensity=tag==="washer"?washerIntensity:
+        s.heating?.7:s.toasting?.5:s.brewing?.75:s.speed>0?s.speed*.35:s.run?.8:s.drop?.6:0;
+      const base=tag==="fan"?145:tag==="washer"?
+        (washPhase==="spin"?185:washPhase==="wash"?123:90):
+        tag==="coffee"?195:tag==="kettle"?245:160;
       setAmbient(base+(s.speed||0)*15,Math.min(intensity,1));
       const texture=Math.floor(ctx.currentTime*(tag==="coffee"?1.65:tag==="kettle"?1.15:.8));
       if(intensity>0&&texture!==lastTexture){
@@ -176,13 +190,24 @@
         if(tag==="coffee"&&s.brewing)play("drip");
         else if(tag==="kettle"&&s.heating)play("bubbling");
         else if(tag==="toaster"&&s.toasting)noise(.11,1800,.037);
-        else if(tag==="washer"&&s.run)noise(.12,300,.04);
+        else if(tag==="washer"&&washerActive){
+          if(washPhase==="fill"||washPhase==="drain")play("water");
+          else noise(washPhase==="spin"?.18:.12,washPhase==="spin"?460:300,
+            washPhase==="spin"?.06:.034);
+        }
         else if(tag==="fan"&&s.speed>0)noise(.25,700+s.speed*100,.045);
       }
       if(prev.heating&&!s.heating&&s.phase==="done")play("success");
       if(prev.toasting&&!s.toasting&&s.done)play("pop");
       if(prev.brewing&&!s.brewing&&s.done!==true)play("success");
       if(prev.drop&&!s.drop&&s.tray)play("pop");
+      if(tag==="washer"&&washerActive&&!prev.paused){
+        const previousPhase=washerPhase(prev);
+        if(prev.run&&previousPhase!==washPhase){
+          if(washPhase==="spin")play("motor");
+          else if(washPhase==="fill"||washPhase==="drain")play("water");
+        }
+      }
       if(prev.run&&!s.run)play("success");
     }else stopAmbient();
     prev=s;

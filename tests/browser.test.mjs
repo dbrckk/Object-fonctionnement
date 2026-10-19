@@ -357,8 +357,92 @@ try{
     console.log("PASS spring-animated kettle lid changed "+(lidChange*100).toFixed(2)+"% of pixels");
    }
   }
-  await app.goto(HOST+'/',{waitUntil:'load'});
-  assert.equal(await app.locator('.tour-completed-card').count(),9);
+   // Three previously under-animated models must now produce real state-linked pixels.
+   await app.goto(HOST+'/#lock',{waitUntil:'load'});
+   let canvas=app.locator('.object-three-canvas');
+   await canvas.waitFor();
+   await app.waitForTimeout(260);
+   const lockBefore=await canvas.screenshot();
+   const lockFigure=app.frameLocator('iframe.figure-frame');
+   await lockFigure.getByRole('button',{name:'Insérer la bonne clé'}).click();
+   await app.waitForTimeout(440);
+   const lockInserted=await canvas.screenshot();
+   const lockKeyDelta=await changedPixelRatio(lockBefore,lockInserted);
+   assert.ok(lockKeyDelta>.0007,"lock key insertion not visible in 3D: "+lockKeyDelta);
+   await lockFigure.getByRole('button',{name:'Tourner la clé'}).click();
+   await lockFigure.locator('body').evaluate(()=>new Promise(resolve=>{
+    const poll=()=>window.__st.turning?setTimeout(poll,25):resolve();poll();
+   }));
+   await app.waitForTimeout(350);
+   const lockTurned=await canvas.screenshot();
+   const lockTurnDelta=await changedPixelRatio(lockInserted,lockTurned);
+   assert.ok(lockTurnDelta>.0007,"rotating lock plug and shackle not visible in 3D: "+lockTurnDelta);
+   console.log('PASS 3D lock key and unlocking animate distinct geometry');
+
+   await app.goto(HOST+'/#washing',{waitUntil:'load'});
+   canvas=app.locator('.object-three-canvas');
+   await canvas.waitFor();
+   await app.waitForTimeout(280);
+   const washBefore=await canvas.screenshot();
+   await app.frameLocator('iframe.figure-frame').locator('body').evaluate(()=>{
+    Object.assign(window.__st,{run:true,paused:false,prog:0,tau:3,laundry:"drum"});
+   });
+   await app.waitForTimeout(460);
+   const washDuring=await canvas.screenshot();
+   const washDelta=await changedPixelRatio(washBefore,washDuring);
+   assert.ok(washDelta>.001,"washing drum, clothing and water not visible: "+washDelta);
+   console.log('PASS 3D washer water and drum react to ColorFigures state');
+   // A real gesture unlocks mobile Web Audio; stopping/pausing a motor must
+   // release its low-level ambient oscillator instead of humming indefinitely.
+   const washerFrame=app.frameLocator('iframe.figure-frame');
+   await washerFrame.locator('#figure-sound').click();
+   await washerFrame.locator('body').evaluate(()=>new Promise(resolve=>{
+    const wait=()=>window.__soundDebug.enabled?resolve():setTimeout(wait,20);wait();
+   }));
+   await app.waitForTimeout(450);
+   assert.equal(await washerFrame.locator('body').evaluate(()=>window.__soundDebug.ambient),true,
+    "washer motor should emit ambient sound while washing");
+   await washerFrame.locator('body').evaluate(()=>{window.__st.paused=true;});
+   await app.waitForTimeout(440);
+   assert.equal(await washerFrame.locator('body').evaluate(()=>window.__soundDebug.ambient),false,
+    "washer ambient must stop during pause");
+   console.log("PASS washing motor ambience respects playback/pause state");
+
+   await app.goto(HOST+'/#vending',{waitUntil:'load'});
+   canvas=app.locator('.object-three-canvas');
+   await canvas.waitFor();
+   await app.waitForTimeout(250);
+   const vendBefore=await canvas.screenshot();
+   await app.evaluate(()=>{
+    window.__vendingMessages=[];
+    window.addEventListener('message',event=>{
+     const f=document.querySelector('iframe.figure-frame');
+     if(event.source===f?.contentWindow&&event.data?.type==='object-figure:state')
+      window.__vendingMessages.push(event.data.value);
+    });
+   });
+   await app.frameLocator('iframe.figure-frame').locator('body').evaluate(()=>{
+    const s=window.__st;
+    s.credit=1.5;s.stock[1][2]=1;s.drop={r:1,c:2,t:.44};
+   });
+   await app.waitForFunction(()=>window.__vendingMessages?.some(s=>
+    s.drop?.r===1&&s.drop?.c===2&&s.stock?.[1]?.[2]===1&&s.credit===1.5));
+   await app.waitForTimeout(330);
+   const vendDrop=await canvas.screenshot();
+   const vendDelta=await changedPixelRatio(vendBefore,vendDrop);
+   assert.ok(vendDelta>.0009,"vending product drop not visible in 3D: "+vendDelta);
+   await app.frameLocator('iframe.figure-frame').locator('body').evaluate(()=>{
+    const s=window.__st;s.drop=null;s.tray={code:"B3"};s.flap=1;
+   });
+   await app.waitForFunction(()=>window.__vendingMessages?.some(s=>s.drop===null&&s.tray?.code==="B3"&&s.flap===1));
+   await app.waitForTimeout(280);
+   const vendTray=await canvas.screenshot();
+   const trayDelta=await changedPixelRatio(vendDrop,vendTray);
+   assert.ok(trayDelta>.0008,"vending pickup flap and tray product not visible in 3D: "+trayDelta);
+   console.log('PASS nested vending state transport, product drop, tray and 3D flap');
+
+   await app.goto(HOST+'/',{waitUntil:'load'});
+   assert.equal(await app.locator('.tour-completed-card').count(),9);
   assert.ok((await app.locator('.hero-stat').innerText()).includes('9 visites effectuées'));
   await app.reload();
   assert.equal(await app.locator('.tour-completed-card').count(),9);

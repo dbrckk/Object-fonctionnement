@@ -5,9 +5,9 @@ import {mkdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const url='http://127.0.0.1:4222';
+const url='http://127.0.0.1:4229';
 const folder=path.join(root,'docs','previews');
-const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','4222','--strictPort'],{cwd:root,stdio:'ignore'});
+const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','4229','--strictPort'],{cwd:root,stdio:'ignore'});
 let browser;
 try{
  let available=false;
@@ -18,7 +18,7 @@ try{
  if(!available)throw Error('Vite could not start');
  await mkdir(folder,{recursive:true});
  browser=await chromium.launch({headless:true,args:['--no-sandbox']});
- for(const id of ['kettle','toaster','coffee','fan','vending']){
+ for(const id of ['kettle','toaster','coffee','fan','lock','washing','vending']){
   const page=await browser.newPage({viewport:{width:700,height:870},deviceScaleFactor:1.5});
   try{
    await page.goto(url+'/#'+id,{waitUntil:'load'});
@@ -26,12 +26,23 @@ try{
    const actions={
     kettle:["Remplir d'eau"],
     toaster:["Insérer le pain","Abaisser / griller"],
-    coffee:["Ajouter de l'eau","Mettre le café moulu","Préparer le café"]
+    coffee:["Ajouter de l'eau","Mettre le café moulu","Préparer le café"],
+    lock:["Insérer la bonne clé","Tourner la clé"]
    };
    for(const action of actions[id]||[]){
     await page.frameLocator('iframe.figure-frame').getByRole('button',{name:action,exact:true}).click();
    }
-   await page.waitForTimeout(actions[id]?650:380);
+   if(id==='washing'){
+    await page.frameLocator('iframe.figure-frame').locator('body').evaluate(()=>{
+     Object.assign(window.__st,{run:true,paused:true,prog:0,tau:3,laundry:"drum"});
+    });
+   }
+   if(id==='vending'){
+    await page.frameLocator('iframe.figure-frame').locator('body').evaluate(()=>{
+     const s=window.__st;s.credit=1.5;s.stock[1][2]=2;s.drop={r:1,c:2,t:.54};
+    });
+   }
+   await page.waitForTimeout(actions[id]||id==='washing'||id==='vending'?650:380);
    const buffer=await page.locator('.object-three-canvas').screenshot({animations:'disabled'});
    const webp=await sharp(buffer).resize({width:1000}).webp({quality:84,effort:6}).toBuffer();
    await writeFile(path.join(folder,id+'.webp'),webp);

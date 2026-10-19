@@ -1,4 +1,4 @@
-/* Size-only bridge for a sandboxed, same-application figure; no data or privileged actions. */
+/* Sandboxed local figure bridge: bounded simulation state and responsive height; no privileged actions. */
 (() => {
  "use strict";
  // One shared loader upgrades every object, including the original MIT demos.
@@ -23,6 +23,23 @@
   const next={};
   for(const [key,value] of Object.entries(window.__st)){
    if(value==null||["string","number","boolean"].includes(typeof value))next[key]=value;
+  }
+  // The original vending simulation represents products with nested arrays
+  // and its falling can / tray with small objects. Send only those known
+  // fields, validating and bounding their size before the sandbox message.
+  // We do not forward arbitrary nested state, DOM nodes, or user data.
+  if(Array.isArray(window.__st.stock)){
+   next.stock=window.__st.stock.slice(0,4).map(row=>
+    Array.isArray(row)?row.slice(0,4).map(value=>
+     Math.max(0,Math.min(3,Math.floor(Number(value)||0)))):[]
+   );
+   const raw=window.__st.drop;
+   next.drop=raw&&Number.isInteger(raw.r)&&Number.isInteger(raw.c)
+     ?{r:raw.r,c:raw.c,t:Math.max(0,Math.min(1,Number(raw.t)||0))}
+     :null;
+   const tray=window.__st.tray;
+   next.tray=tray&&typeof tray==="object"
+     ?{code:String(tray.code||"").slice(0,8)}:null;
   }
   const serialized=JSON.stringify(next);
   if(serialized!==previousState){

@@ -4,6 +4,7 @@
  */
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
+import {lockMechanics,washerMechanics,vendingMechanics} from "./mechanics-state.js";
 import {getObjectParts} from "./part-annotations.js";
 
 const M={
@@ -320,27 +321,56 @@ function makeFan(root){
 function makeLock(root){
  plate(root,2.4,2,.12);
  const body=block(root,1.4,1.25,.52,mats.steel,0,.92,0);
+ // A spring-loaded shackle moves independently of the rotating plug.
  const shackle=group(root,0,1.47,0);
  hose(shackle,[[-.43,0,0],[-.43,.49,0],[-.28,.77,0],[0,.87,0],[.28,.77,0],[.43,.49,0],[.43,0,0]],.12,mats.stainless);
- const dial=cylinder(root,.32,.32,.14,mats.dark,0,.9,.34);dial.rotation.x=Math.PI/2;
- const face=cylinder(root,.25,.25,.155,mats.stainless,0,.9,.41);face.rotation.x=Math.PI/2;
+ cylinder(root,.13,.13,.09,mats.dark,-.43,1.55,0);
+ cylinder(root,.13,.13,.09,mats.dark,.43,1.55,0);
+ // Rotating plug and inserted key share an axis.
+ const plug=group(root,0,.9,.39);
+ const cylinderFace=cylinder(plug,.29,.29,.12,mats.dark,0,0,0);
+ cylinderFace.rotation.x=Math.PI/2;
+ ring(plug,.29,.026,mats.stainless,0,0,.07);
+ const slot=block(plug,.045,.26,.015,mats.charcoal,0,0,.075,0);
+ const key=group(plug,0,0,.12);
+ rod(key,[0,0,0],[0,0,.48],.042,brassy);
+ ring(key,.135,.036,brassy,0,0,.57);
+ for(let i=0;i<3;i++)block(key,.13,.065,.055,brassy,.07,-.02,.18+i*.085);
  badge(root,"LOCK  ·  05",0,.48,.283,.79,.12);
- const key=group(root,0,.93,.66);
- const shaft=rod(key,[0,0,0],[0,0,.48],.04,brassy);
- ring(key,.135,.036,brassy,0,0,.55);
- for(let i=0;i<3;i++)block(key,.11,.06,.06,brassy,.06,.0,.2+i*.075);
- // semi-transparent cutaway reveals individual pin stacks.
- const cut=group(root,0,1.08,.46);
+ // All five pin stacks, their upper springs and the shear line can be
+ // examined through a narrow glazed cutaway window above the plug.
  const pins=[];
  for(let i=0;i<5;i++){
-  const p=cylinder(cut,.046,.046,.25,mats.amber,-.46+i*.23,0,.0);pins.push(p);
+  const x=-.45+i*.225;
+  const assembly=group(root,x,1.31,.41);
+  cylinder(assembly,.055,.055,.19,mats.amber,0,0,0);
+  cylinder(assembly,.048,.048,.12,mats.steel,0,.16,0);
+  for(let k=0;k<4;k++){
+   const a=k*Math.PI*.8,b=(k+1)*Math.PI*.8;
+   rod(assembly,[Math.cos(a)*.055,.25-k*.038,.0],[Math.cos(b)*.055,.25-(k+1)*.038,.0],.013,mats.steel);
+  }
+  pins.push(assembly);
  }
- return {shells:[body],update(s){
-  key.visible=!!s.key;
-  key.rotation.z=Number(s.angle||0)*Math.PI/180;
-  shackle.position.y=s.locked?1.47:1.73;
-  pins.forEach((p,i)=>p.position.y=s.aligned?.01:.05*Math.sin(i*2));
- }};
+ const panelGlass=new THREE.MeshBasicMaterial({
+  color:0xd5f2f5,transparent:true,opacity:.13,depthWrite:false,side:THREE.DoubleSide
+ });
+ const pinWindow=block(root,1.23,.38,.018,panelGlass,0,1.36,.61,0);
+ const shear=rod(root,[-.55,1.27,.62],[.55,1.27,.62],.013,mats.dark);
+ const status=sphere(root,.055,mats.warm,.48,.63,.295);
+ let lift=0;
+ return {shells:[body],update(s,dt){
+  const model=lockMechanics(s);
+  key.visible=model.inserted;
+  plug.rotation.z=model.angle;
+  const target=model.unlocked?.25:0;
+  lift+= (target-lift)*Math.min(1,Math.max(.12,dt*9));
+  shackle.position.y=1.47+lift;
+  pins.forEach((pin,i)=>{
+   const targetY=model.aligned?0:([-.075,.045,-.035,.065,-.055][i]);
+   pin.position.y+=(1.31+targetY-pin.position.y)*Math.min(1,Math.max(.18,dt*12));
+  });
+  status.material=model.unlocked?mats.leaf:model.aligned?glow:mats.warm;
+ },needsAnimation:()=>Math.abs(lift-.25)>.01&&lift>.01};
 }
 function makeBicycle(root){
  plate(root,3.1,2.4,.12);
@@ -470,63 +500,183 @@ function makeFlashlight(root){
 function makeWashing(root){
  plate(root,3,2.6,.12);
  const body=block(root,2.0,2.38,1.57,mats.enamel,0,1.36,0);
- block(root,2.0,.38,1.57,mats.stainless,0,2.31,.0);
- const door=group(root,0,1.35,.88);
- ring(door,.65,.11,mats.dark);
- ring(door,.49,.035,mats.stainless);
- const glass=sphere(door,.46,frosted,0,0,-.02);glass.scale.z=.18;
- const drum=group(door,0,0,-.12);
- ring(drum,.38,.035,mats.stainless);
- for(let i=0;i<10;i++) {
-  const a=i*Math.PI/5;
-  sphere(drum,.027,mats.dark,.31*Math.cos(a),.31*Math.sin(a),.06);
+ block(root,2.0,.38,1.57,mats.stainless,0,2.31,0);
+ // The drum is mounted to the appliance, never to the swinging door.
+ const drum=group(root,0,1.35,.86);
+ const lining=cylinder(drum,.57,.57,.06,mats.dark,0,0,-.045);
+ lining.rotation.x=Math.PI/2;
+ ring(drum,.56,.043,mats.stainless,0,0,.04);
+ ring(drum,.43,.018,mats.steel,0,0,.065);
+ for(let i=0;i<30;i++){
+  const a=i*Math.PI/15,r=i%2===0?.48:.36;
+  sphere(drum,.026,mats.steel,Math.cos(a)*r,Math.sin(a)*r,.057);
  }
- const water=block(root,1.18,.23,.06,liquid,0,1.02,.79);
- const dial=cylinder(root,.2,.2,.13,mats.dark,-.47,2.35,.81);dial.rotation.x=Math.PI/2;
- labelPanel(root,.65,.13,.45,2.35,.82);
- badge(root,"WASH  ·  ECO",.37,2.36,.838,.65,.12,"#29394b","#fff4db");
- for(let i=0;i<3;i++)led(root,.25+i*.2,2.36,.84,i===0?glow:mats.steel);
+ const garments=group(drum,0,0,.082);
+ const garmentsColors=[mats.turquoise,mats.ivory,mats.warm,mats.leaf,mats.amber,mats.stainless];
+ for(let i=0;i<6;i++){
+  const a=i*Math.PI/3+.4;
+  const cloth=sphere(garments,.13,garmentsColors[i],Math.cos(a)*.25,Math.sin(a)*.24,0);
+  cloth.scale.set(1.15,.68,.42);
+  cloth.rotation.z=a+.5;
+ }
+ const water=block(root,.93,.52,.034,liquid,0,1.08,.952,0);
+ // The transparent glass and rim move around a hinge on the left side.
+ const door=group(root,-.67,1.35,.945);
+ ring(door,.67,.11,mats.charcoal,.67,0,.016);
+ ring(door,.5,.035,mats.stainless,.67,0,.03);
+ const glass=sphere(door,.48,frosted,.67,0,.049);
+ glass.scale.z=.12;
+ const handle=block(door,.13,.22,.13,mats.charcoal,1.28,0,.10);
+ cylinder(root,.068,.068,.19,mats.steel,-.66,1.77,.92);
+ cylinder(root,.068,.068,.19,mats.steel,-.66,.94,.92);
+ // Soap drawer, program selector, live LED display and drain outlet.
  const drawer=block(root,.46,.12,.32,mats.stainless,-.7,2.36,.7);
+ badge(root,"WASH  ·  ECO",.37,2.36,.838,.65,.12,"#29394b","#fff4db");
+ const dial=cylinder(root,.2,.2,.13,mats.dark,-.47,2.35,.81);
+ dial.rotation.x=Math.PI/2;
+ const programPointer=group(root,-.47,2.35,.89);
+ rod(programPointer,[0,0,0],[0,.13,0],.025,mats.ivory);
+ const display=block(root,.65,.13,.018,mats.dark,.41,2.34,.806,0);
+ const indicators=[0,1,2,3].map(i=>sphere(root,.05,mats.steel,.13+i*.18,2.36,.843));
+ const drain=group(root,.77,.46,.78);
+ cylinder(drain,.12,.12,.06,mats.charcoal).rotation.x=Math.PI/2;
+ for(let i=0;i<5;i++)sphere(drain,.015,mats.stainless,Math.cos(i*2*Math.PI/5)*.065,Math.sin(i*2*Math.PI/5)*.065,.042);
+ const suds=Array.from({length:6},(_,i)=>sphere(root,.034,steamMaterial,-.38+i*.14,1.20,.97));
+ let angle=0;
  return {shells:[body],update(s,dt,time){
-  const active=!!s.run;
-  drum.rotation.z=active?time*1.9:0;
-  const waterLevel=active?.22:0;
-  water.scale.y=Math.max(.02,waterLevel);
-  door.rotation.y=Number(s.door||0)*-.65;
-  drawer.position.z=.7+Math.max(0,Number(s.drawer)||0)*.18;
- }};
+  const m=washerMechanics(s);
+  angle+=m.speed*dt;
+  drum.rotation.z=angle;
+  garments.visible=m.hasLaundry;
+  door.rotation.y=-m.door*1.12;
+  drawer.position.z=.7+m.drawer*.18;
+  programPointer.rotation.z=(Math.max(0,Math.min(2,Number(s.prog)||0))-1)*.66;
+  water.visible=m.water>.01;
+  water.scale.y=Math.max(.003,m.water*.92);
+  water.position.y=.99+m.water*.24;
+  suds.forEach((bubble,i)=>{
+   const wave=(time*.45+i/6)%1;
+   bubble.visible=m.water>.2&&m.phase==="wash";
+   bubble.position.y=1.05+m.water*.34+Math.sin(wave*6.283)*.045;
+   bubble.scale.setScalar(.68+wave*.45);
+  });
+  indicators.forEach((led,i)=>{
+   const active=i===["fill","wash","drain","spin"].indexOf(m.phase);
+   led.material=active?glow:mats.steel;
+  });
+ },needsAnimation:()=>false};
 }
 function makeVending(root){
  plate(root,3.1,2.6,.12);
- const body=block(root,2.22,2.75,1.35,mats.turquoise,0,1.56,0);
- const face=block(root,1.65,2.05,.025,mats.dark,-.25,1.75,.7);
- const vendingGlass=new THREE.MeshPhysicalMaterial({color:0xe5f8fa,roughness:.08,metalness:0,transparent:true,opacity:.16,depthWrite:false,side:THREE.DoubleSide});
- const glass=block(root,1.57,1.93,.026,vendingGlass,-.25,1.75,.73);
+ // Hollow cabinet: a solid cube would hide every stocked can behind it.
+ // Side panels, top, floor and back remain solid and cast natural shadows,
+ // while the front opening is transparent and the products stay visible.
+ const body=block(root,2.22,2.75,.12,mats.turquoise,0,1.56,-.65);
+ const leftPanel=block(root,.18,2.75,1.35,mats.turquoise,-1.02,1.56,0);
+ const rightPanel=block(root,.18,2.75,1.35,mats.turquoise,1.02,1.56,0);
+ const topPanel=block(root,2.22,.19,1.35,mats.turquoise,0,2.84,0);
+ const lowerPanel=block(root,2.22,.22,1.35,mats.turquoise,0,.30,0);
+ block(root,1.65,2.05,.025,mats.dark,-.25,1.75,-.54);
+ const vendingGlass=new THREE.MeshPhysicalMaterial({
+  color:0xe5f8fa,roughness:.08,metalness:0,transparent:true,opacity:.16,
+  depthWrite:false,side:THREE.DoubleSide
+ });
+ block(root,1.57,1.93,.026,vendingGlass,-.25,1.75,.73);
  badge(root,"SNACK  STATION",0,2.73,.68,1.44,.22,"#273b4d","#f5dcad");
- for(let shelf=0;shelf<3;shelf++){
-  const y=1.13+shelf*.59;
-  block(root,1.48,.08,1.0,mats.stainless,-.27,y,.06);
-  for(let item=0;item<4;item++){
-   const mat=[mats.amber,mats.warm,mats.leaf,mats.ivory][(shelf+item)%4];
-   const x=-.85+item*.36;
-   const can=cylinder(root,.13,.13,.28,mat,x,y+.19,.13);
-   ring(root,.13,.008,mats.steel,x,y+.33,.13,Math.PI/2);
+ // Four rows x four selectors x three depths = 48 real product cans.
+ const products=[];
+ const itemColors=[mats.amber,mats.warm,mats.leaf,mats.ivory];
+ for(let row=0;row<4;row++){
+  const shelf=.94+row*.46;
+  block(root,1.48,.065,1.0,mats.stainless,-.27,shelf,.03);
+  for(let col=0;col<4;col++){
+   const x=-.82+col*.38;
+   const stack=[];
+   for(let layer=0;layer<3;layer++){
+    const z=.17-layer*.24;
+    const can=group(root,x,shelf+.16,z);
+    cylinder(can,.125,.125,.27,itemColors[(row+col)%4]);
+    const top=cylinder(can,.125,.125,.018,mats.steel,0,.14,0);
+    ring(can,.112,.008,mats.stainless,0,.152,0,Math.PI/2);
+    stack.push(can);
+   }
+   products.push({row,col,stack});
   }
  }
- block(root,.43,1.18,.08,mats.dark,.83,1.7,.73);
- for(let j=0;j<10;j++) {
-  const x=.7+(j%3)*.12,y=2.05-Math.floor(j/3)*.13;
-  sphere(root,.037,mats.stainless,x,y,.81);
+ // Front control module: tactile keypad, illuminated credit screen and coin slot.
+ block(root,.46,1.32,.08,mats.dark,.84,1.81,.745);
+ for(let j=0;j<12;j++){
+  const x=.73+(j%3)*.105,y=1.98-Math.floor(j/3)*.13;
+  sphere(root,.033,mats.stainless,x,y,.805);
  }
- block(root,.51,.25,.045,mats.charcoal,.76,.94,.75);
- block(root,1.4,.34,.08,mats.dark,-.19,.46,.71);
- badge(root,"01  02  03  04",-.28,2.37,.77,1.33,.12);
- const slot=group(root,0,.47,.81);
- const hatch=block(slot,1.1,.19,.06,mats.steel,-.26,.0,0);
- return {shells:[body],update(s,dt,time){
-  const busy=!!s.drop||!!s.run;
-  hatch.rotation.x=busy?-.4*Math.sin(time*7):0;
- }};
+ const screenCanvas=document.createElement("canvas");
+ screenCanvas.width=512;screenCanvas.height=192;
+ const context=screenCanvas.getContext("2d");
+ const screenTexture=new THREE.CanvasTexture(screenCanvas);
+ screenTexture.colorSpace=THREE.SRGBColorSpace;
+ const screenMaterial=new THREE.MeshBasicMaterial({map:screenTexture,side:THREE.DoubleSide});
+ const screen=new THREE.Mesh(new THREE.PlaneGeometry(.45,.21),screenMaterial);
+ screen.position.set(.83,2.38,.81);
+ root.add(screen);
+ let displayed="";
+ const writeScreen=(credit)=>{
+  const value=(Math.round(credit*100)/100).toFixed(2);
+  if(value===displayed)return;
+  displayed=value;
+  context.fillStyle="#182a32";
+  context.fillRect(0,0,512,192);
+  context.textAlign="center";
+  context.fillStyle="#a8f2d2";
+  context.font="bold 82px monospace";
+  context.fillText(value+" €",256,128);
+  screenTexture.needsUpdate=true;
+ };
+ cylinder(root,.075,.075,.06,mats.stainless,.85,2.09,.81).rotation.x=Math.PI/2;
+ const coinReturn=group(root,.83,.88,.83);
+ const returnedCoins=Array.from({length:4},(_,i)=>{
+  const coin=cylinder(coinReturn,.052,.052,.014,brassy,(i%2)*.13-.07,-Math.floor(i/2)*.055,0);
+  coin.rotation.x=Math.PI/2;
+  return coin;
+ });
+ // Product trajectory: shelf -> chute -> collection bay, driven by
+ // the authoritative ColorFigures drop.r / drop.c / drop.t fields.
+ const falling=group(root);
+ const fallingCan=cylinder(falling,.128,.128,.28,mats.warm);
+ cylinder(falling,.13,.13,.018,mats.steel,0,.148,0);
+ const pickup=group(root,-.27,.57,.85);
+ cylinder(pickup,.125,.125,.26,mats.amber);
+ cylinder(pickup,.13,.13,.018,mats.steel,0,.137,0);
+ // The pickup flap pivots on its lower horizontal hinge, not its centre.
+ block(root,1.4,.34,.08,mats.dark,-.19,.46,.72);
+ const flap=group(root,-.27,.36,.85);
+ block(flap,1.10,.24,.05,mats.stainless,0,.12,.016);
+ rod(flap,[-.49,.02,.07],[.49,.02,.07],.018,mats.charcoal);
+ const coinSlot=block(root,.43,.1,.04,mats.charcoal,.81,2.18,.81);
+ let dropping=false;
+ return {shells:[body,leftPanel,rightPanel,topPanel,lowerPanel],update(s){
+  const m=vendingMechanics(s);
+  writeScreen(m.credit);
+  products.forEach(({row,col,stack})=>{
+   const qty=m.stock?.[row]?.[col];
+   const amount=qty===undefined?3:Math.max(0,Math.min(3,Math.floor(Number(qty)||0)));
+   stack.forEach((can,layer)=>{can.visible=layer<amount;});
+  });
+  dropping=Boolean(m.drop);
+  falling.visible=dropping;
+  if(m.drop){
+   const t=m.drop.progress;
+   const shelf=.94+m.drop.row*.46;
+   const x=-.82+m.drop.col*.38;
+   const move=Math.max(0,Math.min(1,(t-.12)/.6));
+   falling.position.set(x+( -.27-x)*move,shelf+.16+( .57-(shelf+.16))*t,
+    .17+.68*move+Math.sin(Math.PI*t)*.18);
+   falling.rotation.z=t*Math.PI*1.75;
+   fallingCan.material=itemColors[(m.drop.row+m.drop.col)%4];
+  }
+  pickup.visible=m.trayVisible;
+  flap.rotation.x=m.flap*1.14;
+  returnedCoins.forEach((coin,i)=>{coin.visible=m.returned>i*.5+.001;});
+ },needsAnimation:()=>dropping};
 }
 const builders={kettle:makeKettle,toaster:makeToaster,fan:makeFan,lock:makeLock,bicycle:makeBicycle,
   coffee:makeCoffee,flashlight:makeFlashlight,washing:makeWashing,vending:makeVending};

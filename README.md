@@ -368,3 +368,39 @@ permission Android supplémentaire n'est nécessaire.
 
 Tests : 25 vérifications unitaires, tous les scénarios navigateur
 et les neuf modèles 3D. APK de test Android 0.12.0 (versionCode 12).
+
+
+## Version 0.13 — mécanismes 3D du cadenas, lave-linge et distributeur
+
+Cette version améliore les trois objets dont les mécanismes étaient
+insuffisamment représentés dans la visualisation 3D.
+
+- **Serrure** : cinq goupilles et leurs ressorts visibles dans une
+  fenêtre translucide ; barillet et clé pivotant sur le même axe,
+  anse du cadenas animée lors du déverrouillage.
+- **Lave-linge** : tambour indépendant de la porte articulée, linge
+  représenté à l'intérieur du tambour, remplissage et vidange visibles,
+  indicateurs des phases de cycle, sélecteur et tiroir à lessive.
+  Les phases suivent les mêmes durées que la simulation ColorFigures.
+- **Distributeur** : meuble réellement creux, 4 × 4 emplacements avec
+  jusqu'à trois produits en profondeur, stock et crédit visibles,
+  produit animé de l'étagère vers le bac, trappe articulée et pièces rendues.
+- **Son** : les bruitages du lave-linge distinguent l'arrivée d'eau,
+  le lavage, la vidange et l'essorage ; le moteur se tait pendant la
+  pause. Tous les sons restent synthétisés sur l'appareil.
+- **Communication** : l'état imbriqué des stocks, de la chute et du
+  bac du distributeur est transmis par messages locaux limités aux
+  champs nécessaires, sans service externe ni permission supplémentaire.
+
+Le mode illustrations 2D, la navigation, le glossaire, les leçons 3D,
+la progression et les quiz sont conservés. Les représentations restent
+des modèles pédagogiques et non des plans de réparation.
+
+### Nouveaux aperçus Three.js
+
+![Serrure 3D](docs/previews/lock.webp)
+![Lave-linge 3D](docs/previews/washing.webp)
+![Distributeur 3D](docs/previews/vending.webp)
+
+Captures créées par npm run generate:3d-previews. La CI construit
+l'APK Android de test 0.13.0 avec versionCode 13.
