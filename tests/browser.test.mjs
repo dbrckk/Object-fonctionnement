@@ -365,6 +365,16 @@ try{
  assert.equal(await app.evaluate(()=>JSON.parse(localStorage.getItem('object-fonctionnement:quiz:v1')).kettle),true);
  await app.reload();
  assert.match(await app.locator('#quiz-status').innerText(),/Connaissance validée/);
+ await app.getByRole('button',{name:'← Catalogue'}).click();
+ await app.waitForURL(HOST+'/');
+ const review=app.locator('#review-filter');
+ assert.match(await review.innerText(),/À réviser \(8\)/);
+ await review.click();
+ assert.equal(await app.locator('article.object-card').count(),8);
+ assert.equal(await app.locator('[data-open="kettle"]').count(),0);
+ await app.getByRole('button',{name:/Voir tous les objets/}).click();
+ assert.equal(await app.locator('article.object-card').count(),9);
+ console.log('PASS offline review filter and quiz progress persistence');
  console.log('PASS offline interactive learning check, correction and persisted progress');
  console.log('PASS Android-size catalog + local WebP previews + embedded simulation');
  await app.close();

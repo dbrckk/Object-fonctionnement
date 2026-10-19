@@ -165,3 +165,9 @@ footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
 .quiz-choices button.quiz-correct{border:2px solid #2d8270;background:#e8f4ed}
 .quiz-choices button[aria-pressed=true]:not(.quiz-correct){border:2px solid #ae6d43}
 #quiz-feedback{margin:12px 0 0;color:#305268;font-size:.91rem}
+
+.catalog-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+#review-filter[aria-pressed=true]{background:#284b61;color:#fffaf0}
+.quiz-choices button.quiz-wrong{border-color:#bf6c52;background:#fff2e9}
+.quiz-choices button:disabled{opacity:.86;cursor:default}
+@media(max-width:540px){.catalog-actions{width:100%;justify-content:flex-start}.section-header{flex-wrap:wrap}}

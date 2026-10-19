@@ -255,3 +255,19 @@ réinitialisent pas les simulations 2D ou 3D en cours.
 Les 9 fiches sont couvertes par les tests unitaires, et le scénario de
 réponse incorrecte, réponse correcte et persistance par un test Chromium.
 La CI prépare l'APK de test Android 0.6.0 (versionCode 6).
+
+
+## Version 0.7 — révisions ciblées
+
+Un bouton « À réviser » filtre les objets dont le quiz n'a pas encore
+été réussi. Le compteur se met à jour à partir de la progression
+existante, enregistrée uniquement dans le stockage local Android.
+Ce filtre fonctionne avec les catégories et les favoris, sans modifier
+les mécanismes ni effacer les progrès.
+
+Pendant un quiz, une mauvaise réponse est indiquée sans révéler
+immédiatement la réponse exacte. L'utilisateur peut réessayer.
+Une bonne réponse explique le mécanisme puis verrouille la question
+pour éviter les saisies répétées. Les résultats réussis sont conservés.
+
+GitHub Actions construit l'APK Android 0.7.0 (versionCode 7).
