@@ -259,6 +259,35 @@ try{
    await popup.waitFor({state:"hidden"});
    await app.getByRole('button',{name:"Masquer les repères"}).click();
    assert.equal(await app.locator('.three-part-pin:visible').count(),0);
+   // A guided tour is completed only after explicitly finishing all 3 stages.
+   await app.getByRole('button',{name:"Commencer la visite guidée des pièces"}).click();
+   const tour=app.locator('.three-tour-bar');
+   assert.equal(await tour.locator('.three-tour-counter').innerText(),"Étape 1 / 3");
+   const tourBounds=await app.evaluate(()=>{
+    const canvas=document.querySelector('.object-three-canvas').getBoundingClientRect();
+    const info=document.querySelector('.three-part-description').getBoundingClientRect();
+    const buttons=[...document.querySelectorAll('.three-tour-bar button')];
+    return {canvasBottom:canvas.bottom,infoTop:info.top,heights:buttons.map(b=>b.getBoundingClientRect().height)};
+   });
+   assert.ok(tourBounds.infoTop>=tourBounds.canvasBottom-2,"guided instructions obscure object: "+id);
+   assert.ok(tourBounds.heights.every(h=>h>=39),"small touch target in guided tour");
+   if(id==='kettle'){
+    await tour.getByRole('button',{name:'Quitter la visite'}).click();
+    assert.equal(await app.evaluate(()=>localStorage.getItem("object-fonctionnement:tours:v1")),null);
+    await app.getByRole('button',{name:"Commencer la visite guidée des pièces"}).click();
+   }
+   await tour.getByRole('button',{name:"Suivant →"}).click();
+   assert.equal(await tour.locator('.three-tour-counter').innerText(),"Étape 2 / 3");
+   await tour.getByRole('button',{name:"← Précédent"}).click();
+   assert.equal(await tour.locator('.three-tour-counter').innerText(),"Étape 1 / 3");
+   await tour.getByRole('button',{name:"Suivant →"}).click();
+   await tour.getByRole('button',{name:"Suivant →"}).click();
+   assert.equal(await tour.locator('.three-tour-counter').innerText(),"Étape 3 / 3");
+   await tour.getByRole('button',{name:"Terminer la visite"}).click();
+   assert.equal(await app.locator('#tour-status').innerText(),"Visite guidée terminée");
+   const completedTours=await app.evaluate(()=>JSON.parse(localStorage.getItem("object-fonctionnement:tours:v1")));
+   assert.ok(completedTours.includes(route),"completed visit not persisted: "+id);
+   await app.getByRole('button',{name:"Masquer les repères"}).click();
    assert.equal(await app.frameLocator('iframe.figure-frame').locator('#fig').evaluate(el=>getComputedStyle(el).display),"none");
    // State-changing 2D command must still work while the SVG is hidden.
    if(id==='fan'){
@@ -276,6 +305,12 @@ try{
    assert.deepEqual(pageErrors,[],"3D page JS errors: "+id);
    console.log("PASS Three.js PBR "+id);
   }
+  await app.goto(HOST+'/',{waitUntil:'load'});
+  assert.equal(await app.locator('.tour-completed-card').count(),9);
+  assert.ok((await app.locator('.hero-stat').innerText()).includes('9 visites effectuées'));
+  await app.reload();
+  assert.equal(await app.locator('.tour-completed-card').count(),9);
+  assert.ok((await app.locator('.hero-stat').innerText()).includes('9 visites effectuées'));
   for(const width of [320,768]){
    await app.setViewportSize({width,height:780});
    await app.goto(HOST+'/#kettle',{waitUntil:'load'});

@@ -457,10 +457,24 @@ export function createObjectViewer(container,id){
   const close=document.createElement("button");
   close.type="button";close.textContent="Fermer";
   close.setAttribute("aria-label","Fermer l'explication de la pièce");
-  description.append(label,text,close);
+  const tourBar=document.createElement("div");
+  tourBar.className="three-tour-bar";
+  tourBar.hidden=true;
+  const progress=document.createElement("span");
+  progress.className="three-tour-counter";
+  progress.setAttribute("aria-live","polite");
+  const previous=document.createElement("button");
+  previous.type="button";previous.textContent="← Précédent";
+  const next=document.createElement("button");
+  next.type="button";next.textContent="Suivant →";
+  const quit=document.createElement("button");
+  quit.type="button";quit.textContent="Quitter la visite";
+  quit.className="three-tour-quit";
+  tourBar.append(progress,previous,next,quit);
+  description.append(label,text,tourBar,close);
   markerLayer.append(description);
   container.append(markerLayer);
-  let showParts=false,cameraMove=null;
+  let showParts=false,cameraMove=null,tourStep=-1,tourFinished=null;
   const projected=new THREE.Vector3();
   const cameraTarget=new THREE.Vector3();
   function updatePartPositions(){
@@ -511,6 +525,14 @@ export function createObjectViewer(container,id){
     label.textContent=selected.part.label;
     text.textContent=selected.part.detail;
     description.hidden=false;
+    if(tourStep>=0){
+      tourStep=index;
+      progress.textContent="Étape "+(index+1)+" / "+points.length;
+      previous.disabled=index===0;
+      next.textContent=index===points.length-1?"Terminer la visite":"Suivant →";
+      close.hidden=true;
+      tourBar.hidden=false;
+    }
     const startTarget=controls.target.clone(),startCamera=camera.position.clone();
     const delta=camera.position.clone().sub(controls.target).multiplyScalar(.82);
     const finishTarget=selected.world.clone();
@@ -525,15 +547,36 @@ export function createObjectViewer(container,id){
     }
     dirty=true;
   }
+  function endTour(completed=false){
+    if(tourStep<0)return;
+    const done=tourFinished;
+    description.classList.remove("tour-active");
+    markerLayer.append(description);
+    tourStep=-1;tourFinished=null;
+    tourBar.hidden=true;close.hidden=false;
+    description.hidden=true;
+    for(const point of points)point.button.setAttribute("aria-pressed","false");
+    cameraMove=null;
+    if(completed&&typeof done==="function")done();
+  }
+  function tourNext(){
+    if(tourStep<0)return;
+    if(tourStep===points.length-1)endTour(true);
+    else focusPart(tourStep+1);
+  }
   points.forEach((point,i)=>point.button.addEventListener("click",()=>focusPart(i)));
+  previous.addEventListener("click",()=>{if(tourStep>0)focusPart(tourStep-1);});
+  next.addEventListener("click",tourNext);
+  quit.addEventListener("click",()=>endTour(false));
   function dismissDescription(){
+    if(tourStep>=0){endTour(false);return;}
     const selected=points.find(p=>p.button.getAttribute("aria-pressed")==="true");
     description.hidden=true;
     for(const point of points)point.button.setAttribute("aria-pressed","false");
     selected?.button.focus();
   }
   close.addEventListener("click",dismissDescription);
-  markerLayer.addEventListener("keydown",event=>{
+  description.addEventListener("keydown",event=>{
     if(event.key==="Escape"&&!description.hidden){
       event.preventDefault();
       dismissDescription();
@@ -606,8 +649,23 @@ export function createObjectViewer(container,id){
       dirty=true;
       return xray;
     },
+    startTour(onFinish){
+      if(disposed||points.length===0)return false;
+      showParts=true;
+      markerLayer.hidden=false;
+      tourStep=0;
+      tourFinished=onFinish;
+      // Guided lessons use the normal document flow, keeping the 3D object
+      // fully visible. Manual inspection still has its contextual overlay.
+      description.classList.add("tour-active");
+      container.append(description);
+      focusPart(0);
+      dirty=true;
+      return true;
+    },
     setAnnotations(visible){
       if(disposed)return false;
+      if(!visible)endTour(false);
       showParts=Boolean(visible);
       markerLayer.hidden=!showParts;
       if(!showParts){description.hidden=true;cameraMove=null;}
@@ -616,13 +674,16 @@ export function createObjectViewer(container,id){
       return showParts;
     },
     resetCamera(){
+      if(tourStep>=0)endTour(false);
       cameraMove=null;
       camera.position.set(5,4.1,7.5);controls.target.set(0,1.05,0);controls.update();dirty=true;
       description.hidden=true;
       for(const point of points)point.button.setAttribute("aria-pressed","false");
     },
     dispose(){
-      if(disposed)return;disposed=true;cancelAnimationFrame(frame);
+      if(disposed)return;
+      endTour(false);
+      disposed=true;cancelAnimationFrame(frame);
       observer.disconnect();visibleObserver.disconnect();document.removeEventListener("visibilitychange",onVisibility);
       controls.dispose();
       const shared=new Set([...Object.values(mats),glow,steamMaterial,frosted,liquid,alertMat,brassy,blue,white,tint,edgeMaterial]);

@@ -115,3 +115,41 @@ footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
 
 .three-part-leaders{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
 .three-part-leader{stroke:#31576e;stroke-width:1.5;stroke-dasharray:4 3;opacity:.8;vector-effect:non-scaling-stroke}
+
+
+.three-tour-bar{
+ display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+ padding-top:10px;margin-top:10px;border-top:1px solid #d7e1e4
+}
+.three-tour-bar[hidden]{display:none!important}
+.three-tour-counter{font-size:.73rem;font-weight:750;color:#446577;white-space:nowrap;margin-right:auto}
+.three-tour-bar button{
+ min-height:40px;border:1px solid #bfd0da;
+ background:#ecf5f5;color:#26495e;
+ border-radius:9px;padding:8px 11px;
+ text-decoration:none;font-size:.75rem;font-weight:750;
+}
+.three-tour-bar button:disabled{opacity:.4;cursor:default}
+.three-tour-bar button:nth-of-type(2){background:#26495e;color:#fff9eb;border-color:#26495e}
+.three-tour-bar button.three-tour-quit{background:transparent;border:0;text-decoration:underline}
+.three-tour-bar button:focus-visible{outline:3px solid #d68c55;outline-offset:2px}
+.three-part-description:has(.three-tour-bar:not([hidden])){max-height:60%}
+.tour-status{font-size:.77rem;font-weight:750;text-align:center;color:#406277;padding:0 12px 12px;margin:0}
+.tour-completed-card{display:inline-block;font-size:.68rem;color:#326a56;
+ margin:6px 0 0;padding:3px 7px;border:1px solid #b9d9c4;border-radius:7px;background:#ebf7ed}
+@media(max-width:430px){
+ .three-tour-bar{gap:6px}
+ .three-tour-bar button{font-size:.72rem;padding:7px 9px}
+ .three-tour-counter{width:100%}
+}
+
+/* Guided tours must never obscure the mechanism on narrow Android screens. */
+#three-mount .three-part-description.tour-active{
+ position:relative;left:auto;right:auto;bottom:auto;
+ margin:10px 12px 12px;max-height:none;overflow:visible;
+ background:#fffef9;box-shadow:0 5px 14px #29405420;
+}
+#three-mount .three-part-description.tour-active .three-tour-bar{position:static}
+@media(max-width:380px){
+ #three-mount .three-part-description.tour-active{padding:10px 12px}
+}

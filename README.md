@@ -207,3 +207,34 @@ Pour régénérer les captures des objets et de l'inspection :
 npm run generate:3d-previews.
 
 GitHub Actions construit l'APK de test Android 0.4.0, versionCode 4.
+
+
+## Version 0.5 — visites guidées hors ligne
+
+Chaque modèle 3D propose désormais une visite structurée de ses trois
+composants. Utiliser le bouton **Visite guidée**, puis **Précédent**,
+**Suivant**, **Terminer la visite** ou **Quitter la visite**.
+
+La caméra cadre successivement les mécanismes et une explication en
+français accompagne chaque étape. La fiche d'explication est placée
+sous le canevas : elle ne masque plus les mécanismes sur téléphone.
+L'utilisateur reste libre de faire tourner le modèle, de zoomer et
+d'actionner les commandes de simulation.
+
+Seule l'action explicite **Terminer la visite** enregistre la visite
+comme effectuée. Annuler n'enregistre rien. Le catalogue indique les
+visites terminées et affiche un compteur sur les neuf objets. Ces
+informations sont stockées localement dans l'application, sans
+compte utilisateur ni synchronisation distante. Le progrès peut être
+relu à une autre session et la visite reste rejouable.
+
+Cette progression atteste seulement que les étapes ont été parcourues :
+elle n'évalue ni les connaissances ni les capacités de réparation.
+
+![Exemple de visite guidée de la bouilloire](docs/previews/kettle-guided-tour.webp)
+
+Les vérifications CI couvrent l'annulation, les trois étapes,
+la navigation avant/arrière, la persistance et les tailles d'écran
+320, 390 et 768 px.
+
+La CI produit l'APK Android de test **0.5.0 (versionCode 5)**.

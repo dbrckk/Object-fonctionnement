@@ -42,6 +42,17 @@ try{
   await writeFile(path.join(folder,'lock-inspection.webp'),webp);
   console.log('lock-inspection','preview',webp.length,'bytes');
  }finally{await page.close();}
+ const lesson=await browser.newPage({viewport:{width:700,height:940},deviceScaleFactor:1.5});
+ try{
+  await lesson.goto(url+'/#kettle',{waitUntil:'load'});
+  await lesson.locator('.object-three-canvas').waitFor({timeout:16000});
+  await lesson.getByRole('button',{name:'Commencer la visite guidée des pièces'}).click();
+  await lesson.waitForTimeout(480);
+  const buffer=await lesson.locator('#three-mount').screenshot({animations:'disabled'});
+  const webp=await sharp(buffer).resize({width:1000}).webp({quality:84,effort:6}).toBuffer();
+  await writeFile(path.join(folder,'kettle-guided-tour.webp'),webp);
+  console.log('kettle-guided-tour','preview',webp.length,'bytes');
+ }finally{await lesson.close();}
 }finally{
  if(browser)await browser.close();
  server.kill('SIGTERM');
