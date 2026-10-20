@@ -274,8 +274,12 @@ try{
    assert.ok((await popup.locator('strong').innerText()).length>=5);
    assert.ok((await popup.locator('p').innerText()).length>60);
    assert.equal(await app.locator('.three-part-pin[aria-pressed="true"]').count(),1);
+   assert.ok((await app.locator('.three-parts').getAttribute('data-selected-part'))?.length>2,
+     "selected 3D part has no visual locator: "+id);
    await popup.getByRole('button',{name:"Fermer l'explication de la pièce"}).click();
    await popup.waitFor({state:"hidden"});
+   assert.equal(await app.locator('.three-parts').getAttribute('data-selected-part'),null,
+     "3D part locator persists after closing the explanation: "+id);
    await app.getByRole('button',{name:"Masquer les repères"}).click();
    assert.equal(await app.locator('.three-part-pin:visible').count(),0);
    // A guided tour is completed only after explicitly finishing all 3 stages.

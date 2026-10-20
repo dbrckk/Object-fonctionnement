@@ -442,3 +442,26 @@ construit l'APK Android 0.15.0 (versionCode 15).
 
 Les modèles restent des schémas pédagogiques ; ce réglage améliore leur
 netteté et leur coût GPU, pas leur précision mécanique.
+
+
+## Version 0.16 — matériaux procéduraux et repères 3D
+
+Les neuf modèles 3D utilisent désormais des microtextures déterministes,
+générées localement (128 × 128), pour différencier l'acier brossé, les
+plastiques moulés et les surfaces caoutchoutées. Les cartes de rugosité
+et de léger relief sont partagées entre les modèles ; aucune connexion
+internet ni nouvelle ressource distante n'est requise.
+
+Lors de l'inspection d'une pièce ou d'une visite guidée, un repère
+lumineux 3D indique sa position réelle dans le modèle. Il disparaît
+à la fermeture de l'explication, à la fin de la visite ou lorsque les
+repères sont masqués. Cet effet est statique : il ne demande pas de
+boucle d'animation supplémentaire sur Android.
+
+Les profils de qualité graphique Automatique, Économie et Haute
+qualité restent disponibles ; le moteur conserve la mise en veille
+des rendus statiques et le repli 2D.
+
+Tests : 32 contrôles unitaires, contrôles déterministes des textures,
+tests navigateur des neuf objets et cycle de vie des repères de pièces.
+GitHub Actions construit l'APK Android 0.16.0 (versionCode 16).

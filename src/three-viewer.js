@@ -8,6 +8,7 @@ import {graphicsProfile,validGraphicsMode} from "./graphics-quality.js";
 import {RoundedBoxGeometry} from "three/addons/geometries/RoundedBoxGeometry.js";
 import {lockMechanics,washerMechanics,vendingMechanics} from "./mechanics-state.js";
 import {getObjectParts} from "./part-annotations.js";
+import {createSurfacePixels,SURFACE_SIZE} from "./surface-finishes.js";
 
 const M={
   enamel: {color:0xeef2f0,metalness:.22,roughness:.27},
@@ -59,6 +60,44 @@ function studioEnvironment(){
  t.mapping=THREE.EquirectangularReflectionMapping;
  t.colorSpace=THREE.SRGBColorSpace;
  return t;
+}
+// Three reusable procedural relief maps: no runtime network requests, no
+// external assets. Shared across scenes so changing objects does not re-upload
+// the same textures repeatedly.
+let surfaceTextures=null;
+function ensureSurfaceFinishes(){
+ if(surfaceTextures)return;
+ const fromPixels=(kind)=>{
+  const canvas=document.createElement("canvas");
+  canvas.width=canvas.height=SURFACE_SIZE;
+  const context=canvas.getContext("2d");
+  const pixels=context.createImageData(SURFACE_SIZE,SURFACE_SIZE);
+  pixels.data.set(createSurfacePixels(kind));
+  context.putImageData(pixels,0,0);
+  const texture=new THREE.CanvasTexture(canvas);
+  texture.wrapS=texture.wrapT=THREE.MirroredRepeatWrapping;
+  texture.repeat.set(2,2);
+  texture.anisotropy=2;
+  texture.colorSpace=THREE.NoColorSpace;
+  return texture;
+ };
+ surfaceTextures={
+  steel:fromPixels("brushed-metal"),
+  plastic:fromPixels("molded-plastic"),
+  rubber:fromPixels("rubber")
+ };
+ const apply=(names,texture,scale)=>{
+  for(const name of names){
+   const mat=mats[name];
+   mat.roughnessMap=texture;
+   mat.bumpMap=texture;
+   mat.bumpScale=scale;
+   mat.needsUpdate=true;
+  }
+ };
+ apply(["steel","stainless"],surfaceTextures.steel,.013);
+ apply(["enamel","ivory","charcoal","dark","turquoise","warm"],surfaceTextures.plastic,.007);
+ apply(["rubber","coffee","bread"],surfaceTextures.rubber,.012);
 }
 const edgeMaterial=new THREE.LineBasicMaterial({color:0x24374a,transparent:true,opacity:.16});
 const truncate=(n,min,max)=>Math.max(min,Math.min(max,Number(n)||0));
@@ -734,6 +773,7 @@ export function createObjectViewer(container,id){
     renderer.shadowMap.enabled=true;
     renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   }catch(e){renderer?.dispose();throw new Error("WebGL unavailable: "+e.message);}
+  ensureSurfaceFinishes();
   renderer.domElement.className="object-three-canvas";
   renderer.domElement.setAttribute("aria-label","Objet 3D manipulable au toucher");
   renderer.domElement.setAttribute("role","img");
@@ -781,6 +821,34 @@ export function createObjectViewer(container,id){
   }
   controls.addEventListener("start",()=>{cameraCustomized=true;});
   const annotations=getObjectParts(id);
+  // A luminous locator marks the selected actual component in 3D.
+  // Sprites always face the camera; one static decal requires no animation
+  // loop, even on an idle Android device.
+  const locatorCanvas=document.createElement("canvas");
+  locatorCanvas.width=locatorCanvas.height=128;
+  const locatorContext=locatorCanvas.getContext("2d");
+  const aura=locatorContext.createRadialGradient(64,64,11,64,64,58);
+  aura.addColorStop(0,"rgba(113,243,251,0.84)");
+  aura.addColorStop(.26,"rgba(85,214,240,0.42)");
+  aura.addColorStop(.56,"rgba(80,203,224,0.16)");
+  aura.addColorStop(1,"rgba(80,203,224,0)");
+  locatorContext.fillStyle=aura;
+  locatorContext.fillRect(0,0,128,128);
+  locatorContext.lineWidth=4;
+  locatorContext.strokeStyle="rgba(230,255,255,0.92)";
+  locatorContext.beginPath();
+  locatorContext.arc(64,64,27,0,Math.PI*2);
+  locatorContext.stroke();
+  const locatorTexture=new THREE.CanvasTexture(locatorCanvas);
+  locatorTexture.colorSpace=THREE.SRGBColorSpace;
+  const locatorMaterial=new THREE.SpriteMaterial({
+   map:locatorTexture,transparent:true,depthTest:false,depthWrite:false
+  });
+  const partLocator=new THREE.Sprite(locatorMaterial);
+  partLocator.visible=false;
+  partLocator.scale.set(.79,.79,1);
+  partLocator.renderOrder=25;
+  root.add(partLocator);
   const markerLayer=document.createElement("div");
   markerLayer.className="three-parts";
   markerLayer.hidden=true;
@@ -879,6 +947,9 @@ export function createObjectViewer(container,id){
     for(const point of points)point.button.setAttribute("aria-pressed",String(point===selected));
     label.textContent=selected.part.label;
     text.textContent=selected.part.detail;
+    partLocator.position.copy(selected.world);
+    partLocator.visible=true;
+    markerLayer.dataset.selectedPart=selected.part.id;
     description.hidden=false;
     if(tourStep>=0){
       tourStep=index;
@@ -911,8 +982,11 @@ export function createObjectViewer(container,id){
     tourStep=-1;tourFinished=null;
     tourBar.hidden=true;close.hidden=false;
     description.hidden=true;
+    partLocator.visible=false;
+    delete markerLayer.dataset.selectedPart;
     for(const point of points)point.button.setAttribute("aria-pressed","false");
     cameraMove=null;
+    dirty=true;requestFrame();
     if(completed&&typeof done==="function")done();
   }
   function tourNext(){
@@ -928,7 +1002,10 @@ export function createObjectViewer(container,id){
     if(tourStep>=0){endTour(false);return;}
     const selected=points.find(p=>p.button.getAttribute("aria-pressed")==="true");
     description.hidden=true;
+    partLocator.visible=false;
+    delete markerLayer.dataset.selectedPart;
     for(const point of points)point.button.setAttribute("aria-pressed","false");
+    dirty=true;requestFrame();
     selected?.button.focus();
   }
   close.addEventListener("click",dismissDescription);
@@ -1069,7 +1146,11 @@ export function createObjectViewer(container,id){
       if(!visible)endTour(false);
       showParts=Boolean(visible);
       markerLayer.hidden=!showParts;
-      if(!showParts){description.hidden=true;cameraMove=null;}
+      if(!showParts){
+       description.hidden=true;partLocator.visible=false;
+      delete markerLayer.dataset.selectedPart;cameraMove=null;
+       delete markerLayer.dataset.selectedPart;
+      }
       else updatePartPositions();
       dirty=true;requestFrame();
       return showParts;
@@ -1078,7 +1159,8 @@ export function createObjectViewer(container,id){
       if(tourStep>=0)endTour(false);
       cameraMove=null;cameraCustomized=false;
       fitHomeCamera();dirty=true;requestFrame();
-      description.hidden=true;
+      description.hidden=true;partLocator.visible=false;
+      delete markerLayer.dataset.selectedPart;
       for(const point of points)point.button.setAttribute("aria-pressed","false");
     },
     dispose(){
