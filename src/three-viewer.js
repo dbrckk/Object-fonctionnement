@@ -619,9 +619,33 @@ function makeWashing(root){
  lining.rotation.x=Math.PI/2;
  ring(drum,.56,.043,mats.stainless,0,0,.04);
  ring(drum,.43,.018,mats.steel,0,0,.065);
- for(let i=0;i<30;i++){
-  const a=i*Math.PI/15,r=i%2===0?.48:.36;
-  sphere(drum,.026,mats.steel,Math.cos(a)*r,Math.sin(a)*r,.057);
+ // The drum face has 96 perforations, batched into one GPU draw call.
+ // They are recessed, darker than the stainless drum, and rotate with it.
+ const perforationGeometry=new THREE.CylinderGeometry(.012,.012,.004,8);
+ perforationGeometry.rotateX(Math.PI/2);
+ const perforations=new THREE.InstancedMesh(perforationGeometry,mats.charcoal,96);
+ const perforationTransform=new THREE.Object3D();
+ let hole=0;
+ for(const [radius,count] of [[.23,24],[.37,32],[.49,40]]){
+  for(let i=0;i<count;i++){
+   const a=i*Math.PI*2/count+(radius>.4?.03:0);
+   perforationTransform.position.set(Math.cos(a)*radius,Math.sin(a)*radius,.069);
+   perforationTransform.updateMatrix();
+   perforations.setMatrixAt(hole++,perforationTransform.matrix);
+  }
+ }
+ perforations.instanceMatrix.needsUpdate=true;
+ perforations.castShadow=false;
+ perforations.receiveShadow=false;
+ drum.add(perforations);
+ // Three radial lifter paddles are fixed to the drum, not to the door.
+ // The rotating paddle silhouettes make the washing action understandable.
+ for(let i=0;i<3;i++){
+  const a=i*Math.PI*2/3;
+  const paddle=group(drum,Math.cos(a)*.42,Math.sin(a)*.42,.105);
+  paddle.rotation.z=a-Math.PI/2;
+  block(paddle,.19,.055,.14,mats.stainless,0,0,0,.025);
+  rod(paddle,[-.075,.028,.075],[.075,.028,.075],.014,mats.dark);
  }
  const garments=group(drum,0,0,.082);
  const garmentsColors=[mats.turquoise,mats.ivory,mats.warm,mats.leaf,mats.amber,mats.stainless];
@@ -642,7 +666,13 @@ function makeWashing(root){
  cylinder(root,.068,.068,.19,mats.steel,-.66,1.77,.92);
  cylinder(root,.068,.068,.19,mats.steel,-.66,.94,.92);
  // Soap drawer, program selector, live LED display and drain outlet.
- const drawer=block(root,.46,.12,.32,mats.stainless,-.7,2.36,.7);
+ const drawer=group(root,-.7,2.36,.7);
+ block(drawer,.46,.12,.32,mats.stainless);
+ // Detergent drawer has two visibly separate dosing chambers.
+ block(drawer,.19,.014,.19,mats.ivory,-.11,.065,-.02,0);
+ block(drawer,.19,.014,.19,mats.ivory,.11,.065,-.02,0);
+ block(drawer,.025,.085,.24,mats.steel,0,.025,-.01,0);
+ block(drawer,.47,.10,.038,mats.dark,0,0,.16);
  badge(root,"WASH  ·  ECO",.37,2.36,.838,.65,.12,"#29394b","#fff4db");
  const dial=cylinder(root,.2,.2,.13,mats.dark,-.47,2.35,.81);
  dial.rotation.x=Math.PI/2;
@@ -661,7 +691,7 @@ function makeWashing(root){
   drum.rotation.z=angle;
   garments.visible=m.hasLaundry;
   door.rotation.y=-m.door*1.12;
-  drawer.position.z=.7+m.drawer*.18;
+  drawer.position.z=.7+m.drawer*.22;
   programPointer.rotation.z=(Math.max(0,Math.min(2,Number(s.prog)||0))-1)*.66;
   water.visible=m.water>.01;
   water.scale.y=Math.max(.003,m.water*.92);

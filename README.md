@@ -493,3 +493,21 @@ modèles 3D et les interactions précédentes continuent d'être testés.
 
 Version Android 0.17.0, versionCode 17, APK de test
 généré par GitHub Actions.
+
+
+## Version 0.18 — tambour de lave-linge et tiroir à lessive
+
+Le lave-linge 3D possède désormais un tambour avec 96 perforations
+concentriques dessinées par une seule instance GPU (InstancedMesh).
+Trois aubes de brassage sont solidaires du tambour et suivent sa
+rotation pendant les phases de lavage et d'essorage. Le tiroir
+à lessive comporte deux compartiments séparés, visibles lors de
+son ouverture. La simulation, les niveaux d'eau et la gestion des
+cycles existants sont conservés.
+
+Les détails sont procéduraux et hors ligne. Les profils de qualité
+graphique et le rendu à la demande restent actifs pour les appareils
+Android modestes.
+
+34 tests unitaires et tous les scénarios navigateur passent.
+La CI produit l'APK Android 0.18.0 (versionCode 18).
