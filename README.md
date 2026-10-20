@@ -465,3 +465,31 @@ des rendus statiques et le repli 2D.
 Tests : 32 contrôles unitaires, contrôles déterministes des textures,
 tests navigateur des neuf objets et cycle de vie des repères de pièces.
 GitHub Actions construit l'APK Android 0.16.0 (versionCode 16).
+
+
+## Version 0.17 — visualisation 3D du flux d'air
+
+Le ventilateur 3D propose maintenant « Visualiser le flux d'air ».
+Quand le moteur fonctionne, un ensemble de petites particules
+se déplace depuis la grille avant vers l'extérieur et suit
+l'oscillation de la tête. Les particules disparaissent lorsque le
+moteur est arrêté ou lorsque le réglage est désactivé.
+Cette représentation schématique explique le principe des
+pales inclinées : il ne s'agit pas d'une mesure aérodynamique.
+
+L'effet est réalisé par un seul InstancedMesh Three.js
+(pas 64 objets avec 64 appels GPU). Le nombre de particules
+dépend du profil graphique Android : 24 en Économie, 40 en
+Automatique et 64 en Haute qualité. Le calcul est déterministe,
+hors ligne, et la préférence d'affichage est conservée localement.
+En dehors du ventilateur, l'interface ne présente pas ce réglage.
+
+![Vrai rendu du flux d'air 3D](docs/previews/fan-airflow.webp)
+
+Les tests vérifient les positions des particules, leur mouvement
+et leur adaptation à la vitesse, le changement visuel réel en
+Chromium, la persistance, et l'interface à 320 px. Les neuf
+modèles 3D et les interactions précédentes continuent d'être testés.
+
+Version Android 0.17.0, versionCode 17, APK de test
+généré par GitHub Actions.

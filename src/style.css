@@ -192,3 +192,7 @@ footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
 .graphics-label{font-size:.74rem;font-weight:750;color:#375669;align-self:center}
 #graphics-quality{font:inherit;font-weight:650;font-size:.78rem;border:1px solid #9bb4c1;border-radius:9px;background:#fffdf8;color:#213b4a;min-height:40px;max-width:170px;padding:5px 8px}
 #graphics-quality:focus-visible{outline:3px solid #e1a16c;outline-offset:2px}
+
+/* Optional airflow demonstration appears only on the ventilator model. */
+.fan-airflow-explanation{margin:10px 12px 5px;color:#345a69;font-size:.83rem;line-height:1.55;background:#eaf8f7;border:1px solid #a5d9d6;border-radius:12px;padding:10px 13px}
+.fan-airflow-explanation[hidden]{display:none}

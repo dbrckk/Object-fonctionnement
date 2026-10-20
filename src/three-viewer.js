@@ -9,6 +9,7 @@ import {RoundedBoxGeometry} from "three/addons/geometries/RoundedBoxGeometry.js"
 import {lockMechanics,washerMechanics,vendingMechanics} from "./mechanics-state.js";
 import {getObjectParts} from "./part-annotations.js";
 import {createSurfacePixels,SURFACE_SIZE} from "./surface-finishes.js";
+import {AIRFLOW_PARTICLE_COUNT,airflowPoint,airSpeed,airflowParticleBudget} from "./fan-airflow.js";
 
 const M={
   enamel: {color:0xeef2f0,metalness:.22,roughness:.27},
@@ -365,9 +366,47 @@ function makeFan(root){
  const pointer=block(root,.022,.11,.014,mats.ivory,0,.39,.6);
  const speedLeds=[-.26,0,.26].map((x)=>sphere(root,.044,mats.dark,x,.19,.53));
  badge(root,"FAN  /  01–03",0,.24,.42,.52,.11);
+ // One instanced draw call renders all flow particles. The airflow belongs
+ // to the rotating head so oscillation also changes the wind direction.
+ // The emitter stays hidden unless explicitly enabled AND the fan runs.
+ const flowGeometry=new THREE.SphereGeometry(.054,6,4);
+ const flowMaterial=new THREE.MeshBasicMaterial({
+  color:0x71dce9,transparent:true,opacity:.65,depthWrite:false
+ });
+ const flow=new THREE.InstancedMesh(flowGeometry,flowMaterial,AIRFLOW_PARTICLE_COUNT);
+ flow.count=airflowParticleBudget("auto");
+ flow.frustumCulled=false;
+ flow.visible=false;
+ flow.renderOrder=2;
+ pivot.add(flow);
+ const flowMatrix=new THREE.Matrix4(),flowPosition=new THREE.Vector3();
+ const flowScale=new THREE.Vector3(),flowRotation=new THREE.Quaternion();
+ let airflowEnabled=false;
+ const syncFlow=(speed,time)=>{
+  flow.visible=airflowEnabled&&speed>0;
+  if(!flow.visible)return;
+  for(let i=0;i<flow.count;i++){
+   const point=airflowPoint(Math.floor(i*AIRFLOW_PARTICLE_COUNT/flow.count),time,speed);
+   flowPosition.set(point.x,point.y,point.z);
+   flowScale.setScalar(point.size);
+   flowMatrix.compose(flowPosition,flowRotation,flowScale);
+   flow.setMatrixAt(i,flowMatrix);
+  }
+  flow.instanceMatrix.needsUpdate=true;
+ };
  // State is supplied by the existing ColorFigures simulation.
- return {shells:[motor],update(s){
-  const speed=truncate(s.speed,0,3);
+ return {shells:[motor],
+  setQuality(mode){
+   flow.count=airflowParticleBudget(mode);
+  },
+  setAirflow(visible){
+   airflowEnabled=Boolean(visible);
+   if(!airflowEnabled)flow.visible=false;
+   return airflowEnabled;
+  },
+  update(s,dt,time){
+  const speed=airSpeed(s.speed);
+  syncFlow(speed,time);
   rotor.rotation.z=-(Number(s.turn)||0);
   pivot.rotation.y=s.oscillate?Math.sin(Number(s.angle)||0)*.32:0;
   speedLeds.forEach((led,i)=>{
@@ -1098,9 +1137,16 @@ export function createObjectViewer(container,id){
   }
   requestFrame();
   return {
+    setAirflow(enabled){
+      if(disposed||typeof machine.setAirflow!=="function")return false;
+      const result=machine.setAirflow(enabled);
+      dirty=true;requestFrame();
+      return result;
+    },
     setQuality(mode){
       if(disposed)return null;
       qualityMode=validGraphicsMode(mode);
+      machine.setQuality?.(qualityMode);
       return applyQuality();
     },
     getQuality(){return qualityMode;},

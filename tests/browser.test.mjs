@@ -480,6 +480,38 @@ try{
   await app.locator("#graphics-quality").selectOption("auto");
   assert.equal(await app.evaluate(()=>localStorage.getItem("object-fonctionnement:graphics:v1")),"auto");
   console.log("PASS live graphics quality controls, pixel ratio and persistence");
+  const airflowToggle=app.getByRole("button",{name:"Visualiser le flux d’air"});
+  await airflowToggle.click();
+  assert.equal(await app.locator("#three-airflow").getAttribute("aria-pressed"),"true");
+  await app.locator("#fan-airflow-explanation").waitFor({state:"visible"});
+  assert.equal(await app.evaluate(()=>localStorage.getItem("object-fonctionnement:fan-airflow:v1")),"on");
+  // Inject constant motor state without animating the original 2D fan.
+  // A screenshot delta here isolates the 3D flow overlay from the rotor motion.
+  await app.frameLocator("iframe.figure-frame").locator("body").evaluate(()=>{
+    Object.assign(window.__st,{speed:2,turn:0,oscillate:false});
+  });
+  await app.waitForTimeout(360);
+  const flowEnabled=await app.locator(".object-three-canvas").screenshot();
+  await app.getByRole("button",{name:"Masquer le flux d’air"}).click();
+  await app.waitForTimeout(150);
+  const flowDisabled=await app.locator(".object-three-canvas").screenshot();
+  const airflowDelta=await changedPixelRatio(flowEnabled,flowDisabled);
+  assert.ok(airflowDelta>.00025,"airflow should visibly change 3D pixels: "+airflowDelta);
+  await app.getByRole("button",{name:"Visualiser le flux d’air"}).click();
+  await app.reload();
+  await app.locator(".object-three-canvas").waitFor();
+  assert.equal(await app.locator("#three-airflow").getAttribute("aria-pressed"),"true");
+  assert.equal(await app.locator("#fan-airflow-explanation").isVisible(),true);
+  await app.setViewportSize({width:320,height:740});
+  const narrow=await app.evaluate(()=>({
+   full:document.documentElement.scrollWidth,
+   viewport:document.documentElement.clientWidth
+  }));
+  assert.ok(narrow.full<=narrow.viewport+1,"airflow UI overflows small Android screens");
+  await app.setViewportSize({width:390,height:844});
+  await app.goto(HOST+"/#lock",{waitUntil:"load"});
+  assert.equal(await app.locator("#three-airflow").count(),0,"airflow control is fan-only");
+  console.log("PASS fan airflow 3D motion overlay, persistence and model-only control");
   // Count only top-frame RAF requests. The sandboxed ColorFigures iframe has
   // its own animation API, so this isolates the renderer's idle GPU scheduler.
   await app.addInitScript(()=>{

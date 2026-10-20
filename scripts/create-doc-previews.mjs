@@ -61,6 +61,20 @@ try{
   await writeFile(path.join(folder,'lock-inspection.webp'),webp);
   console.log('lock-inspection','preview',webp.length,'bytes');
  }finally{await page.close();}
+ // Keep one representative screenshot of the optional flowing-air lesson.
+ // It is captured from the real Three.js model, not a synthetic mockup.
+ const wind=await browser.newPage({viewport:{width:700,height:870},deviceScaleFactor:1.5});
+ try{
+  await wind.goto(url+'/#fan',{waitUntil:'load'});
+  await wind.locator('.object-three-canvas').waitFor({timeout:16000});
+  await wind.getByRole('button',{name:'Visualiser le flux d’air'}).click();
+  await wind.frameLocator('iframe.figure-frame').getByRole('button',{name:'Marche / arrêt'}).click();
+  await wind.waitForTimeout(580);
+  const buffer=await wind.locator('.object-three-canvas').screenshot({animations:'disabled'});
+  const webp=await sharp(buffer).resize({width:1000}).webp({quality:84,effort:6}).toBuffer();
+  await writeFile(path.join(folder,'fan-airflow.webp'),webp);
+  console.log('fan-airflow','preview',webp.length,'bytes');
+ }finally{await wind.close();}
  const lesson=await browser.newPage({viewport:{width:700,height:940},deviceScaleFactor:1.5});
  try{
   await lesson.goto(url+'/#kettle',{waitUntil:'load'});
