@@ -4,6 +4,8 @@
  */
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
+import {graphicsProfile,validGraphicsMode} from "./graphics-quality.js";
+import {RoundedBoxGeometry} from "three/addons/geometries/RoundedBoxGeometry.js";
 import {lockMechanics,washerMechanics,vendingMechanics} from "./mechanics-state.js";
 import {getObjectParts} from "./part-annotations.js";
 
@@ -65,12 +67,30 @@ function cylinder(parent,r1,r2,h,mat,x=0,y=0,z=0,n=40){
  const object=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,n),mat);
  object.position.set(x,y,z);parent.add(object);object.castShadow=true;object.receiveShadow=true;return object;
 }
+// Major metal/enamel housings receive real bevelled geometry and smoothly
+// interpolated highlights. Fine mechanical pieces remain cheap sharp boxes.
+// Since the outline is a child of the mesh, animations can never leave a
+// stationary "ghost" wireframe at the original position.
+const roundedMaterials=new Set([
+ mats.enamel,mats.ivory,mats.steel,mats.stainless,mats.dark,mats.charcoal,
+ mats.turquoise,mats.warm
+]);
 function block(parent,w,h,d,mat,x=0,y=0,z=0,r=.06){
- const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
- mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);
- if(r>0){
-  const line=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry,23),edgeMaterial);
-  line.position.copy(mesh.position);parent.add(line);
+ const rounded=r>0&&roundedMaterials.has(mat)&&Math.min(w,h,d)>=.145
+  &&Math.max(w,h,d)>=.52;
+ const radius=rounded?Math.min(r,Math.min(w,h,d)*.24):0;
+ const geometry=rounded
+  ?new RoundedBoxGeometry(w,h,d,3,radius)
+  :new THREE.BoxGeometry(w,h,d);
+ const mesh=new THREE.Mesh(geometry,mat);
+ mesh.position.set(x,y,z);
+ mesh.castShadow=true;mesh.receiveShadow=true;
+ mesh.userData.roundedHousing=rounded;
+ parent.add(mesh);
+ if(!rounded&&r>0){
+  const line=new THREE.LineSegments(new THREE.EdgesGeometry(geometry,23),edgeMaterial);
+  // The drawing follows the part as a child through translations/rotations.
+  mesh.add(line);
  }
  return mesh;
 }
@@ -697,9 +717,16 @@ const builders={kettle:makeKettle,toaster:makeToaster,fan:makeFan,lock:makeLock,
 export function createObjectViewer(container,id){
   if(!container||!Object.hasOwn(builders,id))throw Error("Unknown 3D object: "+id);
   let renderer;
+  let qualityMode="auto";
+  const motionReduced=window.matchMedia?.("(prefers-reduced-motion: reduce)").matches??false;
+  const quality=()=>graphicsProfile(qualityMode,{
+    devicePixelRatio:window.devicePixelRatio||1,
+    width:container.clientWidth||window.innerWidth||390,
+    reducedMotion:motionReduced
+  });
   try{
     renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:"low-power"});
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.25));
+    renderer.setPixelRatio(quality().pixelRatio);
     renderer.setSize(container.clientWidth||320,340);
     renderer.outputColorSpace=THREE.SRGBColorSpace;
     renderer.toneMapping=THREE.ACESFilmicToneMapping;
@@ -725,7 +752,7 @@ export function createObjectViewer(container,id){
   scene.add(new THREE.HemisphereLight(0xc9eaff,0x755d49,2.3));
   const sun=new THREE.DirectionalLight(0xfff1df,3.3);
   sun.position.set(-3,7,4);sun.castShadow=true;
-  sun.shadow.mapSize.set(window.innerWidth<520?512:1024,window.innerWidth<520?512:1024);
+  sun.shadow.mapSize.set(quality().shadowSize,quality().shadowSize);
   sun.shadow.camera.left=-7;sun.shadow.camera.right=7;sun.shadow.camera.top=7;sun.shadow.camera.bottom=-7;
   sun.shadow.normalBias=.025;
   sun.shadow.blurSamples=6;scene.add(sun);
@@ -734,6 +761,25 @@ export function createObjectViewer(container,id){
   floor.rotation.x=-Math.PI/2;floor.position.y=.03;floor.receiveShadow=true;scene.add(floor);
   const root=group(scene,0,0,0);
   const machine=builders[id](root);
+  // Model-specific framing. Fixed camera coordinates made short products tiny
+  // and cropped the taller machines at narrow Android viewport widths.
+  const modelBounds=new THREE.Box3().setFromObject(root);
+  const modelSphere=modelBounds.getBoundingSphere(new THREE.Sphere());
+  const homeTarget=modelSphere.center.clone();
+  const homeDirection=new THREE.Vector3(5,3.05,7.5).normalize();
+  let cameraCustomized=false;
+  function fitHomeCamera(){
+    const halfV=THREE.MathUtils.degToRad(camera.fov*.5);
+    const halfH=Math.atan(Math.tan(halfV)*camera.aspect);
+    const narrowest=Math.min(halfV,halfH);
+    const distance=Math.max(5,modelSphere.radius/Math.sin(narrowest)*1.08);
+    controls.maxDistance=Math.max(12,distance*1.75);
+    controls.minDistance=Math.max(3.0,distance*.47);
+    controls.target.copy(homeTarget);
+    camera.position.copy(homeTarget).addScaledVector(homeDirection,distance);
+    controls.update();
+  }
+  controls.addEventListener("start",()=>{cameraCustomized=true;});
   const annotations=getObjectParts(id);
   const markerLayer=document.createElement("div");
   markerLayer.className="three-parts";
@@ -842,6 +888,7 @@ export function createObjectViewer(container,id){
       close.hidden=true;
       tourBar.hidden=false;
     }
+    cameraCustomized=true;
     const startTarget=controls.target.clone(),startCamera=camera.position.clone();
     const delta=camera.position.clone().sub(controls.target).multiplyScalar(.82);
     const finishTarget=selected.world.clone();
@@ -854,7 +901,7 @@ export function createObjectViewer(container,id){
     }else{
       cameraMove={start:performance.now(),startTarget,startCamera,finishTarget,finishCamera};
     }
-    dirty=true;
+    dirty=true;requestFrame();
   }
   function endTour(completed=false){
     if(tourStep<0)return;
@@ -900,23 +947,47 @@ export function createObjectViewer(container,id){
   });
   let xray=false;
   const clock=new THREE.Clock();
-  let state={},active=true,disposed=false,frame=0,dirty=true,last=0;
-  controls.addEventListener("change",()=>{dirty=true;});
-  const prefersReduce=window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  let state={},stateSignature="",active=true,intersecting=true;
+  let disposed=false,frame=0,dirty=true,last=0;
+  // Do not run an idle 60Hz requestAnimationFrame loop on a battery-powered
+  // Android device. Schedule a frame only on input, scene changes or motion.
+  function requestFrame(){
+    if(!disposed&&active&&frame===0)frame=requestAnimationFrame(tick);
+  }
+  controls.addEventListener("change",()=>{dirty=true;requestFrame();});
+  const prefersReduce=motionReduced;
+  function applyQuality(){
+    const profile=quality();
+    renderer.setPixelRatio(profile.pixelRatio);
+    if(sun.shadow.mapSize.x!==profile.shadowSize){
+      sun.shadow.map?.dispose();
+      sun.shadow.map=null;
+      sun.shadow.mapSize.set(profile.shadowSize,profile.shadowSize);
+      sun.shadow.needsUpdate=true;
+    }
+    resize();
+    dirty=true;requestFrame();
+    return profile;
+  }
   function resize(){
     if(disposed)return;
     const width=Math.max(200,container.clientWidth||320);
     const height=Math.round(Math.max(265,Math.min(460,width*.82)));
     renderer.setSize(width,height,true);
-    camera.aspect=width/height;camera.updateProjectionMatrix();dirty=true;
-    updatePartPositions();
+    camera.aspect=width/height;camera.updateProjectionMatrix();
+    if(!cameraCustomized)fitHomeCamera();
+    dirty=true;updatePartPositions();requestFrame();
   }
   const observer=new ResizeObserver(resize);observer.observe(container);resize();
+  const reactivate=()=>{
+    active=intersecting&&!document.hidden;
+    if(active){dirty=true;requestFrame();}
+  };
   const visibleObserver=new IntersectionObserver(entries=>{
-    active=entries[0]?.isIntersecting??true;
-    if(active)dirty=true;
+    intersecting=entries[0]?.isIntersecting??true;
+    reactivate();
   },{threshold:0.01});visibleObserver.observe(container);
-  const onVisibility=()=>{active=!document.hidden;dirty=true;};
+  const onVisibility=reactivate;
   document.addEventListener("visibilitychange",onVisibility);
   renderer.domElement.addEventListener("webglcontextlost",event=>{
     event.preventDefault();
@@ -925,9 +996,8 @@ export function createObjectViewer(container,id){
     container.dispatchEvent(new CustomEvent("object-3d-error"));
   });
   function tick(timestamp){
-    if(disposed)return;
-    frame=requestAnimationFrame(tick);
-    if(!active||!renderer.domElement.isConnected)return;
+    frame=0;
+    if(disposed||!active||!renderer.domElement.isConnected)return;
     const running=Boolean(machine.needsAnimation?.()||state.run||state.speed||state.heating||state.brewing||state.toasting||state.pumping||state.oscillate||(Number(state.steam)>0));
     if(cameraMove){
       const elapsed=Math.min(1,(timestamp-cameraMove.start)/440);
@@ -938,8 +1008,8 @@ export function createObjectViewer(container,id){
       dirty=true;
     }
     if(!running&&!dirty)return; // static model: let the GPU sleep
-    const period=running?33:66; // active ~30 fps, changing/camera ~15 fps
-    if(timestamp-last<period&&!dirty)return;
+    const period=running?quality().frameMs:66; // 20-30 fps based on chosen quality
+    if(timestamp-last<period&&!dirty){requestFrame();return;}
     last=timestamp;
     const dt=Math.min(.05,clock.getDelta()),time=timestamp/1000;
     machine.update(state,dt,time);
@@ -947,15 +1017,30 @@ export function createObjectViewer(container,id){
     renderer.render(scene,camera);
     updatePartPositions();
     dirty=false;
+    if(running||cameraMove)requestFrame();
   }
-  frame=requestAnimationFrame(tick);
+  requestFrame();
   return {
-    setState(next){if(disposed)return;state={...next};dirty=true;},
+    setQuality(mode){
+      if(disposed)return null;
+      qualityMode=validGraphicsMode(mode);
+      return applyQuality();
+    },
+    getQuality(){return qualityMode;},
+    setState(next){
+      if(disposed||!next||typeof next!=="object")return;
+      // Figure state arrives repeatedly even when unchanged; avoid waking
+      // the GPU for an identical payload every 120 milliseconds.
+      let signature=null;
+      try{signature=JSON.stringify(next);}catch{}
+      if(signature!==null&&signature===stateSignature)return;
+      stateSignature=signature;state={...next};dirty=true;requestFrame();
+    },
     setXray(value){
       if(disposed)return false;
       xray=Boolean(value);
       for(const {mesh,normal,cut} of technical)mesh.material=xray?cut:normal;
-      dirty=true;
+      dirty=true;requestFrame();
       return xray;
     },
     startTour(onFinish){
@@ -969,14 +1054,14 @@ export function createObjectViewer(container,id){
       description.classList.add("tour-active");
       container.append(description);
       focusPart(0);
-      dirty=true;
+      dirty=true;requestFrame();
       return true;
     },
     focusPartById(partId){
       const index=points.findIndex(point=>point.part.id===partId);
       if(index<0||disposed)return false;
       showParts=true;markerLayer.hidden=false;
-      focusPart(index);dirty=true;
+      focusPart(index);dirty=true;requestFrame();
       return true;
     },
     setAnnotations(visible){
@@ -986,13 +1071,13 @@ export function createObjectViewer(container,id){
       markerLayer.hidden=!showParts;
       if(!showParts){description.hidden=true;cameraMove=null;}
       else updatePartPositions();
-      dirty=true;
+      dirty=true;requestFrame();
       return showParts;
     },
     resetCamera(){
       if(tourStep>=0)endTour(false);
-      cameraMove=null;
-      camera.position.set(5,4.1,7.5);controls.target.set(0,1.05,0);controls.update();dirty=true;
+      cameraMove=null;cameraCustomized=false;
+      fitHomeCamera();dirty=true;requestFrame();
       description.hidden=true;
       for(const point of points)point.button.setAttribute("aria-pressed","false");
     },

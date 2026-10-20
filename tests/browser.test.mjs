@@ -460,6 +460,47 @@ try{
    assert.ok(Math.abs(view.canvas-view.host)<=2,"3D canvas width mismatch at "+width+"px");
   }
   await app.setViewportSize({width:390,height:844});
+  await app.goto(HOST+'/#fan',{waitUntil:'load'});
+  await app.locator(".object-three-canvas").waitFor();
+  const qualityControl=app.locator("#graphics-quality");
+  const canvasResolution=()=>app.locator(".object-three-canvas").evaluate(el=>({width:el.width,height:el.height}));
+  await qualityControl.selectOption("eco");
+  const eco=await canvasResolution();
+  assert.equal(await app.evaluate(()=>localStorage.getItem("object-fonctionnement:graphics:v1")),"eco");
+  await qualityControl.selectOption("high");
+  const high=await canvasResolution();
+  assert.ok(high.width>=eco.width&&high.height>=eco.height,"high quality reduces render resolution");
+  await app.reload();
+  await app.locator(".object-three-canvas").waitFor();
+  assert.equal(await app.locator("#graphics-quality").inputValue(),"high");
+  await app.locator("#graphics-quality").selectOption("auto");
+  assert.equal(await app.evaluate(()=>localStorage.getItem("object-fonctionnement:graphics:v1")),"auto");
+  console.log("PASS live graphics quality controls, pixel ratio and persistence");
+  // Count only top-frame RAF requests. The sandboxed ColorFigures iframe has
+  // its own animation API, so this isolates the renderer's idle GPU scheduler.
+  await app.addInitScript(()=>{
+    const native=window.requestAnimationFrame;
+    window.__threeFrameRequests=0;
+    window.requestAnimationFrame=function(callback){
+      window.__threeFrameRequests++;
+      return native.call(window,callback);
+    };
+  });
+  await app.goto(HOST+'/#lock',{waitUntil:'load'});
+  // Same-document hash navigation does not trigger addInitScript.
+  // Force a full page load so the RAF instrumentation is installed.
+  await app.reload();
+  await app.locator(".object-three-canvas").waitFor();
+  await app.waitForTimeout(850);
+  const idleBefore=await app.evaluate(()=>window.__threeFrameRequests);
+  await app.waitForTimeout(650);
+  const idleAfter=await app.evaluate(()=>window.__threeFrameRequests);
+  assert.ok(idleAfter-idleBefore<=4,
+    "stationary WebGL model unexpectedly schedules idle frames: "+(idleAfter-idleBefore));
+  await app.getByRole("button",{name:"Voir les pièces internes"}).click();
+  await app.waitForFunction(before=>window.__threeFrameRequests>before,idleAfter);
+  console.log("PASS idle WebGL stops scheduling RAF and resumes on interaction");
+
   await app.goto(HOST+'/#kettle',{waitUntil:'load'});
   await app.locator(".object-three-canvas").waitFor();
   await app.locator(".object-three-canvas").dispatchEvent("webglcontextlost",{cancelable:true});

@@ -417,3 +417,28 @@ sans téléchargement supplémentaire.
 
 28 tests unitaires et les scénarios navigateur passent.
 La CI produit l'APK Android 0.14.0 (versionCode 14).
+
+
+## Version 0.15 — qualité graphique 3D adaptée à Android
+
+Chaque fiche d'objet propose désormais trois qualités graphiques sélectionnables
+sans interrompre la simulation ni perdre les progrès :
+
+- Automatique (par défaut) : densité de pixels limitée à 1,2 sur les écrans
+  compacts, 1,5 sur les plus grands, et ombres en 512 ou 1024 points.
+- Économie : densité de pixels de 1, ombres en 256 points et cadence
+  d'animation plafonnée à environ 20 images/seconde pour réduire la charge GPU.
+- Haute qualité : densité de pixels jusqu'à 2, ombres en 1024 points et
+  cadence d'animation d'environ 30 images/seconde.
+
+Le choix est conservé dans le stockage local, appliqué aux neuf modèles 3D,
+et modifiable instantanément sur une fiche. Les rendus statiques continuent
+de mettre le GPU en veille, conformément à la version précédente. Le réglage
+Automatique respecte les préférences de réduction des animations du système.
+
+Tests : validations des profils, stockage résilient et tests navigateur réels
+de changement de résolution, de persistance et de veille GPU. GitHub Actions
+construit l'APK Android 0.15.0 (versionCode 15).
+
+Les modèles restent des schémas pédagogiques ; ce réglage améliore leur
+netteté et leur coût GPU, pas leur précision mécanique.

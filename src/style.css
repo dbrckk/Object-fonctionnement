@@ -187,3 +187,8 @@ footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
 .glossary-item p{font-size:.83rem;line-height:1.55;color:#475a69;margin:8px 0}
 .glossary-item button{border:1px solid #31566c;color:#fffdf4;background:#31566c;border-radius:10px;min-height:44px;padding:9px 12px;align-self:flex-start;font-weight:750}
 .glossary-item button:focus-visible,#glossary-search:focus-visible{outline:3px solid #e3a26b;outline-offset:2px}
+
+/* GPU quality can be switched without replacing a live simulation iframe. */
+.graphics-label{font-size:.74rem;font-weight:750;color:#375669;align-self:center}
+#graphics-quality{font:inherit;font-weight:650;font-size:.78rem;border:1px solid #9bb4c1;border-radius:9px;background:#fffdf8;color:#213b4a;min-height:40px;max-width:170px;padding:5px 8px}
+#graphics-quality:focus-visible{outline:3px solid #e1a16c;outline-offset:2px}
