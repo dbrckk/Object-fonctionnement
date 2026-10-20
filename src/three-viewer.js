@@ -369,9 +369,10 @@ function makeFan(root){
  // One instanced draw call renders all flow particles. The airflow belongs
  // to the rotating head so oscillation also changes the wind direction.
  // The emitter stays hidden unless explicitly enabled AND the fan runs.
- const flowGeometry=new THREE.SphereGeometry(.054,6,4);
+ // Wider, higher-contrast dots remain legible at 320–390px mobile widths.
+ const flowGeometry=new THREE.SphereGeometry(.08,6,4);
  const flowMaterial=new THREE.MeshBasicMaterial({
-  color:0x71dce9,transparent:true,opacity:.65,depthWrite:false
+  color:0x4bbdd8,transparent:true,opacity:.78,depthWrite:false
  });
  const flow=new THREE.InstancedMesh(flowGeometry,flowMaterial,AIRFLOW_PARTICLE_COUNT);
  flow.count=airflowParticleBudget("auto");

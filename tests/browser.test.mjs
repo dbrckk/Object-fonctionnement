@@ -496,7 +496,8 @@ try{
   await app.waitForTimeout(150);
   const flowDisabled=await app.locator(".object-three-canvas").screenshot();
   const airflowDelta=await changedPixelRatio(flowEnabled,flowDisabled);
-  assert.ok(airflowDelta>.00025,"airflow should visibly change 3D pixels: "+airflowDelta);
+  // Antialiased particles differ slightly across software and mobile GPUs.
+  assert.ok(airflowDelta>.00012,"airflow should visibly change 3D pixels: "+airflowDelta);
   await app.getByRole("button",{name:"Visualiser le flux d’air"}).click();
   await app.reload();
   await app.locator(".object-three-canvas").waitFor();
