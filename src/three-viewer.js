@@ -483,6 +483,17 @@ function makeFlashlight(root){
  }
  const switcher=block(shell,.33,.1,.21,mats.turquoise,-.12,.31,0);
  badge(shell,"LED",.12,.38,.04,.31,.14,"#f1ddab","#243e50");
+ // Reflector and concentric lens rings give the head a physically readable
+ // optical assembly even when the lamp is off.
+ const reflector=cylinder(shell,.39,.27,.045,mats.stainless,1.30,0,0);
+ reflector.rotation.z=Math.PI/2;
+ for(const radius of [.19,.29,.38]){
+  ring(shell,radius,.012,mats.steel,1.39,0,0,0,Math.PI/2);
+ }
+ const bezel=ring(shell,.43,.032,mats.dark,1.37,0,0,0,Math.PI/2);
+ const batteryCap=ring(shell,.32,.025,mats.steel,-1.13,0,0,0,Math.PI/2);
+ // Button travel is visible, not merely a color change.
+ const button=block(shell,.14,.075,.16,mats.ivory,-.12,.37,0);
  const light=new THREE.SpotLight(0xffefb4,0,8,.32,.5,1);
  light.position.set(1.45,.77,0);light.target.position.set(3,.5,0);
  root.add(light,light.target);
@@ -495,6 +506,8 @@ function makeFlashlight(root){
   beam.visible=v>.01;cone.material.opacity=v*(s.brightness===2?.15:.09);
   glow.emissiveIntensity=.35+v*1.7;
   switcher.position.y=s.on?.37:.31;
+  button.position.y=s.on?.395:.365;
+  bulb.material=s.on?glow:mats.ivory;
  }};
 }
 function makeWashing(root){

@@ -404,3 +404,16 @@ des modèles pédagogiques et non des plans de réparation.
 
 Captures créées par npm run generate:3d-previews. La CI construit
 l'APK Android de test 0.13.0 avec versionCode 13.
+
+
+## Version 0.14 — optique de la lampe torche
+
+Le modèle 3D de la lampe torche possède désormais un réflecteur
+métallique, trois anneaux concentriques de lentille, une bague de
+protection, un bouchon arrière et un bouton qui s'enfonce à
+l'allumage. La source lumineuse et le faisceau restent pilotés par
+la simulation d'origine. Tous les éléments sont procéduraux,
+sans téléchargement supplémentaire.
+
+28 tests unitaires et les scénarios navigateur passent.
+La CI produit l'APK Android 0.14.0 (versionCode 14).
