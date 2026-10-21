@@ -1463,6 +1463,11 @@ export function createObjectViewer(container,id){
     setMechanismPath(visible){return toggleMechanismPath(visible);},
     setMechanismStep(index){return focusMechanismStep(index);},
     playMechanismStep(index,onFinish){return startMechanismPreview(index,onFinish);},
+    cancelMechanismStep(){
+      if(disposed||!mechanismPreview)return false;
+      stopMechanismPreview();
+      return true;
+    },
     setAirflow(enabled){
       if(disposed||typeof machine.setAirflow!=="function")return false;
       const result=machine.setAirflow(enabled);

@@ -663,3 +663,16 @@ Tests : 47 tests unitaires, scénario Chromium des neuf objets, des
 aperçus temporaires, des étapes indisponibles et de l'absence de
 modification de la simulation originale ; capture d'écran différentielle
 confirmant le mouvement du barillet. Android versionCode 26.
+
+
+## Version 0.27 — arrêt immédiat des animations pédagogiques
+
+Pendant l'aperçu d'un mouvement, le bouton « Arrêter le mouvement »
+reste accessible. Il annule immédiatement la démonstration, restaure
+l'état réel du modèle 3D et permet de relancer le même mouvement.
+Changer d'étape annule aussi l'aperçu. Les commandes de la simulation
+ColorFigures restent inchangées.
+
+Un scénario Chromium vérifie l'arrêt, la restauration de la scène,
+la reprise et la navigation. 47 tests unitaires et les scénarios
+navigateur réussissent. Android versionCode 27.

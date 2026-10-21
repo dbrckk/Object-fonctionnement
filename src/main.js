@@ -225,6 +225,7 @@ function renderDetail(o){
   mechanismFlowIndex=index;
   const demoButton=document.getElementById("mechanism-demo");
   const supported=hasMechanismDemo(o.id,index);
+  delete demoButton.dataset.playing;
   demoButton.disabled=!supported;
   demoButton.textContent=supported?"▶ Voir le mouvement":"Mouvement non modélisé";
   document.getElementById("mechanism-demo-hint").textContent=supported
@@ -267,15 +268,25 @@ function renderDetail(o){
   if(!mechanismFlowActive||!button||button.disabled)return;
   const currentStep=mechanismFlowIndex;
   const status=document.getElementById("mechanism-demo-status");
+  if(button.dataset.playing==="true"){
+   if(currentViewer?.cancelMechanismStep()){
+    delete button.dataset.playing;
+    button.textContent="↻ Revoir le mouvement";
+    status.textContent="Aperçu arrêté. La simulation normale a repris.";
+   }
+   return;
+  }
   const started=currentViewer?.playMechanismStep(currentStep,()=>{
    if(!mechanismFlowActive||mechanismFlowIndex!==currentStep||!button.isConnected)return;
+   delete button.dataset.playing;
    button.disabled=false;
    button.textContent="↻ Revoir le mouvement";
    status.textContent="Aperçu terminé. La simulation normale a repris.";
   });
   if(!started)return;
-  button.disabled=true;
-  button.textContent="Mouvement en cours…";
+  button.dataset.playing="true";
+  button.disabled=false;
+  button.textContent="■ Arrêter le mouvement";
   status.textContent="Aperçu du fonctionnement en cours.";
  });
  document.getElementById("three-flow").addEventListener("click",()=>toggleMechanismFlow(!mechanismFlowActive));

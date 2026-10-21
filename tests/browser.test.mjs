@@ -295,7 +295,8 @@ try{
     await motionButton.click();
     assert.equal(await app.locator("#three-mount").getAttribute("data-mechanism-demo"),"2");
     await app.waitForTimeout(450);
-    assert.equal(await motionButton.isEnabled(),false);
+    assert.equal(await motionButton.isEnabled(),true);
+     assert.match(await motionButton.innerText(),/Arrêter le mouvement/);
     if(previewBefore){
      const previewDuring=await app.locator(".object-three-canvas").screenshot();
      const ratio=await changedPixelRatio(previewBefore,previewDuring);
@@ -310,6 +311,12 @@ try{
       "the 3D-only demonstration mutated original figure controls: "+id);
    }
    if(id==="toaster"){
+    await motionButton.click();
+    assert.equal(await motionButton.getAttribute("data-playing"),"true");
+    await motionButton.click();
+    assert.equal(await app.locator("#three-mount").getAttribute("data-mechanism-demo"),null,
+     "cancel should restore original live 3D state immediately");
+    assert.match(await flowPanel.locator("#mechanism-demo-status").innerText(),/Aperçu arrêté/);
     await motionButton.click();
     await flowPanel.locator('[data-flow-step="2"]').click();
     assert.equal(await app.locator("#three-mount").getAttribute("data-mechanism-demo"),null,
