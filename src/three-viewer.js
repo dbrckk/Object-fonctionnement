@@ -9,6 +9,7 @@ import {RoundedBoxGeometry} from "three/addons/geometries/RoundedBoxGeometry.js"
 import {lockMechanics,washerMechanics,vendingMechanics} from "./mechanics-state.js";
 import {getObjectParts} from "./part-annotations.js";
 import {getMechanismPath} from "./mechanism-paths.js";
+import {hasMechanismDemo,mechanismDemoState,MECHANISM_DEMO_DURATION_MS} from "./mechanism-demos.js";
 import {flowLinkGeometry,viewportFlowPoint} from "./flow-layout.js";
 import {VENDING_PRODUCT_ROWS,vendingProduct,vendingProductFromTray,feederRotation,vendingDropPose,vendingScreenState} from "./vending-visuals.js";
 import {createSurfacePixels,SURFACE_SIZE} from "./surface-finishes.js";
@@ -1103,7 +1104,24 @@ export function createObjectViewer(container,id){
     return node;
   });
   container.append(flowSvg);
-  let flowOpen=false,flowIndex=0;
+  let flowOpen=false,flowIndex=0,mechanismPreview=null;
+  // Preview state stays local to this viewer, not saved or sent to SVG.
+  function stopMechanismPreview(){
+    if(!mechanismPreview)return;
+    mechanismPreview=null;
+    delete container.dataset.mechanismDemo;
+    dirty=true;requestFrame();
+  }
+  function startMechanismPreview(index,onFinish){
+    if(disposed||!flowOpen||index!==flowIndex||!hasMechanismDemo(id,index))return false;
+    stopMechanismPreview();
+    mechanismPreview={index,start:performance.now(),
+      duration:motionReduced?900:MECHANISM_DEMO_DURATION_MS,
+      onFinish:typeof onFinish==="function"?onFinish:null};
+    container.dataset.mechanismDemo=String(index+1);
+    dirty=true;requestFrame();
+    return true;
+  }
   function updateFlowPositions(){
     if(!flowOpen)return;
     const width=renderer.domElement.clientWidth;
@@ -1230,6 +1248,7 @@ export function createObjectViewer(container,id){
   }
   function focusMechanismStep(index){
     if(disposed||!flowOpen||!Number.isInteger(index)||index<0||index>=flowSteps.length)return false;
+    stopMechanismPreview();
     flowIndex=index;
     const world=new THREE.Vector3(...flowSteps[index].position);
     partLocator.position.copy(world);
@@ -1253,6 +1272,7 @@ export function createObjectViewer(container,id){
   }
   function toggleMechanismPath(visible){
     if(disposed)return false;
+    stopMechanismPreview();
     flowOpen=Boolean(visible);
     flowSvg.toggleAttribute("hidden",!flowOpen);
     if(flowOpen){
@@ -1406,7 +1426,14 @@ export function createObjectViewer(container,id){
   function tick(timestamp){
     frame=0;
     if(disposed||!active||!renderer.domElement.isConnected)return;
-    const running=Boolean(machine.needsAnimation?.()||state.run||state.speed||state.heating||state.brewing||state.toasting||state.pumping||state.oscillate||(Number(state.steam)>0));
+    // Restore the latest live SVG state on the exact frame the preview ends.
+    let completedPreview=null;
+    if(mechanismPreview&&timestamp-mechanismPreview.start>=mechanismPreview.duration){
+      completedPreview=mechanismPreview.onFinish;
+      stopMechanismPreview();
+    }
+    const preview=mechanismPreview;
+    const running=Boolean(preview||machine.needsAnimation?.()||state.run||state.speed||state.heating||state.brewing||state.toasting||state.pumping||state.oscillate||(Number(state.steam)>0));
     if(cameraMove){
       const elapsed=Math.min(1,(timestamp-cameraMove.start)/440);
       const eased=1-(1-elapsed)**3;
@@ -1420,18 +1447,22 @@ export function createObjectViewer(container,id){
     if(timestamp-last<period&&!dirty){requestFrame();return;}
     last=timestamp;
     const dt=Math.min(.05,clock.getDelta()),time=timestamp/1000;
-    machine.update(state,dt,time);
+    const renderState=preview?mechanismDemoState(id,preview.index,
+      (timestamp-preview.start)/preview.duration,state):state;
+    machine.update(renderState||state,dt,time);
     controls.update();
     renderer.render(scene,camera);
     updatePartPositions();
     updateFlowPositions();
     dirty=false;
+    if(completedPreview&&!disposed)completedPreview();
     if(running||cameraMove)requestFrame();
   }
   requestFrame();
   return {
     setMechanismPath(visible){return toggleMechanismPath(visible);},
     setMechanismStep(index){return focusMechanismStep(index);},
+    playMechanismStep(index,onFinish){return startMechanismPreview(index,onFinish);},
     setAirflow(enabled){
       if(disposed||typeof machine.setAirflow!=="function")return false;
       const result=machine.setAirflow(enabled);
@@ -1511,6 +1542,7 @@ export function createObjectViewer(container,id){
     },
     dispose(){
       if(disposed)return;
+      stopMechanismPreview();
       endTour(false);
       disposed=true;cancelAnimationFrame(frame);
       observer.disconnect();visibleObserver.disconnect();document.removeEventListener("visibilitychange",onVisibility);

@@ -282,6 +282,41 @@ try{
    assert.equal(await app.locator('.mechanism-flow-overlay').getAttribute('data-active-step'),"2");
    assert.equal(await flowPanel.locator('[data-flow-step="1"]').getAttribute('aria-pressed'),"true");
    assert.ok((await flowPanel.locator('#mechanism-flow-detail').innerText()).length>25);
+   // Only physically represented movements have an active demo button.
+   const motionButton=flowPanel.locator("#mechanism-demo");
+   assert.equal(await motionButton.isEnabled(),id!=="bicycle",
+     "incorrect movement availability at step 2 of "+id);
+   if(["fan","lock","coffee","vending"].includes(id)){
+    const original=await app.frameLocator("iframe.figure-frame").locator("body")
+      .evaluate(()=>JSON.stringify(window.__st));
+    if(id==="lock")await app.waitForTimeout(500); // finish focus-camera transition
+    const previewBefore=id==="lock"
+      ?await app.locator(".object-three-canvas").screenshot():null;
+    await motionButton.click();
+    assert.equal(await app.locator("#three-mount").getAttribute("data-mechanism-demo"),"2");
+    await app.waitForTimeout(450);
+    assert.equal(await motionButton.isEnabled(),false);
+    if(previewBefore){
+     const previewDuring=await app.locator(".object-three-canvas").screenshot();
+     const ratio=await changedPixelRatio(previewBefore,previewDuring);
+     assert.ok(ratio>.0006,"guided lock movement did not animate visible geometry: "+ratio);
+    }
+    await app.waitForFunction(()=>!document.getElementById("three-mount")
+      ?.hasAttribute("data-mechanism-demo"),{timeout:8000});
+    assert.equal(await motionButton.isEnabled(),true);
+    assert.match(await motionButton.innerText(),/Revoir le mouvement/);
+    assert.equal(await app.frameLocator("iframe.figure-frame").locator("body")
+      .evaluate(()=>JSON.stringify(window.__st)),original,
+      "the 3D-only demonstration mutated original figure controls: "+id);
+   }
+   if(id==="toaster"){
+    await motionButton.click();
+    await flowPanel.locator('[data-flow-step="2"]').click();
+    assert.equal(await app.locator("#three-mount").getAttribute("data-mechanism-demo"),null,
+     "switching learning steps should cancel the preview");
+    assert.equal(await motionButton.isEnabled(),true);
+    await flowPanel.locator('[data-flow-step="1"]').click();
+   }
    await flowPanel.getByRole('button',{name:"Suivant →"}).click();
    assert.equal(await app.locator('.mechanism-flow-overlay').getAttribute('data-active-step'),"3");
    await flowPanel.getByRole('button',{name:"Terminer"}).click();

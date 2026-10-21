@@ -102,6 +102,22 @@ try{
    console.log(id,'causal flow preview',webp.length,'bytes');
   }finally{await page.close();}
  }
+ // A real screenshot of the barillet turning during an opt-in lesson.
+ // It is captured from the running Three.js app with no generated mockups.
+ const demo=await browser.newPage({viewport:{width:700,height:940},deviceScaleFactor:1.5});
+ try{
+  await demo.goto(url+'/#lock',{waitUntil:'load'});
+  await demo.locator('.object-three-canvas').waitFor({timeout:16000});
+  await demo.getByRole('button',{name:'Comprendre le mécanisme'}).click();
+  await demo.locator('[data-flow-step="1"]').click();
+  await demo.waitForTimeout(530);
+  await demo.locator('#mechanism-demo').click();
+  await demo.waitForTimeout(650);
+  const buffer=await demo.locator('.three-shell').screenshot({animations:'disabled'});
+  const webp=await sharp(buffer).resize({width:1000}).webp({quality:84,effort:6}).toBuffer();
+  await writeFile(path.join(folder,'lock-motion-lesson.webp'),webp);
+  console.log('lock-motion-lesson','live lesson preview',webp.length,'bytes');
+ }finally{await demo.close();}
 }finally{
  if(browser)await browser.close();
  server.kill('SIGTERM');

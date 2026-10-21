@@ -282,3 +282,17 @@ footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
 .three-tour-progress::-webkit-progress-bar{background:#d7e5e6;border-radius:99px}
 .three-tour-progress::-webkit-progress-value{background:#176c79;border-radius:99px}
 .three-tour-progress::-moz-progress-bar{background:#176c79;border-radius:99px}
+
+/* Manual motion previews are explicitly separate from the real ColorFigures
+   controls. Disabled steps do not suggest that a non-modeled part can move. */
+.mechanism-demo-row{display:flex;flex-wrap:wrap;align-items:center;gap:9px;
+ margin:0 0 6px}
+.mechanism-demo-row #mechanism-demo{min-height:44px;padding:10px 14px;
+ border:1px solid #1f6872;border-radius:10px;background:#176c79;color:#fff;
+ font:inherit;font-size:.81rem;font-weight:800;cursor:pointer}
+.mechanism-demo-row #mechanism-demo:disabled{background:#edf3f2;
+ border-color:#c9d9d7;color:#486571;cursor:default}
+.mechanism-demo-row #mechanism-demo:focus-visible{outline:3px solid #e4a16a;outline-offset:2px}
+#mechanism-demo-hint{font-size:.77rem;line-height:1.45;color:#536e77;
+ flex:1 1 175px}
+.mechanism-demo-status{min-height:1.1em;font-size:.74rem;color:#2c6671;margin:0 0 8px}

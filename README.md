@@ -636,3 +636,30 @@ contrastée facilite la lecture sur smartphone.
 Cette modification corrige également le test de navigateur bloquant la
 compilation GitHub Actions 0.24. Les scénarios Chromium et 44 tests
 unitaires passent localement. Android versionCode 25.
+
+
+## Version 0.26 — prévisualiser le mouvement au fil de l'explication
+
+Le parcours « Comprendre le mécanisme » dispose maintenant d'un bouton
+**Voir le mouvement** pour 23 étapes sur les 27 disponibles. Les étapes
+sans mouvement effectivement représenté dans le modèle affichent
+« Mouvement non modélisé », afin de ne pas inventer des fonctions.
+
+Chaque aperçu anime uniquement le modèle 3D associé à l'étape choisie
+(rotation, chauffe, ouverture, piston, écoulement, distribution, etc.).
+Il dure environ 2,1 secondes, ou 0,9 seconde avec la réduction des
+animations activée dans les préférences du système. Les changements
+d'étape, la fermeture du parcours et la navigation interrompent
+l'aperçu immédiatement. Les valeurs du simulateur ColorFigures isolé
+ne sont jamais modifiées et sont restaurées visuellement à la fin.
+
+Le bouton affiche la progression en direct et autorise le rejeu.
+Les calculs sont déterministes et ne téléchargent aucune ressource.
+Une preuve visuelle est disponible :
+
+![Parcours de la serrure et bouton de mouvement](docs/previews/lock-motion-lesson.webp)
+
+Tests : 47 tests unitaires, scénario Chromium des neuf objets, des
+aperçus temporaires, des étapes indisponibles et de l'absence de
+modification de la simulation originale ; capture d'écran différentielle
+confirmant le mouvement du barillet. Android versionCode 26.
