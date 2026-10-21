@@ -9,6 +9,7 @@ import {RoundedBoxGeometry} from "three/addons/geometries/RoundedBoxGeometry.js"
 import {lockMechanics,washerMechanics,vendingMechanics} from "./mechanics-state.js";
 import {getObjectParts} from "./part-annotations.js";
 import {getMechanismPath} from "./mechanism-paths.js";
+import {flowLinkGeometry,viewportFlowPoint} from "./flow-layout.js";
 import {VENDING_PRODUCT_ROWS,vendingProduct,vendingProductFromTray,feederRotation,vendingDropPose,vendingScreenState} from "./vending-visuals.js";
 import {createSurfacePixels,SURFACE_SIZE} from "./surface-finishes.js";
 import {AIRFLOW_PARTICLE_COUNT,airflowPoint,airSpeed,airflowParticleBudget} from "./fan-airflow.js";
@@ -1112,9 +1113,7 @@ export function createObjectViewer(container,id){
     flowSvg.style.height=height+"px";
     const coords=flowSteps.map(step=>{
       const projected=new THREE.Vector3(...step.position).project(camera);
-      const visible=projected.z>=-1&&projected.z<=1
-        &&Math.abs(projected.x)<=1.08&&Math.abs(projected.y)<=1.08;
-      return visible?{x:(projected.x*.5+.5)*width,y:(-projected.y*.5+.5)*height}:null;
+      return viewportFlowPoint(projected,width,height);
     });
     flowNodes.forEach((node,i)=>{
       const point=coords[i];
@@ -1125,19 +1124,15 @@ export function createObjectViewer(container,id){
     });
     flowLines.forEach((path,i)=>{
       const a=coords[i],b=coords[i+1];
-      path.style.display=a&&b?"":"none";
-      if(!a||!b)return;
-      // Stops short of the numbered nodes; curved links are instructional
-      // and must never be interpreted as literal internal ducts or wires.
-      const dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy)||1;
-      const ux=dx/length,uy=dy/length;
-      const fromX=a.x+ux*19,fromY=a.y+uy*19;
-      const toX=b.x-ux*23,toY=b.y-uy*23;
-      const midpointX=(fromX+toX)/2-uy*12;
-      const midpointY=(fromY+toY)/2+ux*12;
-      path.setAttribute("d","M "+fromX.toFixed(1)+" "+fromY.toFixed(1)+
-        " Q "+midpointX.toFixed(1)+" "+midpointY.toFixed(1)+
-        " "+toX.toFixed(1)+" "+toY.toFixed(1));
+      const geometry=flowLinkGeometry(a,b);
+      path.style.display=geometry?"":"none";
+      if(!geometry)return;
+      // Preserve the arrow only when the projected step spacing can
+      // actually fit two 32px discs and a directional link.
+      const {start,mid,finish}=geometry;
+      path.setAttribute("d","M "+start.x.toFixed(1)+" "+start.y.toFixed(1)+
+        " Q "+mid.x.toFixed(1)+" "+mid.y.toFixed(1)+
+        " "+finish.x.toFixed(1)+" "+finish.y.toFixed(1));
       path.classList.toggle("is-current",i===flowIndex||i===flowIndex-1);
     });
     flowSvg.dataset.activeStep=String(flowIndex+1);
@@ -1170,16 +1165,6 @@ export function createObjectViewer(container,id){
   const progress=document.createElement("span");
   progress.className="three-tour-counter";
   progress.setAttribute("aria-live","polite");
-  const progressTrack=document.createElement("div");
-  progressTrack.className="three-tour-progress";
-  progressTrack.setAttribute("role","progressbar");
-  progressTrack.setAttribute("aria-label","Progression de la visite des pièces");
-  progressTrack.setAttribute("aria-valuemin","0");
-  progressTrack.setAttribute("aria-valuemax",String(points.length));
-  progressTrack.setAttribute("aria-valuenow","0");
-  const progressFill=document.createElement("span");
-  progressFill.className="three-tour-progress-fill";
-  progressTrack.append(progressFill);
   const previous=document.createElement("button");
   previous.type="button";previous.textContent="← Précédent";
   const next=document.createElement("button");
@@ -1187,7 +1172,7 @@ export function createObjectViewer(container,id){
   const quit=document.createElement("button");
   quit.type="button";quit.textContent="Quitter la visite";
   quit.className="three-tour-quit";
-  tourBar.append(progress,progressTrack,previous,next,quit);
+  tourBar.append(progress,previous,next,quit);
   description.append(label,text,tourBar,close);
   markerLayer.append(description);
   container.append(markerLayer);
@@ -1289,9 +1274,6 @@ export function createObjectViewer(container,id){
     if(tourStep>=0){
       tourStep=index;
       progress.textContent="Étape "+(index+1)+" / "+points.length;
-      progressTrack.setAttribute("aria-valuenow",String(index+1));
-      progressTrack.setAttribute("aria-valuetext","Étape "+(index+1)+" sur "+points.length);
-      progressFill.style.width=((index+1)/points.length*100).toFixed(1)+"%";
       previous.disabled=index===0;
       next.textContent=index===points.length-1?"Terminer la visite":"Suivant →";
       close.hidden=true;
@@ -1319,8 +1301,6 @@ export function createObjectViewer(container,id){
     markerLayer.append(description);
     tourStep=-1;tourFinished=null;
     tourBar.hidden=true;close.hidden=false;
-    progressTrack.setAttribute("aria-valuenow","0");
-    progressFill.style.width="0%";
     description.hidden=true;
     partLocator.visible=false;
     delete markerLayer.dataset.selectedPart;
@@ -1350,16 +1330,9 @@ export function createObjectViewer(container,id){
   }
   close.addEventListener("click",dismissDescription);
   description.addEventListener("keydown",event=>{
-    if(description.hidden)return;
-    if(event.key==="Escape"){
+    if(event.key==="Escape"&&!description.hidden){
       event.preventDefault();
       dismissDescription();
-    }else if(tourStep>=0&&event.key==="ArrowRight"&&!event.altKey){
-      event.preventDefault();
-      tourNext();
-    }else if(tourStep>0&&event.key==="ArrowLeft"&&!event.altKey){
-      event.preventDefault();
-      focusPart(tourStep-1);
     }
   });
   const technical=(machine.shells||[]).map(mesh=>{

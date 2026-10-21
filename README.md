@@ -608,16 +608,19 @@ réinitialisation et ergonomie Android 320/390/768 px.
 L'APK Android 0.22.0 est construit en CI avec versionCode 22.
 
 
-## Version 0.23 — progression des visites guidées 3D
+## Version 0.24 — lisibilité du parcours pédagogique sur Android
 
-Les visites des trois pièces de chacun des neuf modèles possèdent
-une barre de progression visible, mise à jour avec Précédent et
-Suivant, et remise à zéro à la fermeture ou à l'achèvement.
-Les flèches gauche et droite permettent également de naviguer
-dans la visite au clavier ; Échap ferme l'explication. La
-progression demeure sous le rendu 3D sans masquer l'objet, et
-respecte la réduction d'animations du système. Les nouveaux
-parcours causaux des mécanismes de la version 0.22 sont conservés.
+Sur les neuf modèles 3D, le parcours « Comprendre le mécanisme » a des
+repères numérotés bornés à la taille réelle de la zone WebGL. Les
+flèches de causalité sont tracées uniquement si deux étapes projetées
+sont suffisamment éloignées pour qu'une flèche puisse réellement passer
+entre les disques. Les liens trop courts sont masqués plutôt que de
+traverser les numéros ou former des courbes inversées.
 
-42 tests unitaires et tous les scénarios Chromium passent.
-La CI génère l'APK Android 0.23.0 (versionCode 23).
+Cette amélioration est calculée à partir de la projection existante :
+aucun dessin supplémentaire, aucune connexion réseau, et aucune boucle
+d'animation permanente. Le focus caméra, la navigation au clavier et
+les visites guidées de la v0.23 restent compatibles.
+
+44 tests unitaires, dont les projections et les segments d'étapes, et
+tous les scénarios de navigateur réussis. Android versionCode 24.
