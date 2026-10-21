@@ -24,7 +24,7 @@ export const OBJECT_PARTS = Object.freeze({
  ],
  bicycle:[
   {id:"piston",label:"Piston",position:[-.65,1.4,.21],detail:"Le mouvement alternatif du piston réduit le volume de la chambre et comprime l'air."},
-  {id:"check",label:"Clapet antiretour",position:[-.64,.32,.21],detail:"Le clapet laisse passer l'air vers le pneu et empêche son retour pendant la remontée du piston."},
+  {id:"check",label:"Clapet antiretour",position:[-.57,.44,.52],detail:"Le clapet laisse passer l'air vers le pneu et empêche son retour pendant la remontée du piston."},
   {id:"gauge",label:"Manomètre",position:[-.48,.94,.51],detail:"Le manomètre indique la pression. Respecte les valeurs préconisées sur le pneu."}
  ],
  coffee:[

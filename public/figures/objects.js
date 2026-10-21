@@ -278,8 +278,8 @@
         // vertical pump body + piston
         a+=box(7,10,5,40,39,10,dark);
         a+=cyl(25,24,10,79,7,m);
-        a+=cyl(25,24,80,88+st.piston*17,4,steel);
-        a+=rod([7,24,91+st.piston*17],[43,24,91+st.piston*17],4,dark);
+        a+=cyl(25,24,80,88+(1-st.piston)*17,4,steel);
+        a+=rod([7,24,91+(1-st.piston)*17],[43,24,91+(1-st.piston)*17],4,dark);
         // hose passes between pump foot and wheel valve
         a+=line([[30,34,14],[42,46,5],[57,65,7],[55,80,20]],2.3);
         a+=circleFront(40,26,37,8,white,1.2);

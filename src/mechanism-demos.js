@@ -30,7 +30,8 @@ const DEMOS=Object.freeze({
  ],
  bicycle:[
   t=>({piston:(1-Math.cos(t*Math.PI*6))/2,pressure:1.1+1.2*smooth(t)}),
-  null, // The physical one-way valve is not modeled as an actuated part.
+  t=>({connected:true,pumping:true,piston:.25+.58*smooth(t),pressure:1.4+.3*smooth(t),
+    valveOpen:smooth((t-.10)/.28)*(1-smooth((t-.76)/.22)),valveFlow:t}),
   t=>({piston:0,pressure:1+3.2*smooth(t)})
  ],
  coffee:[

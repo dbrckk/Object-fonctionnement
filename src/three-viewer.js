@@ -9,6 +9,7 @@ import {RoundedBoxGeometry} from "three/addons/geometries/RoundedBoxGeometry.js"
 import {lockMechanics,washerMechanics,vendingMechanics} from "./mechanics-state.js";
 import {getObjectParts} from "./part-annotations.js";
 import {getMechanismPath} from "./mechanism-paths.js";
+import {bicycleValveMotion} from "./check-valve.js";
 import {hasMechanismDemo,mechanismDemoState,MECHANISM_DEMO_DURATION_MS} from "./mechanism-demos.js";
 import {flowLinkGeometry,viewportFlowPoint} from "./flow-layout.js";
 import {VENDING_PRODUCT_ROWS,vendingProduct,vendingProductFromTray,feederRotation,vendingDropPose,vendingScreenState} from "./vending-visuals.js";
@@ -504,12 +505,66 @@ function makeBicycle(root){
  // Valve cap and coupling at the end of the air hose.
  cylinder(root,.075,.075,.19,mats.stainless,.79,.56,-.2).rotation.x=Math.PI/2;
  const warning=led(root,-.33,1.10,.46,mats.dark);
- return {shells:[stem],update(s){
+ // An actual, inspectable ball/check-valve cutaway at the pump outlet.
+ // The transparent barrel shows a seat, a steel ball and its return
+ // spring. The ball lifts *only* as air is expelled by a downstroke.
+ const valve=group(root,-.57,.44,.52);
+ const valveGlass=material({color:0xc3f4f5,roughness:.12,metalness:0,
+  transparent:true,opacity:.25,depthWrite:false,side:THREE.DoubleSide});
+ cylinder(valve,.105,.105,.33,valveGlass);
+ cylinder(valve,.118,.118,.032,mats.stainless,0,-.155,0);
+ cylinder(valve,.118,.118,.032,mats.stainless,0,.155,0);
+ ring(valve,.075,.016,mats.dark,0,-.116,0,Math.PI/2);
+ const ball=sphere(valve,.063,mats.stainless,0,-.044,0);
+ // Fixed top spring: its apparent length contracts when the ball lifts.
+ const springPath=new THREE.CatmullRomCurve3(
+  Array.from({length:37},(_,i)=>{
+   const t=i/36;
+   return new THREE.Vector3(.050*Math.cos(t*Math.PI*8),
+    .010+t*.12,.050*Math.sin(t*Math.PI*8));
+  })
+ );
+ const valveSpring=new THREE.Mesh(new THREE.TubeGeometry(springPath,72,.008,5,false),mats.steel);
+ valve.add(valveSpring);
+ hose(root,[[-.57,.34,.52],[-.54,.39,.2]],.029,mats.rubber);
+ // A handful of beads traces air along the existing hose; this is an
+ // illustrative direction marker, not a measurement of actual airflow.
+ const airline=new THREE.CatmullRomCurve3([
+  [-.57,.35,.53],[-.54,.39,.23],[-.14,.24,.55],
+  [.55,.40,.33],[.79,.56,-.17]
+ ].map(p=>new THREE.Vector3(...p)));
+ const beadMaterial=material({color:0x75ecf5,emissive:0x2ea4c5,
+  emissiveIntensity:.7,roughness:.26});
+ const airBeads=Array.from({length:4},()=>sphere(root,.029,beadMaterial));
+ let lastStroke=null,lastDescending=false,valveOpening=0;
+ return {shells:[stem],update(s,dt,time){
   const stroke=truncate(s.piston,0,1);
   handle.position.y=1.93-.36*stroke;
   plunger.position.y=-.36*stroke;
   needle.rotation.z=(truncate(s.pressure,0,5)-2.5)*.37;
   warning.material=Number(s.pressure||0)>4.4?glow:mats.dark;
+  const motion=bicycleValveMotion(s,lastStroke,lastDescending);
+  lastStroke=motion.stroke;
+  lastDescending=motion.descending;
+  const demo=typeof s.valveOpen==="number";
+  // Closing the real pump immediately is essential: an idle viewer
+  // sleeps its GPU and must never freeze with the outlet left open.
+  valveOpening=demo?motion.open:!s.pumping?0:valveOpening+
+   (motion.open-valveOpening)*Math.min(1,dt*16);
+  ball.position.y=-.044+.096*valveOpening;
+  valveSpring.scale.y=1-.66*valveOpening;
+  valveSpring.position.y=.08*valveOpening;
+  const flowProgress=Number.isFinite(s.valveFlow)
+   ?Math.max(0,Math.min(1,s.valveFlow)):time*.56;
+  const flowing=valveOpening>.12&&s.connected===true;
+  airBeads.forEach((bead,index)=>{
+   bead.visible=flowing;
+   if(flowing){
+    const progress=(flowProgress+index/airBeads.length)%1;
+    bead.position.copy(airline.getPoint(progress));
+    bead.scale.setScalar(.65+.35*Math.sin(Math.PI*progress));
+   }
+  });
  }};
 }
 function makeCoffee(root){

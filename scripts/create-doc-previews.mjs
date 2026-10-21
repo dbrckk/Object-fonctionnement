@@ -18,7 +18,7 @@ try{
  if(!available)throw Error('Vite could not start');
  await mkdir(folder,{recursive:true});
  browser=await chromium.launch({headless:true,args:['--no-sandbox']});
- for(const id of ['kettle','toaster','coffee','fan','lock','washing','vending']){
+ for(const id of ['kettle','toaster','coffee','fan','lock','bicycle','washing','vending']){
   const page=await browser.newPage({viewport:{width:700,height:870},deviceScaleFactor:1.5});
   try{
    await page.goto(url+'/#'+id,{waitUntil:'load'});
@@ -135,6 +135,27 @@ try{
   await writeFile(path.join(folder,'lock-motion-scrub.webp'),webp);
   console.log('lock-motion-scrub','manual 3D frame inspection',webp.length,'bytes');
  }finally{await scrub.close();}
+
+ // True valve cutaway in its half-open state, taken from the functioning
+ // Android-sized Three.js learning panel, not an illustration mockup.
+ const valveLesson=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:2});
+ try{
+  await valveLesson.goto(url+'/#bicycle',{waitUntil:'load'});
+  await valveLesson.locator('.object-three-canvas').waitFor({timeout:16000});
+  await valveLesson.getByRole('button',{name:'Comprendre le mécanisme'}).click();
+  await valveLesson.locator('[data-flow-step="1"]').click();
+  await valveLesson.waitForTimeout(570);
+  await valveLesson.locator('#mechanism-scrub').evaluate(el=>{
+   el.value='54';
+   el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  await valveLesson.waitForTimeout(220);
+  const buffer=await valveLesson.locator('.three-shell').screenshot({animations:'disabled'});
+  const webp=await sharp(buffer).resize({width:850}).webp({quality:84,effort:6}).toBuffer();
+  await writeFile(path.join(folder,'bicycle-valve-lesson.webp'),webp);
+  console.log('bicycle-valve-lesson','mechanical valve cutaway',webp.length,'bytes');
+ }finally{await valveLesson.close();}
+
 }finally{
  if(browser)await browser.close();
  server.kill('SIGTERM');

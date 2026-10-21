@@ -739,3 +739,28 @@ modifie jamais l'état des simulations originales. Tests Chromium ajoutés
 pour les deux touches et la synchronisation des repères.
 
 Android versionCode 30.
+
+
+## Version 0.31 — clapet antiretour de la pompe à vélo
+
+La pompe possède une chambre de clapet **transparente** réellement visible
+dans le modèle 3D, comprenant siège, bille métallique et ressort comprimable.
+Sur une descente de piston, la bille se soulève et de petites particules
+suivent le tuyau vers la valve du pneu. Le retour du piston referme le
+clapet ; l'arrêt de la pompe restaure la position fermée sans boucle GPU
+permanente.
+
+La deuxième étape de la leçon (« Retenir ») devient une démonstration 3D
+consultable image par image. Elle ne modifie jamais l'état réel des
+interactions SVG. La simulation 2D et la représentation 3D emploient
+désormais le même sens physique de descente du piston.
+
+24 démonstrations mécaniques disponibles. Le vérificateur couvre le
+sens du clapet, la sécurité de fermeture, les états de démonstration
+et le rendu différencié ouvert/fermé en Chromium.
+
+Captures réelles de la nouvelle version :
+[Pompe 3D](docs/previews/bicycle.webp) ·
+[Clapet antiretour pendant la leçon](docs/previews/bicycle-valve-lesson.webp).
+
+Android versionCode 31.

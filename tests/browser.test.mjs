@@ -316,10 +316,22 @@ try{
    const motionButton=flowPanel.locator("#mechanism-demo");
    const scrubRow=flowPanel.locator("#mechanism-scrub-row");
    const scrub=flowPanel.locator("#mechanism-scrub");
-   assert.equal(await motionButton.isEnabled(),id!=="bicycle",
+   assert.equal(await motionButton.isEnabled(),true,
      "incorrect movement availability at step 2 of "+id);
-   assert.equal(await scrubRow.isVisible(),id!=="bicycle",
+   assert.equal(await scrubRow.isVisible(),true,
      "unsupported mechanical steps should not offer a fake scrubber: "+id);
+   if(id==="bicycle"){
+    const original=await app.frameLocator("iframe.figure-frame").locator("body")
+     .evaluate(()=>JSON.stringify(window.__st));
+    await scrub.fill("3");
+    const closed=await app.locator(".object-three-canvas").screenshot();
+    await scrub.fill("54");
+    const opened=await app.locator(".object-three-canvas").screenshot();
+    const difference=await changedPixelRatio(closed,opened);
+    assert.ok(difference>.0001,"3D check-valve did not visibly open: "+difference);
+    assert.equal(await app.frameLocator("iframe.figure-frame").locator("body")
+     .evaluate(()=>JSON.stringify(window.__st)),original);
+   }
    if(["fan","lock","coffee","vending"].includes(id)){
     const original=await app.frameLocator("iframe.figure-frame").locator("body")
       .evaluate(()=>JSON.stringify(window.__st));
