@@ -443,6 +443,27 @@ try{
    const vendTray=await canvas.screenshot();
    const trayDelta=await changedPixelRatio(vendDrop,vendTray);
    assert.ok(trayDelta>.0008,"vending pickup flap and tray product not visible in 3D: "+trayDelta);
+   // Different product families must visibly appear in the pickup bay:
+   // the original ColorFigures rows C and D contain bottles and snack packs,
+   // not generic cans. Verify real rendered pixels, not just state metadata.
+   const vendFrame=app.frameLocator('iframe.figure-frame');
+   await vendFrame.locator('body').evaluate(()=>{
+    window.__st.tray={code:"C2",kind:"bottle",col:"#5cc0e8"};
+   });
+   await app.waitForFunction(()=>window.__vendingMessages?.at(-1)?.tray?.code==="C2");
+   await app.waitForTimeout(280);
+   const bottleInTray=await canvas.screenshot();
+   const bottleDelta=await changedPixelRatio(vendTray,bottleInTray);
+   assert.ok(bottleDelta>.00014,"selected bottle did not change tray geometry/colour: "+bottleDelta);
+   await vendFrame.locator('body').evaluate(()=>{
+    window.__st.tray={code:"D4",kind:"snack",col:"#8a5a3c"};
+   });
+   await app.waitForFunction(()=>window.__vendingMessages?.at(-1)?.tray?.code==="D4");
+   await app.waitForTimeout(280);
+   const snackInTray=await canvas.screenshot();
+   const snackDelta=await changedPixelRatio(bottleInTray,snackInTray);
+   assert.ok(snackDelta>.00014,"selected snack did not change tray geometry/colour: "+snackDelta);
+   console.log("PASS selectable cans, bottles and snacks have matching 3D pickup models");
    console.log('PASS nested vending state transport, product drop, tray and 3D flap');
 
    await app.goto(HOST+'/',{waitUntil:'load'});

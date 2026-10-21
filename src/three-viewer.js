@@ -8,6 +8,7 @@ import {graphicsProfile,validGraphicsMode} from "./graphics-quality.js";
 import {RoundedBoxGeometry} from "three/addons/geometries/RoundedBoxGeometry.js";
 import {lockMechanics,washerMechanics,vendingMechanics} from "./mechanics-state.js";
 import {getObjectParts} from "./part-annotations.js";
+import {VENDING_PRODUCT_ROWS,vendingProduct,vendingProductFromTray,feederRotation} from "./vending-visuals.js";
 import {createSurfacePixels,SURFACE_SIZE} from "./surface-finishes.js";
 import {AIRFLOW_PARTICLE_COUNT,airflowPoint,airSpeed,airflowParticleBudget} from "./fan-airflow.js";
 
@@ -522,6 +523,11 @@ function makeCoffee(root){
  badge(root,"H2O",-.82,1.96,.596,.2,.12);
  // Exposed filter funnel, removable brown grounds and pouring nozzle.
  const filter=cylinder(root,.36,.12,.39,mats.dark,.42,1.79,.19);
+ // Concentric mesh ridges make the removable filter basket readable.
+ for(const level of [1.67,1.77,1.87]){
+  const taper=.12+(.36-.12)*((level-1.595)/.39);
+  ring(root,taper,.012,mats.stainless,.42,level,.19,Math.PI/2);
+ }
  const grounds=cylinder(root,.27,.25,.06,mats.coffee,.42,1.98,.19);
  cylinder(root,.10,.10,.14,mats.steel,.42,1.49,.26);
  const shower=group(root,.4,2.18,.19);
@@ -532,6 +538,20 @@ function makeCoffee(root){
  cylinder(jug,.34,.34,.05,mats.steel,0,.44,0);
  hose(jug,[[.32,.16,0],[.65,.19,0],[.66,-.28,0],[.34,-.28,0]],.055,mats.rubber);
  const coffee=cylinder(jug,.32,.32,.25,mats.coffee,0,-.23,0);
+ // Two soft circles track the liquid surface as the jug fills. They widen
+ // only while drops enter the jug, with no additional lights or draw passes.
+ const rippleMat=material({color:0xc79b72,roughness:.35,
+  transparent:true,opacity:.66,depthWrite:false});
+ const coffeeRipples=[.19,.28].map(radius=>{
+  const ripple=ring(jug,radius,.012,rippleMat,0,-.36,0,Math.PI/2);
+  ripple.visible=false;
+  return ripple;
+ });
+ // The hotplate below the jug glows orange during extraction.
+ const warmerMat=material({color:0x8e4334,roughness:.43,metalness:.28,
+  emissive:0xfa632b,emissiveIntensity:.05});
+ ring(root,.38,.035,warmerMat,.49,.24,.47,Math.PI/2);
+ cylinder(root,.42,.42,.065,mats.dark,.49,.195,.47);
  const drip=group(root,.43,1.36,.43);
  const drops=Array.from({length:6},()=>sphere(drip,.027,liquid,0,0,0));
  const hotMat=material({color:0xf6a36a,emissive:0xff6a24,emissiveIntensity:.08});
@@ -544,6 +564,13 @@ function makeCoffee(root){
   const coffeeHeight=.56*volume;
   coffee.scale.y=Math.max(.006,coffeeHeight/.25);
   coffee.position.y=-.38+coffeeHeight/2;
+  coffeeRipples.forEach((ripple,i)=>{
+   ripple.visible=volume>.08;
+   ripple.position.y=-.38+coffeeHeight+.013;
+   const phase=(time*(s.brewing?1.8:0)+i*.5)%1;
+   ripple.scale.setScalar(s.brewing?.65+.35*phase:1);
+  });
+  warmerMat.emissiveIntensity=s.brewing?.9:volume>.04?.18:.04;
   const waterHeight=.80*water;
   waterColumn.scale.y=Math.max(.006,waterHeight/.90);
   waterColumn.position.y=.84+waterHeight/2;
@@ -708,6 +735,31 @@ function makeWashing(root){
   });
  },needsAnimation:()=>false};
 }
+// The machine actually sells two rows of cans, one of bottles, and one
+// of snack pouches. Each product reuses its slot's material for all stocked
+// copies. Returned skin meshes allow the falling and retrieved item to match.
+function makeVendingProduct(parent,kind,material){
+ const item=group(parent),skins=[];
+ if(kind==="can"){
+  skins.push(cylinder(item,.125,.125,.27,material));
+  cylinder(item,.126,.126,.015,mats.stainless,0,.14,0);
+  cylinder(item,.125,.125,.012,mats.steel,0,-.141,0);
+  ring(item,.10,.008,mats.dark,0,.151,0,Math.PI/2);
+ }else if(kind==="bottle"){
+  skins.push(cylinder(item,.105,.102,.225,material,0,-.02,0));
+  skins.push(cylinder(item,.052,.105,.085,material,0,.134,0,20));
+  cylinder(item,.047,.047,.075,mats.stainless,0,.202,0,20);
+  cylinder(item,.059,.059,.038,mats.dark,0,.242,0,20);
+  ring(item,.10,.011,mats.ivory,0,-.066,0,Math.PI/2);
+ }else{
+  // Rounded-looking pillow pack with sealed crimp edges.
+  skins.push(block(item,.235,.235,.16,material,0,0,0,0));
+  block(item,.26,.034,.18,mats.ivory,0,.126,0,0);
+  block(item,.26,.034,.18,mats.ivory,0,-.126,0,0);
+  block(item,.15,.065,.012,mats.ivory,0,-.005,.09,0);
+ }
+ return {item,skins};
+}
 function makeVending(root){
  plate(root,3.1,2.6,.12);
  // Hollow cabinet: a solid cube would hide every stocked can behind it.
@@ -725,26 +777,56 @@ function makeVending(root){
  });
  block(root,1.57,1.93,.026,vendingGlass,-.25,1.75,.73);
  badge(root,"SNACK  STATION",0,2.73,.68,1.44,.22,"#273b4d","#f5dcad");
- // Four rows x four selectors x three depths = 48 real product cans.
+ // Four rows x four selectors x three depths = 48 products.
+ // Each ColorFigures row has its true geometry and exact original colour.
  const products=[];
- const itemColors=[mats.amber,mats.warm,mats.leaf,mats.ivory];
+ const slotMaterials=VENDING_PRODUCT_ROWS.map(row=>row.colors.map(color=>
+  material({color,metalness:row.kind==="can"?.35:.06,
+   roughness:row.kind==="snack"?.57:.35})
+ ));
  for(let row=0;row<4;row++){
   const shelf=.94+row*.46;
   block(root,1.48,.065,1.0,mats.stainless,-.27,shelf,.03);
   for(let col=0;col<4;col++){
+   const spec=vendingProduct(row,col);
    const x=-.82+col*.38;
    const stack=[];
    for(let layer=0;layer<3;layer++){
     const z=.17-layer*.24;
-    const can=group(root,x,shelf+.16,z);
-    cylinder(can,.125,.125,.27,itemColors[(row+col)%4]);
-    const top=cylinder(can,.125,.125,.018,mats.steel,0,.14,0);
-    ring(can,.112,.008,mats.stainless,0,.152,0,Math.PI/2);
-    stack.push(can);
+    const container=group(root,x,shelf+.16,z);
+    makeVendingProduct(container,spec.kind,slotMaterials[row][col]);
+    stack.push(container);
    }
    products.push({row,col,stack});
   }
  }
+ // A single instanced mesh represents all 16 electromechanical
+ // spiral feeders; only the selected helix turns while dispensing.
+ const coilCurve=new THREE.CatmullRomCurve3(
+  Array.from({length:73},(_,i)=>{
+   const t=i/72,a=t*Math.PI*4;
+   return new THREE.Vector3(.146*Math.cos(a),.146*Math.sin(a),-.39+t*.69);
+  })
+ );
+ const coils=new THREE.InstancedMesh(
+  new THREE.TubeGeometry(coilCurve,72,.011,6,false),
+  mats.stainless,16
+ );
+ coils.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+ coils.frustumCulled=false;
+ coils.castShadow=false;
+ root.add(coils);
+ const feederPose=new THREE.Object3D();
+ function positionFeeder(index,angle){
+  const row=Math.floor(index/4),col=index%4;
+  feederPose.position.set(-.82+col*.38,.94+row*.46+.16,0);
+  feederPose.rotation.set(0,0,angle);
+  feederPose.updateMatrix();
+  coils.setMatrixAt(index,feederPose.matrix);
+ }
+ for(let index=0;index<16;index++)positionFeeder(index,0);
+ coils.instanceMatrix.needsUpdate=true;
+ let activeFeeder=-1;
  // Front control module: tactile keypad, illuminated credit screen and coin slot.
  block(root,.46,1.32,.08,mats.dark,.84,1.81,.745);
  for(let j=0;j<12;j++){
@@ -783,11 +865,16 @@ function makeVending(root){
  // Product trajectory: shelf -> chute -> collection bay, driven by
  // the authoritative ColorFigures drop.r / drop.c / drop.t fields.
  const falling=group(root);
- const fallingCan=cylinder(falling,.128,.128,.28,mats.warm);
- cylinder(falling,.13,.13,.018,mats.steel,0,.148,0);
+ const kinds=["can","bottle","snack"];
+ const dropModels=Object.fromEntries(kinds.map(kind=>{
+  const item=makeVendingProduct(falling,kind,mats.warm);
+  return [kind,item];
+ }));
  const pickup=group(root,-.27,.57,.85);
- cylinder(pickup,.125,.125,.26,mats.amber);
- cylinder(pickup,.13,.13,.018,mats.steel,0,.137,0);
+ const pickupModels=Object.fromEntries(kinds.map(kind=>{
+  const item=makeVendingProduct(pickup,kind,mats.amber);
+  return [kind,item];
+ }));
  // The pickup flap pivots on its lower horizontal hinge, not its centre.
  block(root,1.4,.34,.08,mats.dark,-.19,.46,.72);
  const flap=group(root,-.27,.36,.85);
@@ -805,17 +892,33 @@ function makeVending(root){
   });
   dropping=Boolean(m.drop);
   falling.visible=dropping;
+  const feeder=m.drop?m.drop.row*4+m.drop.col:-1;
+  if(activeFeeder>=0&&activeFeeder!==feeder)positionFeeder(activeFeeder,0);
+  if(feeder>=0)positionFeeder(feeder,feederRotation(m.drop.progress));
+  if(feeder>=0||activeFeeder>=0)coils.instanceMatrix.needsUpdate=true;
+  activeFeeder=feeder;
+  const choice=m.drop?vendingProduct(m.drop.row,m.drop.col):null;
+  for(const [kind,visual] of Object.entries(dropModels)){
+   visual.item.visible=Boolean(choice&&choice.kind===kind);
+   if(choice&&choice.kind===kind)
+    visual.skins.forEach(mesh=>{mesh.material=slotMaterials[choice.row][choice.col];});
+  }
   if(m.drop){
    const t=m.drop.progress;
    const shelf=.94+m.drop.row*.46;
    const x=-.82+m.drop.col*.38;
    const move=Math.max(0,Math.min(1,(t-.12)/.6));
-   falling.position.set(x+( -.27-x)*move,shelf+.16+( .57-(shelf+.16))*t,
+   falling.position.set(x+(-.27-x)*move,shelf+.16+(.57-(shelf+.16))*t,
     .17+.68*move+Math.sin(Math.PI*t)*.18);
    falling.rotation.z=t*Math.PI*1.75;
-   fallingCan.material=itemColors[(m.drop.row+m.drop.col)%4];
   }
-  pickup.visible=m.trayVisible;
+  const tray=vendingProductFromTray(s.tray);
+  pickup.visible=Boolean(m.trayVisible&&tray);
+  for(const [kind,visual] of Object.entries(pickupModels)){
+   visual.item.visible=Boolean(tray&&tray.kind===kind);
+   if(tray&&tray.kind===kind)
+    visual.skins.forEach(mesh=>{mesh.material=slotMaterials[tray.row][tray.col];});
+  }
   flap.rotation.x=m.flap*1.14;
   returnedCoins.forEach((coin,i)=>{coin.visible=m.returned>i*.5+.001;});
  },needsAnimation:()=>dropping};
@@ -1224,8 +1327,9 @@ export function createObjectViewer(container,id){
       showParts=Boolean(visible);
       markerLayer.hidden=!showParts;
       if(!showParts){
-       description.hidden=true;partLocator.visible=false;
-      delete markerLayer.dataset.selectedPart;cameraMove=null;
+       description.hidden=true;
+       partLocator.visible=false;
+       cameraMove=null;
        delete markerLayer.dataset.selectedPart;
       }
       else updatePartPositions();
@@ -1249,6 +1353,9 @@ export function createObjectViewer(container,id){
       const shared=new Set([...Object.values(mats),glow,steamMaterial,frosted,liquid,alertMat,brassy,blue,white,tint,edgeMaterial]);
       const unique=new Set();
       scene.traverse(o=>{
+        // InstancedMesh owns GPU instance buffers in addition to its geometry.
+        // Explicit disposal matters on Android when switching models repeatedly.
+        if(o.isInstancedMesh)o.dispose();
         if(o.geometry)o.geometry.dispose();
         if(o.material)for(const mat of (Array.isArray(o.material)?o.material:[o.material])){
           if(!shared.has(mat))unique.add(mat);

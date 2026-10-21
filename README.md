@@ -511,3 +511,29 @@ Android modestes.
 
 34 tests unitaires et tous les scénarios navigateur passent.
 La CI produit l'APK Android 0.18.0 (versionCode 18).
+
+
+## Version 0.19 — distribution mécanique et extraction du café
+
+Le distributeur 3D respecte les **16 références de la simulation ColorFigures** :
+les rangées A et B vendent des canettes, C des bouteilles, et D des sachets.
+Les couleurs de chaque emplacement reproduisent les couleurs d'origine.
+Les 48 unités en stock, le produit qui tombe et le produit récupéré
+dans le bac partagent désormais la forme et la couleur de leur référence.
+
+Chaque colonne dispose d'une **spirale électromécanique**. Les 16 spirales
+sont rendues par une unique géométrie instanciée ; seule celle de la
+référence sélectionnée pivote d'un tour pendant la distribution. Les
+quantités en stock, le crédit, la chute et le volet restent synchronisés
+avec la simulation originale. Les objets instanciés libèrent explicitement
+leurs buffers GPU lors du changement de modèle.
+
+La cafetière 3D comporte maintenant des nervures métalliques sur le
+porte-filtre, une plaque chauffante dont la lumière réagit à l'extraction,
+et deux ondulations suivant le niveau réel de café dans la verseuse.
+Les nouveaux éléments sont entièrement procéduraux et hors ligne.
+
+Tests : 37 tests unitaires (incluant les références, couleurs et limites
+des 16 sélections) ; tests navigateur des neuf modèles, de la vue 3D,
+et différences visuelles des produits B3, C2, D4 dans le bac. Profils de
+qualité graphique et repli 2D conservés. APK Android 0.19.0 (versionCode 19).
