@@ -1094,6 +1094,10 @@ export function createObjectViewer(container,id){
     const node=document.createElementNS(ns,"g");
     node.setAttribute("class","mechanism-flow-node");
     node.setAttribute("data-flow-node",String(index+1));
+    node.setAttribute("role","button");
+    node.setAttribute("tabindex","0");
+    node.setAttribute("aria-label","Étape "+(index+1)+" : "+step.title);
+    node.setAttribute("aria-current",index===0?"step":"false");
     // A 48px touch target sits behind each numbered marker. Only the
     // hit area intercepts gestures; users can still orbit everywhere else.
     const hit=document.createElementNS(ns,"circle");
@@ -1107,11 +1111,18 @@ export function createObjectViewer(container,id){
     number.setAttribute("dy",".35em");
     number.textContent=String(index+1);
     node.append(hit,disc,number);
-    node.addEventListener("click",()=>{
+    const activate=()=>{
       if(disposed||!flowOpen)return;
       container.dispatchEvent(new CustomEvent("object-mechanism-step-request",{
         bubbles:true,detail:{index}
       }));
+    };
+    node.addEventListener("click",activate);
+    node.addEventListener("keydown",event=>{
+      if(event.key==="Enter"||event.key===" "){
+        event.preventDefault();
+        activate();
+      }
     });
     flowSvg.append(node);
     return node;
@@ -1167,6 +1178,7 @@ export function createObjectViewer(container,id){
       if(!point)return;
       node.setAttribute("transform","translate("+point.x.toFixed(1)+" "+point.y.toFixed(1)+")");
       node.classList.toggle("is-current",i===flowIndex);
+      node.setAttribute("aria-current",i===flowIndex?"step":"false");
     });
     flowLines.forEach((path,i)=>{
       const a=coords[i],b=coords[i+1];

@@ -727,3 +727,15 @@ la sélection de l'étape et la synchronisation des deux commandes de
 coupe. Toutes les autres démonstrations hors ligne sont conservées.
 47 tests unitaires et scénarios Chromium validés localement.
 APK Android 0.29.0 / versionCode 29.
+
+
+## Version 0.30 — repères 3D pilotables au clavier
+
+Les trois repères du parcours « Comprendre le mécanisme » deviennent
+accessibles au clavier (Entrée / Espace) et exposent le nom de leur étape
+ainsi que l'étape active aux technologies d'assistance. Les gestes tactiles
+48px et la rotation libre de la caméra sont conservés. Le parcours ne
+modifie jamais l'état des simulations originales. Tests Chromium ajoutés
+pour les deux touches et la synchronisation des repères.
+
+Android versionCode 30.

@@ -296,6 +296,18 @@ try{
      "small mechanism touch target: "+id);
    assert.ok(flowBounds.scroll<=flowBounds.client+1,
      "mechanism panel causes horizontal overflow: "+id);
+   if(id==="kettle"){
+    const svgNode=app.locator('.mechanism-flow-node[data-flow-node="2"]');
+    assert.equal(await svgNode.getAttribute("role"),"button");
+    assert.match(await svgNode.getAttribute("aria-label"),/Étape 2/);
+    await svgNode.focus();
+    await svgNode.press("Enter");
+    assert.equal(await app.locator(".mechanism-flow-overlay").getAttribute("data-active-step"),"2");
+    assert.equal(await svgNode.getAttribute("aria-current"),"step");
+    await app.locator('.mechanism-flow-node[data-flow-node="1"]').focus();
+    await app.locator('.mechanism-flow-node[data-flow-node="1"]').press("Space");
+    assert.equal(await app.locator(".mechanism-flow-overlay").getAttribute("data-active-step"),"1");
+   }
    await flowPanel.locator('[data-flow-step="1"]').click();
    assert.equal(await app.locator('.mechanism-flow-overlay').getAttribute('data-active-step'),"2");
    assert.equal(await flowPanel.locator('[data-flow-step="1"]').getAttribute('aria-pressed'),"true");
