@@ -118,6 +118,23 @@ try{
   await writeFile(path.join(folder,'lock-motion-lesson.webp'),webp);
   console.log('lock-motion-lesson','live lesson preview',webp.length,'bytes');
  }finally{await demo.close();}
+ // Frame-by-frame inspection, captured from the application itself.
+ const scrub=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:2});
+ try{
+  await scrub.goto(url+'/#lock',{waitUntil:'load'});
+  await scrub.locator('.object-three-canvas').waitFor({timeout:16000});
+  await scrub.getByRole('button',{name:'Comprendre le mécanisme'}).click();
+  await scrub.locator('[data-flow-step="1"]').click();
+  await scrub.waitForTimeout(550);
+  await scrub.locator('#mechanism-scrub').evaluate(el=>{
+   el.value='72';el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  await scrub.waitForTimeout(140);
+  const buffer=await scrub.locator('.three-shell').screenshot({animations:'disabled'});
+  const webp=await sharp(buffer).resize({width:850}).webp({quality:84,effort:6}).toBuffer();
+  await writeFile(path.join(folder,'lock-motion-scrub.webp'),webp);
+  console.log('lock-motion-scrub','manual 3D frame inspection',webp.length,'bytes');
+ }finally{await scrub.close();}
 }finally{
  if(browser)await browser.close();
  server.kill('SIGTERM');

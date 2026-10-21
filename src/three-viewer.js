@@ -1110,15 +1110,30 @@ export function createObjectViewer(container,id){
     if(!mechanismPreview)return;
     mechanismPreview=null;
     delete container.dataset.mechanismDemo;
+    delete container.dataset.mechanismScrub;
     dirty=true;requestFrame();
   }
-  function startMechanismPreview(index,onFinish){
+  function demoProgress(value){
+    return Math.max(0,Math.min(1,Number.isFinite(value)?value:0));
+  }
+  function startMechanismPreview(index,onFinish,onProgress,fromProgress=0){
     if(disposed||!flowOpen||index!==flowIndex||!hasMechanismDemo(id,index))return false;
     stopMechanismPreview();
-    mechanismPreview={index,start:performance.now(),
-      duration:motionReduced?900:MECHANISM_DEMO_DURATION_MS,
+    const duration=motionReduced?900:MECHANISM_DEMO_DURATION_MS;
+    // Continue from an inspected frame. No state goes back to the iframe.
+    mechanismPreview={index,mode:"play",start:performance.now()-demoProgress(fromProgress)*duration,
+      duration,
+      onProgress:typeof onProgress==="function"?onProgress:null,
       onFinish:typeof onFinish==="function"?onFinish:null};
     container.dataset.mechanismDemo=String(index+1);
+    dirty=true;requestFrame();
+    return true;
+  }
+  function seekMechanismPreview(index,progress){
+    if(disposed||!flowOpen||index!==flowIndex||!hasMechanismDemo(id,index))return false;
+    stopMechanismPreview();
+    mechanismPreview={index,mode:"scrub",progress:demoProgress(progress)};
+    container.dataset.mechanismScrub=String(index+1);
     dirty=true;requestFrame();
     return true;
   }
@@ -1428,12 +1443,17 @@ export function createObjectViewer(container,id){
     if(disposed||!active||!renderer.domElement.isConnected)return;
     // Restore the latest live SVG state on the exact frame the preview ends.
     let completedPreview=null;
-    if(mechanismPreview&&timestamp-mechanismPreview.start>=mechanismPreview.duration){
+    if(mechanismPreview?.mode==="play"&&timestamp-mechanismPreview.start>=mechanismPreview.duration){
       completedPreview=mechanismPreview.onFinish;
       stopMechanismPreview();
     }
     const preview=mechanismPreview;
-    const running=Boolean(preview||machine.needsAnimation?.()||state.run||state.speed||state.heating||state.brewing||state.toasting||state.pumping||state.oscillate||(Number(state.steam)>0));
+    // Scrubbing renders a static frame and sleeps until the next touch.
+    // Never maintain a 30 FPS loop just because the model was previously
+    // animated or because its original iframe is running independently.
+    const running=preview
+      ?preview.mode==="play"
+      :Boolean(machine.needsAnimation?.()||state.run||state.speed||state.heating||state.brewing||state.toasting||state.pumping||state.oscillate||(Number(state.steam)>0));
     if(cameraMove){
       const elapsed=Math.min(1,(timestamp-cameraMove.start)/440);
       const eased=1-(1-elapsed)**3;
@@ -1447,9 +1467,12 @@ export function createObjectViewer(container,id){
     if(timestamp-last<period&&!dirty){requestFrame();return;}
     last=timestamp;
     const dt=Math.min(.05,clock.getDelta()),time=timestamp/1000;
-    const renderState=preview?mechanismDemoState(id,preview.index,
-      (timestamp-preview.start)/preview.duration,state):state;
+    const progress=preview
+      ?demoProgress(preview.mode==="scrub"?preview.progress:(timestamp-preview.start)/preview.duration)
+      :0;
+    const renderState=preview?mechanismDemoState(id,preview.index,progress,state):state;
     machine.update(renderState||state,dt,time);
+    if(preview?.mode==="play")preview.onProgress?.(progress);
     controls.update();
     renderer.render(scene,camera);
     updatePartPositions();
@@ -1462,7 +1485,10 @@ export function createObjectViewer(container,id){
   return {
     setMechanismPath(visible){return toggleMechanismPath(visible);},
     setMechanismStep(index){return focusMechanismStep(index);},
-    playMechanismStep(index,onFinish){return startMechanismPreview(index,onFinish);},
+    playMechanismStep(index,onFinish,onProgress,fromProgress){
+      return startMechanismPreview(index,onFinish,onProgress,fromProgress);
+    },
+    seekMechanismStep(index,progress){return seekMechanismPreview(index,progress);},
     cancelMechanismStep(){
       if(disposed||!mechanismPreview)return false;
       stopMechanismPreview();

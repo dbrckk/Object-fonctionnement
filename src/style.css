@@ -296,3 +296,31 @@ footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
 #mechanism-demo-hint{font-size:.77rem;line-height:1.45;color:#536e77;
  flex:1 1 175px}
 .mechanism-demo-status{min-height:1.1em;font-size:.74rem;color:#2c6671;margin:0 0 8px}
+
+
+/* Interactive frame-by-frame inspection: no extra canvas and no frame loop
+   when the user holds a still position on an Android phone. */
+.mechanism-scrub-row{
+ display:grid;grid-template-columns:minmax(0,1fr) auto;
+ align-items:center;column-gap:12px;row-gap:3px;
+ padding:10px 12px;margin:5px 0 9px;
+ border:1px solid #c5d7da;border-radius:12px;
+ background:rgba(243,251,249,.82);
+}
+.mechanism-scrub-row[hidden]{display:none!important}
+.mechanism-scrub-row label{font-size:.78rem;font-weight:750;color:#294957;grid-column:1/2}
+.mechanism-scrub-row input[type="range"]{
+ grid-column:1/2;width:100%;min-width:0;min-height:44px;
+ accent-color:#176c79;cursor:pointer;
+}
+.mechanism-scrub-row output{font-variant-numeric:tabular-nums;
+ font-size:.78rem;font-weight:800;color:#176c79;text-align:right;white-space:nowrap}
+.mechanism-scrub-row button{
+ grid-column:1/-1;justify-self:start;
+ min-height:44px;padding:8px 11px;border:1px solid #aac4c8;
+ border-radius:9px;color:#245361;background:#fff;font:inherit;
+ font-size:.78rem;font-weight:700;cursor:pointer;
+}
+.mechanism-scrub-row button:focus-visible,.mechanism-scrub-row input:focus-visible{
+ outline:3px solid #e1a16c;outline-offset:2px;
+}

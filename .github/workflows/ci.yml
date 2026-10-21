@@ -26,8 +26,8 @@ jobs:
       - run: npx cap sync android
       - run: npm run android:icons
       - run: |
-          sed -i 's/versionCode 1/versionCode 27/' android/app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "0.27.0"/' android/app/build.gradle
+          sed -i 's/versionCode 1/versionCode 28/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "0.28.0"/' android/app/build.gradle
       - run: chmod +x android/gradlew
       - run: ./gradlew assembleDebug --no-daemon
         working-directory: android

@@ -676,3 +676,32 @@ ColorFigures restent inchangées.
 Un scénario Chromium vérifie l'arrêt, la restauration de la scène,
 la reprise et la navigation. 47 tests unitaires et les scénarios
 navigateur réussissent. Android versionCode 27.
+
+
+## Version 0.28 — examen image par image des mouvements 3D
+
+Les 23 mouvements illustratifs des neuf objets disposent désormais
+d'un contrôle **Examiner image par image** (0–100 %). L'utilisateur
+peut positionner le mécanisme à n'importe quel instant, figer l'image,
+puis reprendre la lecture depuis cette position ou rétablir immédiatement
+la simulation normale. La jauge se synchronise pendant la lecture et
+se remet à zéro à la fin.
+
+Les étapes dont les mouvements ne sont pas modélisés ne présentent
+pas de curseur artificiel. La démonstration reste isolée de l'iframe
+ColorFigures : aucun état, stock, crédit, progression ou action de la
+simulation réelle n'est altéré.
+
+En mode image figée, la vue 3D ne programme pas de boucle de rendu
+continue : le processeur graphique se met en veille jusqu'à une autre
+interaction. Les commandes sont accessibles sur Android (cibles tactiles
+de 44 px) et fonctionnent hors ligne.
+
+Capture réelle de la fonctionnalité (vue Android 390 px) :
+[Inspection du barillet à 72 %](docs/previews/lock-motion-scrub.webp).
+
+Tests : 47 tests unitaires ; scénarios Chromium incluant le
+positionnement 10/85 %, l'absence de mouvement au repos, la reprise
+depuis une position choisie, le retour au mode normal, l'absence de
+modification de la simulation et les étapes non représentées.
+GitHub Actions produit l'APK Android 0.28.0 (versionCode 28).

@@ -267,7 +267,7 @@ try{
    const flowBounds=await app.evaluate(()=>{
     const canvas=document.querySelector('.object-three-canvas').getBoundingClientRect();
     const panel=document.querySelector('#mechanism-flow-panel').getBoundingClientRect();
-    const buttons=[...document.querySelectorAll('#mechanism-flow-panel button')];
+    const buttons=[...document.querySelectorAll('#mechanism-flow-panel button')].filter(el=>el.getClientRects().length>0);
     return {canvasBottom:canvas.bottom,panelTop:panel.top,
       scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth,
       heights:buttons.map(button=>button.getBoundingClientRect().height)};
@@ -284,8 +284,12 @@ try{
    assert.ok((await flowPanel.locator('#mechanism-flow-detail').innerText()).length>25);
    // Only physically represented movements have an active demo button.
    const motionButton=flowPanel.locator("#mechanism-demo");
+   const scrubRow=flowPanel.locator("#mechanism-scrub-row");
+   const scrub=flowPanel.locator("#mechanism-scrub");
    assert.equal(await motionButton.isEnabled(),id!=="bicycle",
      "incorrect movement availability at step 2 of "+id);
+   assert.equal(await scrubRow.isVisible(),id!=="bicycle",
+     "unsupported mechanical steps should not offer a fake scrubber: "+id);
    if(["fan","lock","coffee","vending"].includes(id)){
     const original=await app.frameLocator("iframe.figure-frame").locator("body")
       .evaluate(()=>JSON.stringify(window.__st));
@@ -309,6 +313,42 @@ try{
     assert.equal(await app.frameLocator("iframe.figure-frame").locator("body")
       .evaluate(()=>JSON.stringify(window.__st)),original,
       "the 3D-only demonstration mutated original figure controls: "+id);
+    if(id==="lock"){
+     // A frozen explanation must not create a perpetual GPU frame loop,
+     // alter the original iframe, or prevent replay from a chosen position.
+     await scrub.evaluate(el=>{el.value="10";el.dispatchEvent(new Event("input",{bubbles:true}));});
+     await app.waitForTimeout(150);
+     assert.equal(await app.locator("#three-mount").getAttribute("data-mechanism-scrub"),"2");
+     assert.equal(await app.locator("#three-mount").getAttribute("data-mechanism-demo"),null);
+     const early=await app.locator(".object-three-canvas").screenshot();
+     await scrub.evaluate(el=>{el.value="85";el.dispatchEvent(new Event("input",{bubbles:true}));});
+     await app.waitForTimeout(150);
+     const later=await app.locator(".object-three-canvas").screenshot();
+     const delta=await changedPixelRatio(early,later);
+     assert.ok(delta>.00003,"manual scrub frames look identical: "+delta);
+     assert.equal(await flowPanel.locator("#mechanism-scrub-value").innerText(),"85 %");
+     const freezeBefore=await app.locator(".object-three-canvas").screenshot();
+     await app.waitForTimeout(330);
+     const freezeAfter=await app.locator(".object-three-canvas").screenshot();
+     assert.ok((await changedPixelRatio(freezeBefore,freezeAfter))<.00025,
+       "paused explanatory frames must not move: "+delta);
+     await motionButton.click();
+     assert.equal(await app.locator("#three-mount").getAttribute("data-mechanism-demo"),"2");
+     assert.equal(await app.locator("#three-mount").getAttribute("data-mechanism-scrub"),null);
+     await app.waitForTimeout(200);
+     assert.ok(Number(await scrub.inputValue())>=85,"replay did not resume from selected 85%");
+     await app.waitForFunction(()=>!document.getElementById("three-mount")
+       ?.hasAttribute("data-mechanism-demo"),{timeout:8000});
+     assert.equal(await scrub.inputValue(),"0");
+     await scrub.evaluate(el=>{el.value="62";el.dispatchEvent(new Event("input",{bubbles:true}));});
+     await flowPanel.locator("#mechanism-reset").click();
+     assert.equal(await app.locator("#three-mount").getAttribute("data-mechanism-scrub"),null);
+     assert.equal(await scrub.inputValue(),"0");
+     assert.equal(await app.frameLocator("iframe.figure-frame").locator("body")
+       .evaluate(()=>JSON.stringify(window.__st)),original,
+       "scrubbing must not mutate authoritative simulation state");
+     console.log("PASS pause, scrub, resume and restore 3D mechanism demonstration");
+    }
    }
    if(id==="toaster"){
     await motionButton.click();
