@@ -273,7 +273,10 @@ function makeToaster(root){
   block(root,.42,.012,.78,slotMat,x,1.588,0);
   // Recessed glass-front heating chamber reveals glowing coils behind
   // a protective wire guard.
-  block(root,.56,.82,.027,mats.dark,x,.99,.51);
+  block(root,.56,.82,.027,mats.dark,x,.99,.475);
+  const inspectionGlass=material({color:0xc3d5e3,roughness:.12,metalness:0,
+   transparent:true,opacity:.12,depthWrite:false,side:THREE.DoubleSide});
+  block(root,.56,.82,.014,inspectionGlass,x,.99,.555);
   for(let i=0;i<6;i++){
    const xx=x-.21+i*.084;
    rod(root,[xx,.67,.545],[xx,1.33,.545],.021,heatMat);
@@ -296,6 +299,33 @@ function makeToaster(root){
   center.position.z=.137;slice.add(center);
   breads.push({slice,crumb,crust});
  }
+ // Real internal bread carriage: both slices rest on a shared
+ // moving cradle. The two guides and the return spring stay visible
+ // through the heating-chamber windows and from the technical cutaway.
+ const carriage=group(root,0,.85,0);
+ for(const x of [-.37,.37]){
+  block(carriage,.48,.038,.76,mats.stainless,x,0,0);
+  block(carriage,.038,.17,.72,mats.steel,x-.22,.085,0);
+  block(carriage,.038,.17,.72,mats.steel,x+.22,.085,0);
+ }
+ for(const x of [-.76,.76]){
+  rod(root,[x,.42,.27],[x,1.40,.27],.018,mats.steel);
+ }
+ const springCurve=new THREE.CatmullRomCurve3(
+  Array.from({length:49},(_,i)=>{
+   const t=i/48;
+   return new THREE.Vector3(.038*Math.cos(t*Math.PI*14),
+    t*.65,.038*Math.sin(t*Math.PI*14));
+  })
+ );
+ const returnSpring=new THREE.Mesh(
+  new THREE.TubeGeometry(springCurve,96,.010,5,false),mats.stainless
+ );
+ returnSpring.position.set(.70,.45,.25);
+ root.add(returnSpring);
+ const latch=group(root,.68,.52,.52);
+ block(latch,.15,.085,.085,mats.dark);
+ const latchTip=block(latch,.10,.065,.08,mats.stainless,.10,.02,0);
  const lever=group(root,.87,1.1,.45);
  cylinder(lever,.085,.085,.31,mats.stainless,0,0,0).rotation.z=Math.PI/2;
  block(lever,.31,.14,.21,mats.dark,.17,0,0);
@@ -313,6 +343,13 @@ function makeToaster(root){
    crumb.color.set(0xf4d8a5).lerp(new THREE.Color(0xb57a48),shade*.85);
    crust.color.set(0xdba56c).lerp(new THREE.Color(0x8f5234),shade*.75);
   });
+  // The cradle moves with the bread and compresses the return spring.
+  // Once the timer releases the latch, the spring raises both slices.
+  const carriageLift=s.toasting?-.27:s.done?.12+(truncate(s.eject,0,1)*.28):s.bread?-.09:-.4;
+  carriage.position.y=.85+carriageLift;
+  returnSpring.scale.y=Math.max(.12,.73+carriageLift);
+  latch.rotation.z=s.toasting?-.26:0;
+  latchTip.material=s.toasting?mats.stainless:mats.steel;
   lever.position.y=s.toasting?.67:1.1;
   heatMat.emissiveIntensity=s.toasting?.38+hot*1.1:Math.max(.04,hot*.1);
   power.scale.setScalar(s.toasting?1.18:.7);

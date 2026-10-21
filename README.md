@@ -790,3 +790,16 @@ a été réalisée directement dans le modèle 3D, en format téléphone.
 
 53 tests unitaires et les tests navigateur Chromium sont passés.
 Android versionCode 32.
+
+
+## Version 0.33 — chariot mécanique du grille-pain
+
+Le modèle 3D du grille-pain comporte désormais un chariot mobile
+commun aux deux tranches, deux glissières, un ressort de rappel
+et un verrou de maintien. Le chariot suit les états de cuisson
+et d'éjection fournis par la simulation 2D, sans inventer de cycle.
+Une façade d'inspection translucide rend les composants plus
+faciles à identifier. Les mouvements conservent le rendu GPU au
+repos et les options de qualité graphique Android.
+
+Version Android 0.33.0, versionCode 33.
