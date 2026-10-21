@@ -1094,13 +1094,26 @@ export function createObjectViewer(container,id){
     const node=document.createElementNS(ns,"g");
     node.setAttribute("class","mechanism-flow-node");
     node.setAttribute("data-flow-node",String(index+1));
+    // A 48px touch target sits behind each numbered marker. Only the
+    // hit area intercepts gestures; users can still orbit everywhere else.
+    const hit=document.createElementNS(ns,"circle");
+    hit.setAttribute("class","mechanism-flow-hit");
+    hit.setAttribute("r","24");
+    hit.setAttribute("pointer-events","all");
     const disc=document.createElementNS(ns,"circle");
     disc.setAttribute("r","16");
     const number=document.createElementNS(ns,"text");
     number.setAttribute("text-anchor","middle");
     number.setAttribute("dy",".35em");
     number.textContent=String(index+1);
-    node.append(disc,number);flowSvg.append(node);
+    node.append(hit,disc,number);
+    node.addEventListener("click",()=>{
+      if(disposed||!flowOpen)return;
+      container.dispatchEvent(new CustomEvent("object-mechanism-step-request",{
+        bubbles:true,detail:{index}
+      }));
+    });
+    flowSvg.append(node);
     return node;
   });
   container.append(flowSvg);

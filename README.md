@@ -705,3 +705,25 @@ positionnement 10/85 %, l'absence de mouvement au repos, la reprise
 depuis une position choisie, le retour au mode normal, l'absence de
 modification de la simulation et les étapes non représentées.
 GitHub Actions produit l'APK Android 0.28.0 (versionCode 28).
+
+
+## Version 0.29 — étapes tactiles et coupe pédagogique 3D
+
+Les trois repères du parcours « Comprendre le mécanisme » se touchent
+désormais directement dans le modèle 3D : une cible transparente de 48 px
+entoure chaque numéro, tandis que la vue reste libre à la rotation en
+dehors de ces points. Le toucher sélectionne la même étape, explication
+et position de caméra que les boutons sous le modèle. La liste du parcours
+reste accessible au clavier et aux lecteurs d'écran.
+
+Le panneau pédagogique propose une **coupe technique** pour révéler les
+pièces internes pendant l'explication et les mouvements illustratifs.
+Cette option est synchronisée avec la commande déjà existante « Voir les
+pièces internes » : pas d'état contradictoire ni de réinitialisation
+forcée des préférences pendant la visite.
+
+La suite de tests navigateur vérifie un vrai clic sur un repère projeté,
+la sélection de l'étape et la synchronisation des deux commandes de
+coupe. Toutes les autres démonstrations hors ligne sont conservées.
+47 tests unitaires et scénarios Chromium validés localement.
+APK Android 0.29.0 / versionCode 29.

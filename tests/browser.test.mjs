@@ -263,6 +263,24 @@ try{
    assert.equal(await app.locator('.mechanism-flow-node').count(),3);
    assert.equal(await app.locator('.mechanism-flow-link').count(),2);
    assert.equal(await app.locator('.mechanism-flow-overlay').getAttribute('data-active-step'),"1");
+   assert.equal(await app.locator('.mechanism-flow-hit').count(),3);
+   if(id==="coffee"){
+    // Tapping a numbered marker directly in 3D selects its educational step.
+    await app.waitForTimeout(550);
+    await app.locator('.mechanism-flow-node[data-flow-node="2"] .mechanism-flow-hit')
+     .click();
+    assert.equal(await app.locator('.mechanism-flow-overlay').getAttribute('data-active-step'),"2");
+    assert.equal(await flowPanel.locator('[data-flow-step="1"]').getAttribute('aria-pressed'),"true");
+    await flowPanel.locator('[data-flow-step="0"]').click();
+    assert.equal(await app.locator('.mechanism-flow-overlay').getAttribute('data-active-step'),"1");
+    // The panel and toolbar must display the same cutaway state.
+    await flowPanel.locator('#mechanism-cutaway').click();
+    assert.equal(await flowPanel.locator('#mechanism-cutaway').getAttribute('aria-pressed'),"true");
+    assert.equal(await app.locator('#three-explore').getAttribute('aria-pressed'),"true");
+    await app.locator('#three-explore').click();
+    assert.equal(await flowPanel.locator('#mechanism-cutaway').getAttribute('aria-pressed'),"false");
+    assert.equal(await app.locator('#three-explore').getAttribute('aria-pressed'),"false");
+   }
    assert.equal(await app.locator('.three-part-pin:visible').count(),0);
    const flowBounds=await app.evaluate(()=>{
     const canvas=document.querySelector('.object-three-canvas').getBoundingClientRect();

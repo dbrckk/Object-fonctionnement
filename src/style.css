@@ -211,12 +211,18 @@ footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
  vector-effect:non-scaling-stroke;
 }
 .mechanism-flow-link.is-current{stroke:#d47d40;stroke-width:4.5}
-.mechanism-flow-node circle{
+.mechanism-flow-node{pointer-events:all;cursor:pointer}
+.mechanism-flow-node circle.mechanism-flow-hit{
+ fill:transparent;stroke:none;filter:none;pointer-events:all;
+}
+.mechanism-flow-node circle:not(.mechanism-flow-hit),
+.mechanism-flow-node text{pointer-events:none}
+.mechanism-flow-node circle:not(.mechanism-flow-hit){
  fill:#176c79;stroke:#fffdf3;stroke-width:3;
  filter:drop-shadow(0 2px 4px #163e4c88);
 }
 .mechanism-flow-node text{fill:white;font-size:14px;font-weight:800;user-select:none}
-.mechanism-flow-node.is-current circle{fill:#d47d40;stroke:#fff0cd;stroke-width:4}
+.mechanism-flow-node.is-current circle:not(.mechanism-flow-hit){fill:#d47d40;stroke:#fff0cd;stroke-width:4}
 .mechanism-flow-panel{
  background:#f5faf8;border-top:1px solid #b9d8d6;
  padding:13px 15px 16px;color:#274556;
@@ -324,3 +330,16 @@ footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
 .mechanism-scrub-row button:focus-visible,.mechanism-scrub-row input:focus-visible{
  outline:3px solid #e1a16c;outline-offset:2px;
 }
+
+
+/* Technical cutaway is available alongside the three-step causal lesson;
+   one toggle controls the same material state as the main 3D toolbar. */
+.mechanism-cutaway-row{display:flex;align-items:center;flex-wrap:wrap;
+ gap:9px;margin:0 0 12px}
+.mechanism-cutaway-row button{font:inherit;font-size:.82rem;font-weight:750;
+ border:1px solid #85b5bd;border-radius:10px;min-height:44px;
+ padding:9px 13px;background:#fff;color:#225263;cursor:pointer}
+.mechanism-cutaway-row button[aria-pressed=true]{background:#e5f6f4;
+ border:2px solid #247481;color:#174c56}
+.mechanism-cutaway-row button:focus-visible{outline:3px solid #d68c55;outline-offset:2px}
+.mechanism-cutaway-row small{color:#506977;font-size:.74rem;line-height:1.35}
