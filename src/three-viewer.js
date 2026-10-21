@@ -8,7 +8,7 @@ import {graphicsProfile,validGraphicsMode} from "./graphics-quality.js";
 import {RoundedBoxGeometry} from "three/addons/geometries/RoundedBoxGeometry.js";
 import {lockMechanics,washerMechanics,vendingMechanics} from "./mechanics-state.js";
 import {getObjectParts} from "./part-annotations.js";
-import {VENDING_PRODUCT_ROWS,vendingProduct,vendingProductFromTray,feederRotation} from "./vending-visuals.js";
+import {VENDING_PRODUCT_ROWS,vendingProduct,vendingProductFromTray,feederRotation,vendingDropPose,vendingScreenState} from "./vending-visuals.js";
 import {createSurfacePixels,SURFACE_SIZE} from "./surface-finishes.js";
 import {AIRFLOW_PARTICLE_COUNT,airflowPoint,airSpeed,airflowParticleBudget} from "./fan-airflow.js";
 
@@ -843,16 +843,25 @@ function makeVending(root){
  screen.position.set(.83,2.38,.81);
  root.add(screen);
  let displayed="";
- const writeScreen=(credit)=>{
-  const value=(Math.round(credit*100)/100).toFixed(2);
-  if(value===displayed)return;
-  displayed=value;
+ const writeScreen=(vendingState)=>{
+  const view=vendingScreenState(vendingState);
+  const signature=[view.headline,view.detail,view.mode].join(":");
+  if(signature===displayed)return;
+  displayed=signature;
   context.fillStyle="#182a32";
   context.fillRect(0,0,512,192);
   context.textAlign="center";
-  context.fillStyle="#a8f2d2";
-  context.font="bold 82px monospace";
-  context.fillText(value+" €",256,128);
+  context.fillStyle=view.accent;
+  context.font="bold 31px system-ui, sans-serif";
+  context.fillText(view.headline,256,50,472);
+  context.font="bold 78px monospace";
+  context.fillText(view.detail,256,138,475);
+  if(view.progress>0){
+   context.fillStyle="#3a5058";
+   context.fillRect(32,164,448,10);
+   context.fillStyle=view.accent;
+   context.fillRect(32,164,Math.round(448*view.progress),10);
+  }
   screenTexture.needsUpdate=true;
  };
  cylinder(root,.075,.075,.06,mats.stainless,.85,2.09,.81).rotation.x=Math.PI/2;
@@ -884,7 +893,7 @@ function makeVending(root){
  let dropping=false;
  return {shells:[body,leftPanel,rightPanel,topPanel,lowerPanel],update(s){
   const m=vendingMechanics(s);
-  writeScreen(m.credit);
+  writeScreen({drop:m.drop,tray:s.tray,credit:m.credit});
   products.forEach(({row,col,stack})=>{
    const qty=m.stock?.[row]?.[col];
    const amount=qty===undefined?3:Math.max(0,Math.min(3,Math.floor(Number(qty)||0)));
@@ -904,13 +913,11 @@ function makeVending(root){
     visual.skins.forEach(mesh=>{mesh.material=slotMaterials[choice.row][choice.col];});
   }
   if(m.drop){
-   const t=m.drop.progress;
-   const shelf=.94+m.drop.row*.46;
-   const x=-.82+m.drop.col*.38;
-   const move=Math.max(0,Math.min(1,(t-.12)/.6));
-   falling.position.set(x+(-.27-x)*move,shelf+.16+(.57-(shelf+.16))*t,
-    .17+.68*move+Math.sin(Math.PI*t)*.18);
-   falling.rotation.z=t*Math.PI*1.75;
+   const pose=vendingDropPose(m.drop.row,m.drop.col,m.drop.progress);
+   if(pose){
+    falling.position.set(pose.x,pose.y,pose.z);
+    falling.rotation.z=pose.angle;
+   }
   }
   const tray=vendingProductFromTray(s.tray);
   pickup.visible=Boolean(m.trayVisible&&tray);

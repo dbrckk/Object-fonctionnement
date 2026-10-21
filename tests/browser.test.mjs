@@ -416,6 +416,23 @@ try{
    canvas=app.locator('.object-three-canvas');
    await canvas.waitFor();
    await app.waitForTimeout(250);
+   // Web Audio only starts after a real click. The vend/land/pickup events
+   // must not rely on a 3D-only user gesture or continue while muted.
+   const vendingSound=app.frameLocator('iframe.figure-frame');
+   // The washer scenario may have already enabled sound globally.
+   // Ensure an explicit OFF -> ON gesture instead of blindly toggling it OFF.
+   const wasEnabled=await vendingSound.locator('body').evaluate(()=>
+    window.__soundDebug.enabled);
+   if(wasEnabled)await vendingSound.locator('#figure-sound').click();
+   await vendingSound.locator('#figure-sound').click();
+   await vendingSound.locator('body').evaluate(()=>new Promise((resolve,reject)=>{
+    const deadline=Date.now()+2200;
+    const poll=()=>{
+     if(window.__soundDebug.enabled)return resolve();
+     if(Date.now()>deadline)return reject(Error("vending sound did not enable"));
+     setTimeout(poll,30);
+    };poll();
+   }));
    const vendBefore=await canvas.screenshot();
    await app.evaluate(()=>{
     window.__vendingMessages=[];
@@ -432,6 +449,15 @@ try{
    await app.waitForFunction(()=>window.__vendingMessages?.some(s=>
     s.drop?.r===1&&s.drop?.c===2&&s.stock?.[1]?.[2]===1&&s.credit===1.5));
    await app.waitForTimeout(330);
+   await vendingSound.locator('body').evaluate(()=>new Promise((resolve,reject)=>{
+    const deadline=Date.now()+2500;
+    const poll=()=>{
+     if(window.__soundDebug.cues.coil>0)return resolve();
+     if(Date.now()>deadline)return reject(Error("vending coil cue missing"));
+     setTimeout(poll,40);
+    };
+    poll();
+   }));
    const vendDrop=await canvas.screenshot();
    const vendDelta=await changedPixelRatio(vendBefore,vendDrop);
    assert.ok(vendDelta>.0009,"vending product drop not visible in 3D: "+vendDelta);
@@ -440,6 +466,8 @@ try{
    });
    await app.waitForFunction(()=>window.__vendingMessages?.some(s=>s.drop===null&&s.tray?.code==="B3"&&s.flap===1));
    await app.waitForTimeout(280);
+   assert.ok(await vendingSound.locator('body').evaluate(()=>
+    (window.__soundDebug.cues.landing||0)>0),"vending landing sound cue missing");
    const vendTray=await canvas.screenshot();
    const trayDelta=await changedPixelRatio(vendDrop,vendTray);
    assert.ok(trayDelta>.0008,"vending pickup flap and tray product not visible in 3D: "+trayDelta);
@@ -463,6 +491,11 @@ try{
    const snackInTray=await canvas.screenshot();
    const snackDelta=await changedPixelRatio(bottleInTray,snackInTray);
    assert.ok(snackDelta>.00014,"selected snack did not change tray geometry/colour: "+snackDelta);
+   await vendFrame.locator('body').evaluate(()=>{window.__st.tray=null;});
+   await app.waitForTimeout(290);
+   assert.ok(await vendFrame.locator('body').evaluate(()=>
+    (window.__soundDebug.cues.pickup||0)>0),"vending pickup cue missing");
+   console.log("PASS vending start, landing and pickup have distinct gated audio cues");
    console.log("PASS selectable cans, bottles and snacks have matching 3D pickup models");
    console.log('PASS nested vending state transport, product drop, tray and 3D flap');
 

@@ -537,3 +537,29 @@ Tests : 37 tests unitaires (incluant les références, couleurs et limites
 des 16 sélections) ; tests navigateur des neuf modèles, de la vue 3D,
 et différences visuelles des produits B3, C2, D4 dans le bac. Profils de
 qualité graphique et repli 2D conservés. APK Android 0.19.0 (versionCode 19).
+
+
+## Version 0.20 — distribution en trois phases et bruitages synchronisés
+
+Le distributeur pédagogique présente désormais la transaction en cours
+sur son écran 3D, avec le code A1–D4 de l'article sélectionné, la
+progression de la distribution et l'indication de récupération. Les
+montants restent calculés par la simulation ColorFigures d'origine.
+
+L'animation de chute est organisée en trois étapes temporelles continues :
+libération de la spirale, descente accélérée vers le bac, puis réception
+avec un léger rebond. Ces mouvements sont pilotés exclusivement par
+drop.r, drop.c et drop.t (sans achat artificiel ni état divergent).
+Le code est isolé dans des fonctions pures testables.
+
+Le moteur de bruitages local Web Audio distingue désormais la mise en
+route de la spirale, la réception dans le bac et l'enlèvement du produit.
+Il produit également un bruit d'arrivée d'eau au démarrage du café.
+Tous ces sons respectent l'activation par un geste, le volume utilisateur,
+la coupure du son et l'arrêt hors premier plan. Aucun fichier audio ou
+service externe n'est ajouté.
+
+Validation : 39 tests unitaires, scénarios Chromium complets, y compris
+les transitions audio et les neuf objets 3D. Les trois profils graphiques,
+le rendu GPU à la demande et la vue de secours 2D restent disponibles.
+La CI GitHub produit l'APK Android de test 0.20.0 (versionCode 20).

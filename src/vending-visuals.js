@@ -23,3 +23,47 @@ export function feederRotation(progress){
   const t=Number(progress);
   return Math.PI*2*Math.max(0,Math.min(1,Number.isFinite(t)?t:0));
 }
+
+// Screen feedback and dispense animation are pure: the SVG controller owns
+// transaction state, Three.js only presents it without inventing purchases.
+const clamp01=n=>Math.max(0,Math.min(1,Number.isFinite(Number(n))?Number(n):0));
+const ease=n=>{const t=clamp01(n);return t*t*(3-2*t);};
+
+export function vendingDropPose(row,col,progress){
+ const choice=vendingProduct(row,col);
+ if(!choice)return null;
+ const t=clamp01(progress),x=-.82+col*.38,startY=.94+row*.46+.16;
+ if(t<=.2){
+  const k=ease(t/.2);
+  return {x,y:startY+.025*Math.sin(Math.PI*k),z:.17+.30*k,angle:-.25*k,stage:"release"};
+ }
+ if(t<=.82){
+  const k=clamp01((t-.2)/.62);
+  return {
+   x:x+(-.27-x)*ease(k),
+   y:startY+(.57-startY)*(k*k),
+   z:.47+.38*ease(k),
+   angle:-.25-2.2*ease(k),
+   stage:"fall"
+  };
+ }
+ const k=clamp01((t-.82)/.18);
+ return {x:-.27,y:.57+.05*Math.sin(Math.PI*k)*(1-k),z:.85,
+  angle:-2.45+.18*Math.sin(Math.PI*k),stage:"settle"};
+}
+export function vendingScreenState(state={}){
+ const drop=state.drop;
+ const active=drop&&vendingProduct(drop.row,drop.col);
+ const tray=vendingProductFromTray(state.tray);
+ if(active){
+  const progress=Math.round(clamp01(drop.progress)*100);
+  return {headline:"DISTRIBUTION",detail:active.code+"  "+progress+" %",
+    accent:"#f8cb83",progress:clamp01(drop.progress),mode:"dispensing"};
+ }
+ if(tray)return {headline:"À RÉCUPÉRER",detail:tray.code,
+  accent:"#9df2c8",progress:1,mode:"ready"};
+ const credit=Number(state.credit);
+ const safeCredit=Math.max(0,Math.min(999,Number.isFinite(credit)?credit:0));
+ return {headline:"CRÉDIT DISPONIBLE",detail:safeCredit.toFixed(2)+" €",
+  accent:"#a8f2d2",progress:0,mode:"idle"};
+}

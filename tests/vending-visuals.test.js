@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {VENDING_PRODUCT_ROWS,vendingProduct,vendingProductFromTray,feederRotation} from "../src/vending-visuals.js";
+import {VENDING_PRODUCT_ROWS,vendingProduct,vendingProductFromTray,feederRotation,vendingDropPose,vendingScreenState} from "../src/vending-visuals.js";
 
 test("all 16 selections match the original ColorFigures product rows and colors",()=>{
  assert.deepEqual(VENDING_PRODUCT_ROWS.map(x=>x.kind),["can","can","bottle","snack"]);
@@ -35,4 +35,43 @@ test("feeder spiral turns exactly once and clamps impossible progress",()=>{
  assert.equal(feederRotation(4),Math.PI*2);
  assert.equal(feederRotation(Number.NaN),0);
  assert.equal(feederRotation(.5),Math.PI);
+});
+
+test("dispense trajectory has continuous release, gravity fall, and final settle",()=>{
+ for(let row=0;row<4;row++)for(let col=0;col<4;col++){
+  const start=vendingDropPose(row,col,0);
+  assert.equal(start.stage,"release");
+  assert.equal(start.x,-.82+col*.38);
+  const release=vendingDropPose(row,col,.2);
+  const falling=vendingDropPose(row,col,.200001);
+  assert.ok(Math.hypot(release.x-falling.x,release.y-falling.y,release.z-falling.z)<.00001);
+  const endFall=vendingDropPose(row,col,.82);
+  const settle=vendingDropPose(row,col,.820001);
+  assert.ok(Math.hypot(endFall.x-settle.x,endFall.y-settle.y,endFall.z-settle.z)<.00001);
+  const finish=vendingDropPose(row,col,1);
+  assert.equal(finish.stage,"settle");
+  assert.ok(Math.abs(finish.x+.27)<1e-9);
+  assert.ok(Math.abs(finish.y-.57)<1e-9);
+  assert.ok(Math.abs(finish.z-.85)<1e-9);
+  assert.ok(vendingDropPose(row,col,.5).y<start.y);
+ }
+ assert.equal(vendingDropPose(4,0,.4),null);
+ assert.deepEqual(vendingDropPose(0,0,Infinity),vendingDropPose(0,0,0));
+ assert.deepEqual(vendingDropPose(0,0,-5),vendingDropPose(0,0,0));
+});
+test("transaction display prioritizes selected product and pickup over credit",()=>{
+ const idle=vendingScreenState({credit:1.5});
+ assert.deepEqual({headline:idle.headline,detail:idle.detail,mode:idle.mode},
+  {headline:"CRÉDIT DISPONIBLE",detail:"1.50 €",mode:"idle"});
+ const drop=vendingScreenState({credit:1.5,drop:{row:2,col:1,progress:.42}});
+ assert.equal(drop.headline,"DISTRIBUTION");
+ assert.match(drop.detail,/C2/);
+ assert.match(drop.detail,/42 %/);
+ assert.equal(drop.mode,"dispensing");
+ assert.equal(drop.progress,.42);
+ const tray=vendingScreenState({credit:1.5,tray:{code:"D4"}});
+ assert.equal(tray.mode,"ready");
+ assert.equal(tray.detail,"D4");
+ assert.equal(vendingScreenState({credit:1.5,tray:{code:"Z9"}}).mode,"idle");
+ assert.equal(vendingScreenState({credit:Infinity}).detail,"0.00 €");
 });

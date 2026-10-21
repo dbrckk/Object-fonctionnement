@@ -11,7 +11,7 @@
 
   const AudioCtor=window.AudioContext||window.webkitAudioContext;
   let enabled=true,volume=.75,stereoPan=0,ctx=null,mix=null,noiseBuffer=null,ambient=null,prev={},activeVoices=0,lastTexture=-1;
-  const debug={mode:tag,enabled:true,volume:.75,gestures:0,notes:0,ambient:false};
+  const debug={mode:tag,enabled:true,volume:.75,gestures:0,notes:0,ambient:false,cues:{}};
   window.__soundDebug=debug;
   const maxVoices=14;
   function initialize(){
@@ -91,6 +91,11 @@
     pop(){tone(210,.07,"square",.17,.63);noise(.14,1300,.13,"highpass",.06);tone(880,.24,"sine",.13,.65,.11);},
     coin(){tone(2100,.14,"sine",.1,.58);tone(1250,.19,"triangle",.11,.7,.09);},
     dispense(){noise(.28,480,.11);tone(110,.27,"sawtooth",.07,.85);tone(480,.14,"sine",.1,.7,.27);},
+    // Short winding coil: mechanical start, then a falling item lands with
+    // a soft body-specific impact. No samples or network dependencies.
+    coil(){tone(155,.22,"triangle",.12,1.44);noise(.19,640,.09,"bandpass",.03);},
+    landing(){noise(.12,600,.12,"lowpass");tone(210,.17,"sine",.12,.55,.03);},
+    pickup(){tone(330,.07,"triangle",.09,.62);tone(590,.1,"sine",.08,.77,.04);},
     pour(){noise(.34,900,.13,"bandpass");tone(350,.14,"sine",.07,.71,.07);},
     water(){noise(.34,2200,.12,"lowpass");tone(430,.075,"sine",.055,.8,.05);},
     bubbling(){noise(.18,700,.075,"lowpass");tone(240,.07,"sine",.055,.67);},
@@ -104,7 +109,10 @@
   };
   function play(name){
     if(!enabled||volume<=0||document.hidden||!initialize())return;
-    if(fx[name])fx[name]();
+    if(fx[name]){
+      fx[name]();
+      debug.cues[name]=(debug.cues[name]||0)+1;
+    }
   }
   function classify(action){
     const a=action.toLocaleLowerCase("fr");
@@ -199,8 +207,13 @@
       }
       if(prev.heating&&!s.heating&&s.phase==="done")play("success");
       if(prev.toasting&&!s.toasting&&s.done)play("pop");
+      if(tag==="coffee"&&!prev.brewing&&s.brewing)play("water");
       if(prev.brewing&&!s.brewing&&s.done!==true)play("success");
-      if(prev.drop&&!s.drop&&s.tray)play("pop");
+      if(tag==="vending"){
+        if(!prev.drop&&s.drop)play("coil");
+        if(prev.drop&&!s.drop&&s.tray)play("landing");
+        if(prev.tray&&!s.tray)play("pickup");
+      }
       if(tag==="washer"&&washerActive&&!prev.paused){
         const previousPhase=washerPhase(prev);
         if(prev.run&&previousPhase!==washPhase){
