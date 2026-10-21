@@ -196,3 +196,70 @@ footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
 /* Optional airflow demonstration appears only on the ventilator model. */
 .fan-airflow-explanation{margin:10px 12px 5px;color:#345a69;font-size:.83rem;line-height:1.55;background:#eaf8f7;border:1px solid #a5d9d6;border-radius:12px;padding:10px 13px}
 .fan-airflow-explanation[hidden]{display:none}
+
+
+/* Causal, camera-projected paths are symbolic links, not physical pipework. */
+.mechanism-flow-overlay{
+ position:absolute;left:0;top:0;z-index:3;width:100%;
+ pointer-events:none;overflow:visible;
+}
+.mechanism-flow-overlay[hidden],.mechanism-flow-panel[hidden]{display:none!important}
+.mechanism-flow-link{
+ fill:none;stroke:#176c79;stroke-width:3.5;
+ stroke-linecap:round;stroke-dasharray:8 5;
+ filter:drop-shadow(0 1px 2px #fff);
+ vector-effect:non-scaling-stroke;
+}
+.mechanism-flow-link.is-current{stroke:#d47d40;stroke-width:4.5}
+.mechanism-flow-node circle{
+ fill:#176c79;stroke:#fffdf3;stroke-width:3;
+ filter:drop-shadow(0 2px 4px #163e4c88);
+}
+.mechanism-flow-node text{fill:white;font-size:14px;font-weight:800;user-select:none}
+.mechanism-flow-node.is-current circle{fill:#d47d40;stroke:#fff0cd;stroke-width:4}
+.mechanism-flow-panel{
+ background:#f5faf8;border-top:1px solid #b9d8d6;
+ padding:13px 15px 16px;color:#274556;
+}
+.mechanism-flow-intro{margin:0 0 12px;color:#506977;font-size:.79rem;line-height:1.5}
+.mechanism-flow-list{
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:8px;list-style:none;margin:0 0 12px;padding:0
+}
+.mechanism-flow-list li{min-width:0}
+.mechanism-flow-list button{
+ display:flex;align-items:center;gap:8px;text-align:left;
+ width:100%;height:100%;min-height:66px;padding:8px;
+ background:#fff;border:1px solid #bad0d4;border-radius:11px;
+ color:#2c4e5e;font:inherit;cursor:pointer;
+}
+.mechanism-flow-list button[aria-pressed=true]{
+ background:#e5f6f4;border:2px solid #247481;
+}
+.flow-step-number{display:grid;place-items:center;flex:none;width:27px;height:27px;
+ background:#267381;color:white;border-radius:50%;font-size:.79rem;font-weight:800}
+.mechanism-flow-list strong{display:block;font-size:.78rem;line-height:1.3}
+.mechanism-flow-list small{display:block;margin-top:3px;color:#5e7582;
+ font-size:.69rem;line-height:1.25}
+.mechanism-flow-detail{background:#fffefb;border:1px solid #d6e5e5;
+ border-radius:10px;padding:12px 13px;margin:0 0 12px;line-height:1.5;font-size:.86rem}
+.mechanism-flow-nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.mechanism-flow-nav span{margin-right:auto;font-size:.76rem;font-weight:750;color:#3a5f68}
+.mechanism-flow-nav button{min-height:44px;padding:9px 11px;border:1px solid #b7cbd2;
+ border-radius:10px;background:#fff;color:#234c60;font:inherit;font-weight:750;font-size:.79rem}
+.mechanism-flow-nav button#mechanism-next{background:#234a61;color:#fff;border-color:#234a61}
+.mechanism-flow-nav button:disabled{opacity:.4}
+.mechanism-flow-nav button:focus-visible,.mechanism-flow-list button:focus-visible{
+ outline:3px solid #e4a16a;outline-offset:2px
+}
+@media(max-width:460px){
+ .mechanism-flow-panel{padding:11px 10px 13px}
+ .mechanism-flow-list{gap:5px}
+ .mechanism-flow-list button{display:block;min-height:83px;padding:7px 5px;text-align:center}
+ .flow-step-number{margin:0 auto 5px}
+ .mechanism-flow-list small{font-size:.65rem}
+ .mechanism-flow-nav span{width:100%}
+}
+@media(prefers-reduced-motion:reduce){
+ .mechanism-flow-node,.mechanism-flow-link{transition:none;animation:none}
+}

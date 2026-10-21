@@ -576,3 +576,33 @@ simulation d'origine. Aucun accès réseau ni ressource nouvelle.
 
 39 tests unitaires et les scénarios navigateur passent. La CI
 construit l'APK Android 0.21.0 (versionCode 21).
+
+
+## Version 0.22 — parcours du mécanisme en trois étapes
+
+Chaque objet dispose désormais d'un mode **Comprendre le mécanisme**,
+distinct des 27 fiches du glossaire et des visites guidées existantes.
+Les neuf parcours (27 étapes au total) présentent dans leur ordre les
+principales fonctions de l'objet. L'utilisateur choisit une étape ou
+utilise les boutons Précédent et Suivant pour parcourir les explications
+avec recentrage de la caméra et repère lumineux.
+
+Deux flèches SVG relient les trois composants ancrés sur les vrais modèles
+3D et suivent la rotation/zoom de la caméra. Il s'agit de liens causaux
+**schématiques**, pas de conduites, câblages ou chemins physiques réels.
+Le mode évite de superposer les repères de la visite guidée aux flèches,
+et se ferme automatiquement si l'on passe à une visite guidée,
+à l'inspection des composants, ou au recentrage de la caméra.
+
+L'interface fonctionne hors ligne, comprend de grandes cibles tactiles
+sur Android, respecte le mode d'animation réduite et n'ajoute aucune
+boucle de rendu GPU permanente. Le mode 2D de secours est inchangé.
+
+Captures réelles :
+- [Parcours de la cafetière](docs/previews/coffee-mechanism-flow.webp)
+- [Parcours du distributeur](docs/previews/vending-mechanism-flow.webp)
+
+Tests : 42 tests unitaires, scénarios Chromium sur les neuf modèles,
+navigation entre les trois étapes, retour aux visites guidées,
+réinitialisation et ergonomie Android 320/390/768 px.
+L'APK Android 0.22.0 est construit en CI avec versionCode 22.

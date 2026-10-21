@@ -86,6 +86,22 @@ try{
   await writeFile(path.join(folder,'kettle-guided-tour.webp'),webp);
   console.log('kettle-guided-tour','preview',webp.length,'bytes');
  }finally{await lesson.close();}
+ // Demonstrate the three-step causal explanation with actual screenshots.
+ for(const id of ['coffee','vending']){
+  const page=await browser.newPage({viewport:{width:700,height:940},deviceScaleFactor:1.5});
+  try{
+   await page.goto(url+'/#'+id,{waitUntil:'load'});
+   await page.locator('.object-three-canvas').waitFor({timeout:16000});
+   await page.getByRole('button',{name:'Comprendre le mécanisme'}).click();
+   await page.locator('.mechanism-flow-overlay[data-active-step="1"]').waitFor();
+   // Camera movement must settle before the still is captured.
+   await page.waitForTimeout(650);
+   const buffer=await page.locator('.three-shell').screenshot({animations:'disabled'});
+   const webp=await sharp(buffer).resize({width:1000}).webp({quality:84,effort:6}).toBuffer();
+   await writeFile(path.join(folder,id+'-mechanism-flow.webp'),webp);
+   console.log(id,'causal flow preview',webp.length,'bytes');
+  }finally{await page.close();}
+ }
 }finally{
  if(browser)await browser.close();
  server.kill('SIGTERM');

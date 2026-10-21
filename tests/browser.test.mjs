@@ -252,6 +252,55 @@ try{
      Math.abs(el.getBoundingClientRect().width-el.parentElement.getBoundingClientRect().width)<=2);
    assert.ok(widthMatches,"3D canvas does not fill available viewport: "+id);
    assert.equal(await app.getByRole('button',{name:"Voir l'illustration 2D"}).count(),1);
+   // A separate causal explanation orders the three existing real anchors.
+   // The SVG arrows are camera-projected, and interactions must not obscure
+   // the 3D model or interfere with the interactive ColorFigures iframe.
+   await app.getByRole('button',{name:"Comprendre le mécanisme"}).click();
+   const flowPanel=app.locator('#mechanism-flow-panel');
+   await flowPanel.waitFor({state:"visible"});
+   assert.equal(await app.locator('#three-flow').getAttribute('aria-pressed'),"true");
+   assert.equal(await flowPanel.locator('[data-flow-step]').count(),3);
+   assert.equal(await app.locator('.mechanism-flow-node').count(),3);
+   assert.equal(await app.locator('.mechanism-flow-link').count(),2);
+   assert.equal(await app.locator('.mechanism-flow-overlay').getAttribute('data-active-step'),"1");
+   assert.equal(await app.locator('.three-part-pin:visible').count(),0);
+   const flowBounds=await app.evaluate(()=>{
+    const canvas=document.querySelector('.object-three-canvas').getBoundingClientRect();
+    const panel=document.querySelector('#mechanism-flow-panel').getBoundingClientRect();
+    const buttons=[...document.querySelectorAll('#mechanism-flow-panel button')];
+    return {canvasBottom:canvas.bottom,panelTop:panel.top,
+      scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth,
+      heights:buttons.map(button=>button.getBoundingClientRect().height)};
+   });
+   assert.ok(flowBounds.panelTop>=flowBounds.canvasBottom-2,
+     "mechanism panel covers the 3D scene: "+id);
+   assert.ok(flowBounds.heights.every(height=>height>=44),
+     "small mechanism touch target: "+id);
+   assert.ok(flowBounds.scroll<=flowBounds.client+1,
+     "mechanism panel causes horizontal overflow: "+id);
+   await flowPanel.locator('[data-flow-step="1"]').click();
+   assert.equal(await app.locator('.mechanism-flow-overlay').getAttribute('data-active-step'),"2");
+   assert.equal(await flowPanel.locator('[data-flow-step="1"]').getAttribute('aria-pressed'),"true");
+   assert.ok((await flowPanel.locator('#mechanism-flow-detail').innerText()).length>25);
+   await flowPanel.getByRole('button',{name:"Suivant →"}).click();
+   assert.equal(await app.locator('.mechanism-flow-overlay').getAttribute('data-active-step'),"3");
+   await flowPanel.getByRole('button',{name:"Terminer"}).click();
+   await flowPanel.waitFor({state:"hidden"});
+   assert.equal(await app.locator('.mechanism-flow-overlay:visible').count(),0);
+   assert.equal(await app.locator('#three-flow').getAttribute('aria-pressed'),"false");
+   console.log("PASS 3-step causal mechanism overlay: "+id);
+   if(id==="coffee"){
+    // Entering the existing guided tour must cleanly close the separate
+    // causal overlay; abandoning the tour must never record completion.
+    await app.getByRole('button',{name:"Comprendre le mécanisme"}).click();
+    await app.getByRole('button',{name:"Commencer la visite guidée des pièces"}).click();
+    assert.equal(await app.locator("#mechanism-flow-panel:visible").count(),0);
+    assert.equal(await app.locator(".mechanism-flow-overlay:visible").count(),0);
+    assert.equal(await app.locator("#three-flow").getAttribute("aria-pressed"),"false");
+    await app.locator('.three-tour-bar').getByRole('button',{name:"Quitter la visite"}).click();
+    assert.equal(await app.locator("#three-parts").getAttribute("aria-pressed"),"true");
+    await app.getByRole('button',{name:"Masquer les repères"}).click();
+   }
    await app.getByRole('button',{name:"Voir les pièces internes"}).click();
    assert.equal(await app.locator("#three-explore").getAttribute("aria-pressed"),"true");
    await app.getByRole('button',{name:"Extérieur normal"}).click();
@@ -516,7 +565,21 @@ try{
    });
    assert.ok(view.scroll<=view.client+1,"3D layout overflow at "+width+"px");
    assert.ok(Math.abs(view.canvas-view.host)<=2,"3D canvas width mismatch at "+width+"px");
+   await app.getByRole('button',{name:"Comprendre le mécanisme"}).click();
+   assert.equal(await app.locator("#mechanism-flow-panel:visible").count(),1);
+   const flowMetrics=await app.evaluate(()=>({
+    width:document.documentElement.scrollWidth,
+    client:document.documentElement.clientWidth,
+    touch:[...document.querySelectorAll("#mechanism-flow-panel button")].map(x=>x.getBoundingClientRect().height)
+   }));
+   assert.ok(flowMetrics.width<=flowMetrics.client+1,
+     "3D causal explanation overflows Android width "+width);
+   assert.ok(flowMetrics.touch.every(h=>h>=44),
+     "causal explanation has undersized touch target at "+width);
+   await app.getByRole('button',{name:"Recentrer la caméra 3D"}).click();
+   assert.equal(await app.locator("#mechanism-flow-panel:visible").count(),0);
   }
+  console.log("PASS Android 320/768px causal mechanism layout and camera reset");
   await app.setViewportSize({width:390,height:844});
   await app.goto(HOST+'/#fan',{waitUntil:'load'});
   await app.locator(".object-three-canvas").waitFor();

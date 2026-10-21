@@ -8,6 +8,7 @@ import {graphicsProfile,validGraphicsMode} from "./graphics-quality.js";
 import {RoundedBoxGeometry} from "three/addons/geometries/RoundedBoxGeometry.js";
 import {lockMechanics,washerMechanics,vendingMechanics} from "./mechanics-state.js";
 import {getObjectParts} from "./part-annotations.js";
+import {getMechanismPath} from "./mechanism-paths.js";
 import {VENDING_PRODUCT_ROWS,vendingProduct,vendingProductFromTray,feederRotation,vendingDropPose,vendingScreenState} from "./vending-visuals.js";
 import {createSurfacePixels,SURFACE_SIZE} from "./surface-finishes.js";
 import {AIRFLOW_PARTICLE_COUNT,airflowPoint,airSpeed,airflowParticleBudget} from "./fan-airflow.js";
@@ -1023,6 +1024,7 @@ export function createObjectViewer(container,id){
   }
   controls.addEventListener("start",()=>{cameraCustomized=true;});
   const annotations=getObjectParts(id);
+  const flowSteps=getMechanismPath(id);
   // A luminous locator marks the selected actual component in 3D.
   // Sprites always face the camera; one static decal requires no animation
   // loop, even on an idle Android device.
@@ -1060,6 +1062,86 @@ export function createObjectViewer(container,id){
   leaders.setAttribute("class","three-part-leaders");
   leaders.setAttribute("aria-hidden","true");
   markerLayer.append(leaders);
+  // A separate noninteractive SVG draws a schematic causal sequence on
+  // top of the canvas. The graphics track the orbit camera and remain
+  // hidden unless the user explicitly opens the learning mode.
+  const flowSvg=document.createElementNS(ns,"svg");
+  flowSvg.setAttribute("class","mechanism-flow-overlay");
+  flowSvg.setAttribute("aria-hidden","true");
+  flowSvg.setAttribute("hidden","");
+  const arrowId="mechanism-flow-arrow";
+  const defs=document.createElementNS(ns,"defs");
+  const arrow=document.createElementNS(ns,"marker");
+  for(const [key,value] of Object.entries({
+    id:arrowId,markerWidth:"10",markerHeight:"10",refX:"8",
+    refY:"5",orient:"auto",markerUnits:"userSpaceOnUse"
+  }))arrow.setAttribute(key,value);
+  const arrowHead=document.createElementNS(ns,"path");
+  arrowHead.setAttribute("d","M1 1 L9 5 L1 9 Z");
+  arrowHead.setAttribute("fill","#176c79");
+  arrow.append(arrowHead);defs.append(arrow);
+  flowSvg.append(defs);
+  const flowLines=Array.from({length:flowSteps.length-1},()=>{
+    const path=document.createElementNS(ns,"path");
+    path.setAttribute("class","mechanism-flow-link");
+    path.setAttribute("marker-end","url(#"+arrowId+")");
+    flowSvg.append(path);
+    return path;
+  });
+  const flowNodes=flowSteps.map((step,index)=>{
+    const node=document.createElementNS(ns,"g");
+    node.setAttribute("class","mechanism-flow-node");
+    node.setAttribute("data-flow-node",String(index+1));
+    const disc=document.createElementNS(ns,"circle");
+    disc.setAttribute("r","16");
+    const number=document.createElementNS(ns,"text");
+    number.setAttribute("text-anchor","middle");
+    number.setAttribute("dy",".35em");
+    number.textContent=String(index+1);
+    node.append(disc,number);flowSvg.append(node);
+    return node;
+  });
+  container.append(flowSvg);
+  let flowOpen=false,flowIndex=0;
+  function updateFlowPositions(){
+    if(!flowOpen)return;
+    const width=renderer.domElement.clientWidth;
+    const height=renderer.domElement.clientHeight;
+    if(!width||!height)return;
+    flowSvg.setAttribute("viewBox","0 0 "+width+" "+height);
+    flowSvg.style.height=height+"px";
+    const coords=flowSteps.map(step=>{
+      const projected=new THREE.Vector3(...step.position).project(camera);
+      const visible=projected.z>=-1&&projected.z<=1
+        &&Math.abs(projected.x)<=1.08&&Math.abs(projected.y)<=1.08;
+      return visible?{x:(projected.x*.5+.5)*width,y:(-projected.y*.5+.5)*height}:null;
+    });
+    flowNodes.forEach((node,i)=>{
+      const point=coords[i];
+      node.style.display=point?"":"none";
+      if(!point)return;
+      node.setAttribute("transform","translate("+point.x.toFixed(1)+" "+point.y.toFixed(1)+")");
+      node.classList.toggle("is-current",i===flowIndex);
+    });
+    flowLines.forEach((path,i)=>{
+      const a=coords[i],b=coords[i+1];
+      path.style.display=a&&b?"":"none";
+      if(!a||!b)return;
+      // Stops short of the numbered nodes; curved links are instructional
+      // and must never be interpreted as literal internal ducts or wires.
+      const dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy)||1;
+      const ux=dx/length,uy=dy/length;
+      const fromX=a.x+ux*19,fromY=a.y+uy*19;
+      const toX=b.x-ux*23,toY=b.y-uy*23;
+      const midpointX=(fromX+toX)/2-uy*12;
+      const midpointY=(fromY+toY)/2+ux*12;
+      path.setAttribute("d","M "+fromX.toFixed(1)+" "+fromY.toFixed(1)+
+        " Q "+midpointX.toFixed(1)+" "+midpointY.toFixed(1)+
+        " "+toX.toFixed(1)+" "+toY.toFixed(1));
+      path.classList.toggle("is-current",i===flowIndex||i===flowIndex-1);
+    });
+    flowSvg.dataset.activeStep=String(flowIndex+1);
+  }
   const points=annotations.map((part,index)=>{
     const button=document.createElement("button");
     button.type="button";button.className="three-part-pin";
@@ -1141,6 +1223,47 @@ export function createObjectViewer(container,id){
       point.leader.setAttribute("y2",placed.y.toFixed(1));
       point.leader.style.opacity=Math.hypot(placed.x-anchorX,placed.y-anchorY)<9?"0":"1";
     }
+  }
+  function focusMechanismStep(index){
+    if(disposed||!flowOpen||!Number.isInteger(index)||index<0||index>=flowSteps.length)return false;
+    flowIndex=index;
+    const world=new THREE.Vector3(...flowSteps[index].position);
+    partLocator.position.copy(world);
+    partLocator.visible=true;
+    cameraCustomized=true;
+    const startTarget=controls.target.clone(),startCamera=camera.position.clone();
+    const delta=camera.position.clone().sub(controls.target).multiplyScalar(.94);
+    const finishTarget=world;
+    const finishCamera=finishTarget.clone().add(delta);
+    if(prefersReduce){
+      camera.position.copy(finishCamera);
+      controls.target.copy(finishTarget);
+      controls.update();
+      cameraMove=null;
+    }else{
+      cameraMove={start:performance.now(),startTarget,startCamera,finishTarget,finishCamera};
+    }
+    updateFlowPositions();
+    dirty=true;requestFrame();
+    return true;
+  }
+  function toggleMechanismPath(visible){
+    if(disposed)return false;
+    flowOpen=Boolean(visible);
+    flowSvg.toggleAttribute("hidden",!flowOpen);
+    if(flowOpen){
+      endTour(false);
+      showParts=false;
+      markerLayer.hidden=true;
+      description.hidden=true;
+      delete markerLayer.dataset.selectedPart;
+      for(const point of points)point.button.setAttribute("aria-pressed","false");
+      return focusMechanismStep(0);
+    }
+    partLocator.visible=false;
+    cameraMove=null;
+    dirty=true;requestFrame();
+    return false;
   }
   function focusPart(index){
     if(disposed||!showParts)return;
@@ -1255,7 +1378,7 @@ export function createObjectViewer(container,id){
     renderer.setSize(width,height,true);
     camera.aspect=width/height;camera.updateProjectionMatrix();
     if(!cameraCustomized)fitHomeCamera();
-    dirty=true;updatePartPositions();requestFrame();
+    dirty=true;updatePartPositions();updateFlowPositions();requestFrame();
   }
   const observer=new ResizeObserver(resize);observer.observe(container);resize();
   const reactivate=()=>{
@@ -1295,11 +1418,14 @@ export function createObjectViewer(container,id){
     controls.update();
     renderer.render(scene,camera);
     updatePartPositions();
+    updateFlowPositions();
     dirty=false;
     if(running||cameraMove)requestFrame();
   }
   requestFrame();
   return {
+    setMechanismPath(visible){return toggleMechanismPath(visible);},
+    setMechanismStep(index){return focusMechanismStep(index);},
     setAirflow(enabled){
       if(disposed||typeof machine.setAirflow!=="function")return false;
       const result=machine.setAirflow(enabled);
@@ -1331,6 +1457,7 @@ export function createObjectViewer(container,id){
     },
     startTour(onFinish){
       if(disposed||points.length===0)return false;
+      if(flowOpen)toggleMechanismPath(false);
       showParts=true;
       markerLayer.hidden=false;
       tourStep=0;
@@ -1346,12 +1473,14 @@ export function createObjectViewer(container,id){
     focusPartById(partId){
       const index=points.findIndex(point=>point.part.id===partId);
       if(index<0||disposed)return false;
+      if(flowOpen)toggleMechanismPath(false);
       showParts=true;markerLayer.hidden=false;
       focusPart(index);dirty=true;requestFrame();
       return true;
     },
     setAnnotations(visible){
       if(disposed)return false;
+      if(visible&&flowOpen)toggleMechanismPath(false);
       if(!visible)endTour(false);
       showParts=Boolean(visible);
       markerLayer.hidden=!showParts;
@@ -1367,6 +1496,7 @@ export function createObjectViewer(container,id){
     },
     resetCamera(){
       if(tourStep>=0)endTour(false);
+      if(flowOpen)toggleMechanismPath(false);
       cameraMove=null;cameraCustomized=false;
       fitHomeCamera();dirty=true;requestFrame();
       description.hidden=true;partLocator.visible=false;
@@ -1398,6 +1528,7 @@ export function createObjectViewer(container,id){
       }
       for(const mat of unique){mat.map?.dispose();mat.dispose();}
       markerLayer.remove();
+      flowSvg.remove();
       // Shared material instances live for the module lifetime; disposing them
       // here would affect the next object opened from the same module.
       environment.dispose();
