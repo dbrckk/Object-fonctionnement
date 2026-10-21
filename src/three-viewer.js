@@ -521,6 +521,18 @@ function makeCoffee(root){
  block(root,.35,1.10,.12,frosted,-.82,1.37,.505);
  const waterColumn=block(root,.28,.90,.11,liquid,-.82,1.03,.582);
  badge(root,"H2O",-.82,1.96,.596,.2,.12);
+ // Water circulation is deliberately drawn outside the opaque housing.
+ // Six droplets travel from the reservoir up to the shower head only
+ // during extraction, making the heating/pumping path readable.
+ const waterCircuit=group(root);
+ const circuitPoints=[[-.78,1.0,.68],[-.78,1.73,.68],[-.60,2.10,.64],
+  [-.19,2.18,.63],[.19,2.18,.50],[.40,2.13,.32]];
+ const circuitCurve=new THREE.CatmullRomCurve3(circuitPoints.map(p=>new THREE.Vector3(...p)));
+ const tubeMaterial=material({color:0xb2e4e9,transparent:true,
+  opacity:.30,roughness:.23,depthWrite:false});
+ const tubeMesh=new THREE.Mesh(new THREE.TubeGeometry(circuitCurve,48,.023,6,false),tubeMaterial);
+ waterCircuit.add(tubeMesh);
+ const circuitDots=Array.from({length:6},()=>sphere(waterCircuit,.037,liquid,0,0,0));
  // Exposed filter funnel, removable brown grounds and pouring nozzle.
  const filter=cylinder(root,.36,.12,.39,mats.dark,.42,1.79,.19);
  // Concentric mesh ridges make the removable filter basket readable.
@@ -561,6 +573,7 @@ function makeCoffee(root){
  badge(root,"BREW  /  FILTER",-.47,1.99,.39,.9,.16,"#304456","#fdf5e5");
  return {shells:[body],update(s,dt,time){
   const volume=truncate(s.coffee,0,1),water=truncate(s.water,0,1);
+  const brewing=Boolean(s.brewing);
   const coffeeHeight=.56*volume;
   coffee.scale.y=Math.max(.006,coffeeHeight/.25);
   coffee.position.y=-.38+coffeeHeight/2;
@@ -575,7 +588,16 @@ function makeCoffee(root){
   waterColumn.scale.y=Math.max(.006,waterHeight/.90);
   waterColumn.position.y=.84+waterHeight/2;
   grounds.visible=!!s.grounds;
-  const brewing=!!s.brewing;
+  // Clear the tube when idle; moving droplets are visible only when
+  // the original simulation says the pump is brewing.
+  circuitDots.forEach((p,i)=>{
+   p.visible=brewing&&water>.02;
+   if(p.visible){
+    const phase=(time*.53+i/circuitDots.length)%1;
+    p.position.copy(circuitCurve.getPoint(phase));
+    p.scale.setScalar(.78+.22*Math.sin(phase*Math.PI));
+   }
+  });
   drops.forEach((p,i)=>{
    const k=(time*1.7+i/drops.length)%1;
    p.visible=brewing;

@@ -563,3 +563,16 @@ Validation : 39 tests unitaires, scénarios Chromium complets, y compris
 les transitions audio et les neuf objets 3D. Les trois profils graphiques,
 le rendu GPU à la demande et la vue de secours 2D restent disponibles.
 La CI GitHub produit l'APK Android de test 0.20.0 (versionCode 20).
+
+
+## Version 0.21 — circulation de l'eau dans la cafetière
+
+La cafetière 3D possède maintenant un circuit transparent externe, du
+réservoir jusqu'à la douche d'extraction, avec six gouttelettes animées.
+Ce flux apparaît seulement lorsque l'extraction est active et que le
+réservoir contient de l'eau. Le niveau de la verseuse, la plaque
+chauffante et les gouttes de café restent synchronisés avec la
+simulation d'origine. Aucun accès réseau ni ressource nouvelle.
+
+39 tests unitaires et les scénarios navigateur passent. La CI
+construit l'APK Android 0.21.0 (versionCode 21).
