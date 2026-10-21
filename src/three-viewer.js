@@ -10,6 +10,7 @@ import {lockMechanics,washerMechanics,vendingMechanics} from "./mechanics-state.
 import {washerHydraulicState} from "./washer-hydraulics.js";
 import {getObjectParts} from "./part-annotations.js";
 import {getMechanismPath} from "./mechanism-paths.js";
+import {LOCK_SHEAR_Y,lockPinTarget,lockPinsAreAligned} from "./lock-pins.js";
 import {bicycleValveMotion} from "./check-valve.js";
 import {hasMechanismDemo,mechanismDemoState,MECHANISM_DEMO_DURATION_MS} from "./mechanism-demos.js";
 import {flowLinkGeometry,viewportFlowPoint} from "./flow-layout.js";
@@ -479,19 +480,31 @@ function makeLock(root){
  ring(key,.135,.036,brassy,0,0,.57);
  for(let i=0;i<3;i++)block(key,.13,.065,.055,brassy,.07,-.02,.18+i*.085);
  badge(root,"LOCK  ·  05",0,.48,.283,.79,.12);
- // All five pin stacks, their upper springs and the shear line can be
- // examined through a narrow glazed cutaway window above the plug.
+ // The five pin stacks are actual *separate* key pins and driver pins.
+ // Their junctions form a straight shear line only with a correct key.
+ // Each driver compresses its own visible spring against a fixed roof.
  const pins=[];
+ const pinSpringCurve=new THREE.CatmullRomCurve3(
+  Array.from({length:49},(_,j)=>{
+   const t=j/48,a=t*Math.PI*12;
+   return new THREE.Vector3(.038*Math.cos(a),t,.038*Math.sin(a));
+  })
+ );
+ const pinSpringGeometry=new THREE.TubeGeometry(pinSpringCurve,96,.009,5,false);
  for(let i=0;i<5;i++){
   const x=-.45+i*.225;
-  const assembly=group(root,x,1.31,.41);
-  cylinder(assembly,.055,.055,.19,mats.amber,0,0,0);
-  cylinder(assembly,.048,.048,.12,mats.steel,0,.16,0);
-  for(let k=0;k<4;k++){
-   const a=k*Math.PI*.8,b=(k+1)*Math.PI*.8;
-   rod(assembly,[Math.cos(a)*.055,.25-k*.038,.0],[Math.cos(b)*.055,.25-(k+1)*.038,.0],.013,mats.steel);
-  }
-  pins.push(assembly);
+  const target=lockPinTarget(i,false);
+  const keyPin=cylinder(root,.054,.054,.19,mats.amber,x,target.lowerY,.41);
+  const driver=cylinder(root,.05,.05,.12,mats.steel,x,target.upperY,.41);
+  // A narrow contrast band identifies the interface itself.
+  const seam=ring(root,.052,.007,mats.dark,x,target.junctionY,.41,Math.PI/2);
+  const spring=new THREE.Mesh(pinSpringGeometry,mats.stainless);
+  spring.position.set(x,target.springBottom,.41);
+  spring.scale.y=target.springLength;
+  root.add(spring);
+  // The spring is contained by a guide sleeve at the fixed roof.
+  cylinder(root,.07,.07,.019,mats.dark,x,1.59,.41);
+  pins.push({keyPin,driver,seam,spring,shift:target.offset});
  }
  const panelGlass=new THREE.MeshBasicMaterial({
   color:0xd5f2f5,transparent:true,opacity:.13,depthWrite:false,side:THREE.DoubleSide
@@ -499,20 +512,40 @@ function makeLock(root){
  const pinWindow=block(root,1.23,.38,.018,panelGlass,0,1.36,.61,0);
  const shear=rod(root,[-.55,1.27,.62],[.55,1.27,.62],.013,mats.dark);
  const status=sphere(root,.055,mats.warm,.48,.63,.295);
- let lift=0;
+ let lift=0,shackleTarget=0,lastAligned=false;
+ const pinJunctions=new Array(pins.length).fill(0);
+ function pinsAreMoving(aligned){
+  return pins.some((pin,i)=>Math.abs(pin.shift-lockPinTarget(i,aligned).offset)>.006);
+ }
  return {shells:[body],update(s,dt){
   const model=lockMechanics(s);
+  lastAligned=model.aligned;
   key.visible=model.inserted;
   plug.rotation.z=model.angle;
-  const target=model.unlocked?.25:0;
-  lift+= (target-lift)*Math.min(1,Math.max(.12,dt*9));
+  shackleTarget=model.unlocked?.25:0;
+  // Blend physical motion without leaving an active Android GPU loop.
+  const liftAlpha=1-Math.exp(-9*Math.min(Math.max(dt,0),.05));
+  lift+=(shackleTarget-lift)*liftAlpha;
+  if(Math.abs(lift-shackleTarget)<.006)lift=shackleTarget;
   shackle.position.y=1.47+lift;
   pins.forEach((pin,i)=>{
-   const targetY=model.aligned?0:([-.075,.045,-.035,.065,-.055][i]);
-   pin.position.y+=(1.31+targetY-pin.position.y)*Math.min(1,Math.max(.18,dt*12));
+   const target=lockPinTarget(i,model.aligned);
+   const alpha=1-Math.exp(-17*Math.min(Math.max(dt,0),.05));
+   pin.shift+=(target.offset-pin.shift)*alpha;
+   if(Math.abs(target.offset-pin.shift)<.001)pin.shift=target.offset;
+   const offset=pin.shift;
+   pin.keyPin.position.y=target.lowerY-target.offset+offset;
+   pin.driver.position.y=target.upperY-target.offset+offset;
+   pin.seam.position.y=LOCK_SHEAR_Y+offset;
+   pin.spring.position.y=target.springBottom-target.offset+offset;
+   pin.spring.scale.y=1.58-pin.spring.position.y;
+   pinJunctions[i]=pin.seam.position.y;
   });
-  status.material=model.unlocked?mats.leaf:model.aligned?glow:mats.warm;
- },needsAnimation:()=>Math.abs(lift-.25)>.01&&lift>.01};
+  const mechanicallyAligned=model.aligned&&lockPinsAreAligned(pinJunctions);
+  status.material=model.unlocked?mats.leaf:mechanicallyAligned?glow:mats.warm;
+ },needsAnimation:()=>{
+  return Math.abs(lift-shackleTarget)>.006||pinsAreMoving(lastAligned);
+ }};
 }
 function makeBicycle(root){
  plate(root,3.1,2.4,.12);

@@ -803,3 +803,19 @@ faciles à identifier. Les mouvements conservent le rendu GPU au
 repos et les options de qualité graphique Android.
 
 Version Android 0.33.0, versionCode 33.
+
+
+## Version 0.34 — mécanique détaillée des goupilles de serrure
+
+Les cinq empilements de goupilles sont constitués de deux pièces
+distinctes (goupille de clé et contre-goupille), d'une jonction
+matérialisée et d'un ressort individuel comprimable. La clé correcte
+aligne les cinq jonctions sur la même ligne de césure, tandis qu'une
+clé absente ou incorrecte laisse des jonctions décalées. Le mécanisme
+interne s'anime par interpolation amortie avant de se stabiliser, en
+respectant la veille GPU du rendu mobile.
+
+La caméra, la leçon « Aligner », les visites guidées et la simulation
+d'origine restent inchangées. Tests unitaires dédiés aux cinq jonctions,
+aux ressorts et aux états mal alignés.
+Android versionCode 34.
