@@ -1170,6 +1170,16 @@ export function createObjectViewer(container,id){
   const progress=document.createElement("span");
   progress.className="three-tour-counter";
   progress.setAttribute("aria-live","polite");
+  const progressTrack=document.createElement("div");
+  progressTrack.className="three-tour-progress";
+  progressTrack.setAttribute("role","progressbar");
+  progressTrack.setAttribute("aria-label","Progression de la visite des pièces");
+  progressTrack.setAttribute("aria-valuemin","0");
+  progressTrack.setAttribute("aria-valuemax",String(points.length));
+  progressTrack.setAttribute("aria-valuenow","0");
+  const progressFill=document.createElement("span");
+  progressFill.className="three-tour-progress-fill";
+  progressTrack.append(progressFill);
   const previous=document.createElement("button");
   previous.type="button";previous.textContent="← Précédent";
   const next=document.createElement("button");
@@ -1177,7 +1187,7 @@ export function createObjectViewer(container,id){
   const quit=document.createElement("button");
   quit.type="button";quit.textContent="Quitter la visite";
   quit.className="three-tour-quit";
-  tourBar.append(progress,previous,next,quit);
+  tourBar.append(progress,progressTrack,previous,next,quit);
   description.append(label,text,tourBar,close);
   markerLayer.append(description);
   container.append(markerLayer);
@@ -1279,6 +1289,9 @@ export function createObjectViewer(container,id){
     if(tourStep>=0){
       tourStep=index;
       progress.textContent="Étape "+(index+1)+" / "+points.length;
+      progressTrack.setAttribute("aria-valuenow",String(index+1));
+      progressTrack.setAttribute("aria-valuetext","Étape "+(index+1)+" sur "+points.length);
+      progressFill.style.width=((index+1)/points.length*100).toFixed(1)+"%";
       previous.disabled=index===0;
       next.textContent=index===points.length-1?"Terminer la visite":"Suivant →";
       close.hidden=true;
@@ -1306,6 +1319,8 @@ export function createObjectViewer(container,id){
     markerLayer.append(description);
     tourStep=-1;tourFinished=null;
     tourBar.hidden=true;close.hidden=false;
+    progressTrack.setAttribute("aria-valuenow","0");
+    progressFill.style.width="0%";
     description.hidden=true;
     partLocator.visible=false;
     delete markerLayer.dataset.selectedPart;
@@ -1335,9 +1350,16 @@ export function createObjectViewer(container,id){
   }
   close.addEventListener("click",dismissDescription);
   description.addEventListener("keydown",event=>{
-    if(event.key==="Escape"&&!description.hidden){
+    if(description.hidden)return;
+    if(event.key==="Escape"){
       event.preventDefault();
       dismissDescription();
+    }else if(tourStep>=0&&event.key==="ArrowRight"&&!event.altKey){
+      event.preventDefault();
+      tourNext();
+    }else if(tourStep>0&&event.key==="ArrowLeft"&&!event.altKey){
+      event.preventDefault();
+      focusPart(tourStep-1);
     }
   });
   const technical=(machine.shells||[]).map(mesh=>{

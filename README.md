@@ -606,3 +606,18 @@ Tests : 42 tests unitaires, scénarios Chromium sur les neuf modèles,
 navigation entre les trois étapes, retour aux visites guidées,
 réinitialisation et ergonomie Android 320/390/768 px.
 L'APK Android 0.22.0 est construit en CI avec versionCode 22.
+
+
+## Version 0.23 — progression des visites guidées 3D
+
+Les visites des trois pièces de chacun des neuf modèles possèdent
+une barre de progression visible, mise à jour avec Précédent et
+Suivant, et remise à zéro à la fermeture ou à l'achèvement.
+Les flèches gauche et droite permettent également de naviguer
+dans la visite au clavier ; Échap ferme l'explication. La
+progression demeure sous le rendu 3D sans masquer l'objet, et
+respecte la réduction d'animations du système. Les nouveaux
+parcours causaux des mécanismes de la version 0.22 sont conservés.
+
+42 tests unitaires et tous les scénarios Chromium passent.
+La CI génère l'APK Android 0.23.0 (versionCode 23).

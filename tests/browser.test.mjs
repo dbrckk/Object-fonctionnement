@@ -335,6 +335,7 @@ try{
    await app.getByRole('button',{name:"Commencer la visite guidée des pièces"}).click();
    const tour=app.locator('.three-tour-bar');
    assert.equal(await tour.locator('.three-tour-counter').innerText(),"Étape 1 / 3");
+   assert.equal(await tour.locator(".three-tour-progress").getAttribute("aria-valuenow"),"1");
    const tourBounds=await app.evaluate(()=>{
     const canvas=document.querySelector('.object-three-canvas').getBoundingClientRect();
     const info=document.querySelector('.three-part-description').getBoundingClientRect();
@@ -350,11 +351,13 @@ try{
    }
    await tour.getByRole('button',{name:"Suivant →"}).click();
    assert.equal(await tour.locator('.three-tour-counter').innerText(),"Étape 2 / 3");
+   assert.equal(await tour.locator(".three-tour-progress").getAttribute("aria-valuenow"),"2");
    await tour.getByRole('button',{name:"← Précédent"}).click();
    assert.equal(await tour.locator('.three-tour-counter').innerText(),"Étape 1 / 3");
    await tour.getByRole('button',{name:"Suivant →"}).click();
    await tour.getByRole('button',{name:"Suivant →"}).click();
    assert.equal(await tour.locator('.three-tour-counter').innerText(),"Étape 3 / 3");
+   assert.equal(await tour.locator(".three-tour-progress").getAttribute("aria-valuenow"),"3");
    await tour.getByRole('button',{name:"Terminer la visite"}).click();
    assert.equal(await app.locator('#tour-status').innerText(),"Visite guidée terminée");
    const completedTours=await app.evaluate(()=>JSON.parse(localStorage.getItem("object-fonctionnement:tours:v1")));
