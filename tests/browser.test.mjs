@@ -392,6 +392,22 @@ try{
      console.log("PASS pause, scrub, resume and restore 3D mechanism demonstration");
     }
    }
+   if(id==="washing"){
+    // At this selected drawer step the explanatory liquid stream is
+    // controlled by a static scrub, never by the live machine cycle.
+    const original=await app.frameLocator("iframe.figure-frame").locator("body")
+     .evaluate(()=>JSON.stringify(window.__st));
+    await scrub.fill("45");
+    const early=await app.locator(".object-three-canvas").screenshot();
+    await scrub.fill("79");
+    const late=await app.locator(".object-three-canvas").screenshot();
+    const difference=await changedPixelRatio(early,late);
+    assert.ok(difference>.0001,
+      "detergent and water flow must move when scrubbed: "+difference);
+    assert.equal(await app.frameLocator("iframe.figure-frame").locator("body")
+     .evaluate(()=>JSON.stringify(window.__st)),original,
+     "the detergent animation must not change the real washing program");
+   }
    if(id==="toaster"){
     await motionButton.click();
     assert.equal(await motionButton.getAttribute("data-playing"),"true");

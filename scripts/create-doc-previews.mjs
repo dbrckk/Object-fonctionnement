@@ -156,6 +156,28 @@ try{
   console.log('bicycle-valve-lesson','mechanical valve cutaway',webp.length,'bytes');
  }finally{await valveLesson.close();}
 
+
+ // A real frame of the washer's detergent flush, showing the instanced
+ // coloured liquid flowing from the closed drawer down to the drum.
+ // Captured on an Android-sized viewport directly from Chromium/Three.js.
+ const hydraulic=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:2});
+ try{
+  await hydraulic.goto(url+'/#washing',{waitUntil:'load'});
+  await hydraulic.locator('.object-three-canvas').waitFor({timeout:16000});
+  await hydraulic.getByRole('button',{name:'Comprendre le mécanisme'}).click();
+  await hydraulic.locator('[data-flow-step="1"]').click();
+  await hydraulic.waitForTimeout(570);
+  await hydraulic.locator('#mechanism-scrub').evaluate(el=>{
+   el.value='74';
+   el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  await hydraulic.waitForTimeout(200);
+  const buffer=await hydraulic.locator('.three-shell').screenshot({animations:'disabled'});
+  const webp=await sharp(buffer).resize({width:850}).webp({quality:84,effort:6}).toBuffer();
+  await writeFile(path.join(folder,'washer-hydraulics-lesson.webp'),webp);
+  console.log('washer-hydraulics-lesson','detergent/water cutaway',webp.length,'bytes');
+ }finally{await hydraulic.close();}
+
 }finally{
  if(browser)await browser.close();
  server.kill('SIGTERM');

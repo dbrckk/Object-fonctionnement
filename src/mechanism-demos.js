@@ -46,7 +46,10 @@ const DEMOS=Object.freeze({
  ],
  washing:[
   t=>({run:false,prog:Math.min(2,Math.floor(t*3)),drawer:0,door:0,paused:false}),
-  t=>({run:false,prog:0,drawer:smooth(t),door:0,paused:false}),
+  // The closed drawer is flushed in the wash circuit; the live
+  // simulation remains untouched while the learner scrubs this stage.
+  t=>({run:false,prog:0,drawer:1-smooth(t/.36),door:0,
+    soapLvl:1,hydraulicDemo:t,paused:false}),
   t=>({run:true,paused:false,prog:0,tau:2.7+t*1.5,laundry:"drum",drawer:0,door:0})
  ],
  vending:[

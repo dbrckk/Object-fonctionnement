@@ -764,3 +764,29 @@ Captures réelles de la nouvelle version :
 [Clapet antiretour pendant la leçon](docs/previews/bicycle-valve-lesson.webp).
 
 Android versionCode 31.
+
+
+## Version 0.32 — circuit hydraulique et lessive du lave-linge
+
+La vue 3D de la machine à laver représente les trajets d'eau et de
+lessive depuis le tiroir jusqu'au tambour, et celui de l'eau évacuée
+vers la vidange. Les conduites transparentes sont **schématiques**,
+et non le plan technique exact d'un appareil commercial. Les
+gouttelettes bleues, les grains ambrés de lessive et le flux de vidange
+sont rendus en **trois lots InstancedMesh** pour limiter les appels GPU.
+
+Les états suivent directement les phases du programme ColorFigures :
+- remplissage : eau entrante, lessive si une dose a été ajoutée ;
+- vidange : eau sortante jusqu'à la fin de l'évacuation ;
+- arrêt, pause ou essorage à sec : aucun flux en mouvement.
+
+La deuxième étape de « Comprendre le mécanisme » illustre la fermeture
+du tiroir, puis le passage de l'eau et de la lessive sans démarrer
+ni modifier réellement la simulation. La position des particules
+lors de l'exploration image par image est déterministe.
+
+La capture [Leçon hydraulique du lave-linge](docs/previews/washer-hydraulics-lesson.webp)
+a été réalisée directement dans le modèle 3D, en format téléphone.
+
+53 tests unitaires et les tests navigateur Chromium sont passés.
+Android versionCode 32.

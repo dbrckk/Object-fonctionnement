@@ -7,6 +7,7 @@ import {OrbitControls} from "three/addons/controls/OrbitControls.js";
 import {graphicsProfile,validGraphicsMode} from "./graphics-quality.js";
 import {RoundedBoxGeometry} from "three/addons/geometries/RoundedBoxGeometry.js";
 import {lockMechanics,washerMechanics,vendingMechanics} from "./mechanics-state.js";
+import {washerHydraulicState} from "./washer-hydraulics.js";
 import {getObjectParts} from "./part-annotations.js";
 import {getMechanismPath} from "./mechanism-paths.js";
 import {bicycleValveMotion} from "./check-valve.js";
@@ -791,9 +792,71 @@ function makeWashing(root){
  cylinder(drain,.12,.12,.06,mats.charcoal).rotation.x=Math.PI/2;
  for(let i=0;i<5;i++)sphere(drain,.015,mats.stainless,Math.cos(i*2*Math.PI/5)*.065,Math.sin(i*2*Math.PI/5)*.065,.042);
  const suds=Array.from({length:6},(_,i)=>sphere(root,.034,steamMaterial,-.38+i*.14,1.20,.97));
+ // Transparent diagnostic cutaway: draw the real functional sequence
+ // "water inlet -> detergent drawer -> drum -> drain outlet" on the
+ // accessible front of the model. It is schematic, not actual plumbing.
+ const inletPath=new THREE.CatmullRomCurve3([
+  [-.73,2.53,.84],[-.73,2.38,.94],[-.66,2.20,.99],
+  [-.38,2.03,1.01],[-.24,1.68,1.02],[.04,1.52,1.00]
+ ].map(p=>new THREE.Vector3(...p)));
+ const drainPath=new THREE.CatmullRomCurve3([
+  [.20,1.10,1.01],[.50,.94,.99],[.64,.68,.91],
+  [.77,.46,.87],[.85,.42,.84]
+ ].map(p=>new THREE.Vector3(...p)));
+ const inletGlass=material({color:0xa1e3ec,roughness:.18,transparent:true,
+  opacity:.30,depthWrite:false});
+ const drainGlass=material({color:0x70bacf,roughness:.18,transparent:true,
+  opacity:.32,depthWrite:false});
+ function diagnosticHose(curve,mat){
+  const tube=new THREE.Mesh(new THREE.TubeGeometry(curve,48,.024,6,false),mat);
+  tube.castShadow=false;
+  root.add(tube);
+ }
+ diagnosticHose(inletPath,inletGlass);
+ diagnosticHose(drainPath,drainGlass);
+ const waterFlowMat=material({color:0x59c9e9,roughness:.2,
+  emissive:0x2387ad,emissiveIntensity:.27});
+ const soapFlowMat=material({color:0xf7de91,roughness:.3,
+  emissive:0xa66b2c,emissiveIntensity:.23});
+ const outletFlowMat=material({color:0x70c8df,roughness:.24,
+  emissive:0x276b95,emissiveIntensity:.16});
+ const flowShape=new THREE.SphereGeometry(.031,10,7);
+ function makeFlow(count,mat){
+  const particles=new THREE.InstancedMesh(flowShape,mat,count);
+  particles.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  particles.frustumCulled=false;
+  particles.castShadow=false;
+  particles.visible=false;
+  root.add(particles);
+  return particles;
+ }
+ const inletBeads=makeFlow(7,waterFlowMat);
+ const soapBeads=makeFlow(4,soapFlowMat);
+ const drainBeads=makeFlow(6,outletFlowMat);
+ const beadTransform=new THREE.Object3D();
+ function moveFlow(mesh,curve,enabled,clock,speed,phase=0){
+  mesh.visible=enabled;
+  if(!enabled)return;
+  for(let i=0;i<mesh.count;i++){
+   const t=(clock*speed+(i+phase)/mesh.count)%1;
+   beadTransform.position.copy(curve.getPoint(t));
+   beadTransform.scale.setScalar(.65+.35*Math.sin(t*Math.PI));
+   beadTransform.updateMatrix();
+   mesh.setMatrixAt(i,beadTransform.matrix);
+  }
+  mesh.instanceMatrix.needsUpdate=true;
+ }
  let angle=0;
  return {shells:[body],update(s,dt,time){
   const m=washerMechanics(s);
+  const hydraulics=washerHydraulicState(s);
+  // A scrubbed lesson must be reproducible at the same slider value,
+  // rather than changing with wall-clock time or waking the idle GPU.
+  const flowTime=Number.isFinite(s.hydraulicDemo)
+   ?s.hydraulicDemo*3.6:time;
+  moveFlow(inletBeads,inletPath,hydraulics.intake,flowTime,.8);
+  moveFlow(soapBeads,inletPath,hydraulics.detergent,flowTime,.52,1.75);
+  moveFlow(drainBeads,drainPath,hydraulics.drain,flowTime,1.1);
   angle+=m.speed*dt;
   drum.rotation.z=angle;
   garments.visible=m.hasLaundry;
