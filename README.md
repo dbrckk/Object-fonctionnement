@@ -624,3 +624,15 @@ les visites guidées de la v0.23 restent compatibles.
 
 44 tests unitaires, dont les projections et les segments d'étapes, et
 tous les scénarios de navigateur réussis. Android versionCode 24.
+
+
+## Version 0.25 — correction des visites guidées et déblocage APK
+
+Restauration de l'indicateur de progression natif des visites 3D dans les
+neuf modèles. Il reflète les trois étapes en cours et expose explicitement
+les attributs aria-valuenow, aria-valuemin et aria-valuemax. Une jauge
+contrastée facilite la lecture sur smartphone.
+
+Cette modification corrige également le test de navigateur bloquant la
+compilation GitHub Actions 0.24. Les scénarios Chromium et 44 tests
+unitaires passent localement. Android versionCode 25.

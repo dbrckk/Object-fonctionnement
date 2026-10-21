@@ -1165,6 +1165,15 @@ export function createObjectViewer(container,id){
   const progress=document.createElement("span");
   progress.className="three-tour-counter";
   progress.setAttribute("aria-live","polite");
+  const tourProgress=document.createElement("progress");
+  tourProgress.className="three-tour-progress";
+  tourProgress.max=points.length;
+  tourProgress.value=0;
+  tourProgress.setAttribute("role","progressbar");
+  tourProgress.setAttribute("aria-valuemin","0");
+  tourProgress.setAttribute("aria-valuemax",String(points.length));
+  tourProgress.setAttribute("aria-valuenow","0");
+  tourProgress.setAttribute("aria-label","Progression de la visite guidée");
   const previous=document.createElement("button");
   previous.type="button";previous.textContent="← Précédent";
   const next=document.createElement("button");
@@ -1172,7 +1181,7 @@ export function createObjectViewer(container,id){
   const quit=document.createElement("button");
   quit.type="button";quit.textContent="Quitter la visite";
   quit.className="three-tour-quit";
-  tourBar.append(progress,previous,next,quit);
+  tourBar.append(progress,tourProgress,previous,next,quit);
   description.append(label,text,tourBar,close);
   markerLayer.append(description);
   container.append(markerLayer);
@@ -1274,6 +1283,8 @@ export function createObjectViewer(container,id){
     if(tourStep>=0){
       tourStep=index;
       progress.textContent="Étape "+(index+1)+" / "+points.length;
+      tourProgress.value=index+1;
+      tourProgress.setAttribute("aria-valuenow",String(index+1));
       previous.disabled=index===0;
       next.textContent=index===points.length-1?"Terminer la visite":"Suivant →";
       close.hidden=true;
