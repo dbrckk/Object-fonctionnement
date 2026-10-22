@@ -9,8 +9,8 @@ const wave=t=>Math.sin(Math.PI*2*t);
 const smooth=t=>{const x=clamp(t);return x*x*(3-2*x);};
 const DEMOS=Object.freeze({
  kettle:[
-  t=>({water:.74,hot:.30+.6*smooth(t),heating:true,steam:.03}),
-  t=>({water:.75,hot:.35+.65*smooth(t),heating:true,steam:.12+.55*smooth(t)}),
+  t=>({water:.74,hot:.30+.6*smooth(t),heating:true,steam:.03,bubblePhase:t}),
+  t=>({water:.75,hot:.35+.65*smooth(t),heating:true,steam:.12+.55*smooth(t),bubblePhase:t}),
   null // Pouring requires tilting a real vessel; this model cannot do that.
  ],
  toaster:[

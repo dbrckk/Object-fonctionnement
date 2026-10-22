@@ -12,6 +12,7 @@ import {getObjectParts} from "./part-annotations.js";
 import {getMechanismPath} from "./mechanism-paths.js";
 import {LOCK_SHEAR_Y,lockPinTarget,lockPinsAreAligned} from "./lock-pins.js";
 import {bicycleValveMotion} from "./check-valve.js";
+import {KETTLE_BUBBLE_COUNT,kettleBubbleStrength,kettleBubblePoint} from "./kettle-thermals.js";
 import {hasMechanismDemo,mechanismDemoState,MECHANISM_DEMO_DURATION_MS} from "./mechanism-demos.js";
 import {flowLinkGeometry,viewportFlowPoint} from "./flow-layout.js";
 import {VENDING_PRODUCT_ROWS,vendingProduct,vendingProductFromTray,feederRotation,vendingDropPose,vendingScreenState} from "./vending-visuals.js";
@@ -224,6 +225,23 @@ function makeKettle(root){
  block(root,.37,.91,.045,mats.dark,.1,1.05,.662);
  block(root,.31,.85,.055,frosted,.1,1.05,.696);
  const visibleWater=block(root,.25,.79,.06,liquid,.1,.86,.745);
+ // Instanced bubbles give the otherwise opaque kettle a readable
+ // heating sequence in its front sight glass. One draw call for all
+ // particles; the mesh disappears entirely while cool or empty.
+ const bubbleGeometry=new THREE.SphereGeometry(1,7,5);
+ const bubbleMaterial=new THREE.MeshBasicMaterial({
+  color:0xe5fbff,transparent:true,opacity:.91,depthWrite:false
+ });
+ const bubbles=new THREE.InstancedMesh(
+  bubbleGeometry,bubbleMaterial,KETTLE_BUBBLE_COUNT
+ );
+ bubbles.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+ bubbles.frustumCulled=false;
+ bubbles.castShadow=false;
+ bubbles.visible=false;
+ bubbles.renderOrder=4;
+ root.add(bubbles);
+ const bubbleTransform=new THREE.Object3D();
  for(let i=0;i<5;i++){
   const y=.78+i*.135;
   rod(root,[.22,y,.66],[.29,y,.66],.008,mats.stainless);
@@ -247,6 +265,21 @@ function makeKettle(root){
   visibleWater.scale.y=Math.max(.005,height/.79);
   visibleWater.position.y=.655+height/2;
   const hot=truncate(s.hot,0,1);
+  const strength=kettleBubbleStrength(s);
+  bubbles.visible=strength>.001;
+  if(bubbles.visible){
+   // A scrubbed educational frame uses its own timeline, independent
+   // of wall-clock time; paused previews don't keep waking the GPU.
+   const bubbleClock=Number.isFinite(s.bubblePhase)?s.bubblePhase*4:time;
+   for(let i=0;i<KETTLE_BUBBLE_COUNT;i++){
+    const point=kettleBubblePoint(i,bubbleClock,water,strength);
+    bubbleTransform.position.set(point.x,point.y,point.z);
+    bubbleTransform.scale.setScalar(point.radius);
+    bubbleTransform.updateMatrix();
+    bubbles.setMatrixAt(i,bubbleTransform.matrix);
+   }
+   bubbles.instanceMatrix.needsUpdate=true;
+  }
   heaterMaterial.emissiveIntensity=s.heating?.35+hot*1.25:.035;
   ledMat.emissiveIntensity=s.heating?1.35:.06;
   const vapor=truncate((s.heating?hot*.92:0)+Number(s.steam||0),0,1);

@@ -320,6 +320,21 @@ try{
      "incorrect movement availability at step 2 of "+id);
    assert.equal(await scrubRow.isVisible(),true,
      "unsupported mechanical steps should not offer a fake scrubber: "+id);
+   if(id==="kettle"){
+    // At the same 3D camera angle, hot water displays rising bubbles
+    // in its gauge; the paused slider is deterministic and read-only.
+    const original=await app.frameLocator("iframe.figure-frame").locator("body")
+     .evaluate(()=>JSON.stringify(window.__st));
+    await app.waitForTimeout(500);
+    await scrub.fill("0");
+    const cold=await app.locator(".object-three-canvas").screenshot();
+    await scrub.fill("80");
+    const boiling=await app.locator(".object-three-canvas").screenshot();
+    const delta=await changedPixelRatio(cold,boiling);
+    assert.ok(delta>.0001,"kettle convection lesson did not render: "+delta);
+    assert.equal(await app.frameLocator("iframe.figure-frame").locator("body")
+     .evaluate(()=>JSON.stringify(window.__st)),original);
+   }
    if(id==="bicycle"){
     const original=await app.frameLocator("iframe.figure-frame").locator("body")
      .evaluate(()=>JSON.stringify(window.__st));

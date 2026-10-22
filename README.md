@@ -819,3 +819,25 @@ La caméra, la leçon « Aligner », les visites guidées et la simulation
 d'origine restent inchangées. Tests unitaires dédiés aux cinq jonctions,
 aux ressorts et aux états mal alignés.
 Android versionCode 34.
+
+
+## Version 0.35 — convection visible dans la bouilloire
+
+Le niveau d'eau externe de la bouilloire 3D montre désormais de petites
+bulles qui remontent lorsque la résistance chauffe suffisamment.
+Les 22 particules sont groupées dans **un seul mesh instancié**,
+sans téléchargements ni animation résiduelle à l'arrêt.
+
+L'intensité dépend du niveau d'eau, de l'état de chauffe et de la
+température simulée. À froid, à vide et avec la résistance éteinte,
+l'indicateur de convection est masqué.
+
+Les deux premières étapes du parcours « Comprendre le mécanisme »
+peuvent montrer ce mouvement. Le curseur d'inspection reste entièrement
+hors ligne : une même position correspond à la même image, sans toucher
+aux commandes de la simulation d'origine.
+
+[Capture réelle de la leçon sur Android 390 px](docs/previews/kettle-boiling-lesson.webp).
+
+Version Android 0.35.0, versionCode 35. Nouveaux tests de garde
+thermique, de coordonnées et de visualisation par étapes.

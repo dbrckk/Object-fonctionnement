@@ -178,6 +178,27 @@ try{
   console.log('washer-hydraulics-lesson','detergent/water cutaway',webp.length,'bytes');
  }finally{await hydraulic.close();}
 
+
+ // An authentic Android-size screenshot of the kettle's hotter extraction
+ // phase, paused at one stable educational frame with visible water bubbles.
+ const thermal=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:2});
+ try{
+  await thermal.goto(url+'/#kettle',{waitUntil:'load'});
+  await thermal.locator('.object-three-canvas').waitFor({timeout:16000});
+  await thermal.getByRole('button',{name:'Comprendre le mécanisme'}).click();
+  await thermal.locator('[data-flow-step="1"]').click();
+  await thermal.waitForTimeout(600);
+  await thermal.locator('#mechanism-scrub').evaluate(el=>{
+   el.value='80';
+   el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  await thermal.waitForTimeout(180);
+  const buffer=await thermal.locator('.three-shell').screenshot({animations:'disabled'});
+  const webp=await sharp(buffer).resize({width:850}).webp({quality:85,effort:6}).toBuffer();
+  await writeFile(path.join(folder,'kettle-boiling-lesson.webp'),webp);
+  console.log('kettle-boiling-lesson','actual paused heating lesson screenshot',webp.length,'bytes');
+ }finally{await thermal.close();}
+
 }finally{
  if(browser)await browser.close();
  server.kill('SIGTERM');
