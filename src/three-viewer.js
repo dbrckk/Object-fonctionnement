@@ -1951,7 +1951,7 @@ export function createObjectViewer(container,id){
   requestFrame();
   return {
     focusVendingControls(){
-      if(id!=="vending"||disposed||!active)return false;
+      if(id!=="vending"||disposed)return false;
       if(flowOpen)toggleMechanismPath(false);
       endTour(false);
       showParts=false;markerLayer.hidden=true;
@@ -1965,7 +1965,9 @@ export function createObjectViewer(container,id){
       // The lower pickup door remains accessible through the panel below.
       const focus=new THREE.Vector3(.83,1.87,.82);
       const finishCamera=focus.clone().add(new THREE.Vector3(0,0,1.55));
-      if(motionReduced){
+      if(motionReduced||!active){
+        // Toolbar may be visible while canvas is off screen on Android.
+        // Set the camera immediately so it is ready when scrolled into view.
         controls.target.copy(focus);camera.position.copy(finishCamera);
         controls.update();
       }else{
