@@ -889,9 +889,9 @@ try{
    await zoom.click();
    assert.equal(await zoom.getAttribute("aria-pressed"),"true");
    await app.waitForTimeout(800); // camera macro transition
-   const canvas=app.locator(".object-three-canvas");
+   const vendingTouchCanvas=app.locator(".object-three-canvas");
    const hitModel=async(x,y,z)=>{
-    const box=await canvas.boundingBox();
+    const box=await vendingTouchCanvas.boundingBox();
     assert.ok(box,"vending 3D canvas is not rendered");
     const camera=new THREE.PerspectiveCamera(34,box.width/box.height,.1,90);
     camera.position.set(.83,1.87,.82+1.55);
@@ -900,7 +900,7 @@ try{
     const pixel={x:(ndc.x+1)*box.width/2,y:(1-ndc.y)*box.height/2};
     assert.ok(pixel.x>0&&pixel.x<box.width&&pixel.y>0&&pixel.y<box.height,
       "physical control projected outside mobile canvas");
-    await canvas.click({position:pixel});
+    await vendingTouchCanvas.click({position:pixel});
     return {x:box.x+pixel.x,y:box.y+pixel.y};
    };
    // Three literal taps on the 3D coin slot credit the *sandbox controller*.
