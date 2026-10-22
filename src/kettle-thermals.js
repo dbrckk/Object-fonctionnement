@@ -1,7 +1,7 @@
 // Educational convection/bubble indicator, constrained to the external
 // water gauge. This is a schematic visualization, not a temperature sensor.
 // Every point is a pure function so scrubbing a lesson is reproducible.
-export const KETTLE_BUBBLE_COUNT=22;
+export const KETTLE_BUBBLE_COUNT=30;
 const clamp=n=>Math.max(0,Math.min(1,Number.isFinite(n)?n:0));
 export function kettleBubbleStrength(state={}){
  const water=clamp(Number(state.water)||0);
@@ -22,6 +22,8 @@ export function kettleBubblePoint(index,time,water,strength){
  const x=.10+channel*.064+drift;
  const y=.655+Math.max(.017,.75*level-.028)*progress;
  const z=.785+.004*(index%3);
- const radius=(.009+.010*(index%4)/3)*(0.45+0.55*heat);
+ // Legible at 320px Android widths without leaving the narrow gauge.
+ // The previous 9–19mm schematic spheres were lost after downsampling.
+ const radius=(.015+.012*(index%4)/3)*(0.55+0.45*heat);
  return {x,y,z,radius,progress};
 }

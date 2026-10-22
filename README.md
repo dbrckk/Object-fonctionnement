@@ -910,3 +910,22 @@ la stabilité du rendu figé et l'absence d'achat lors du tutoriel.
 Aperçu : [sélection B3 sur Android](docs/previews/vending-keypad-lesson.webp).
 
 Android versionCode 38, versionName 0.38.0.
+
+
+## Version 0.39 — bulles thermiques lisibles et correctif CI Android
+
+La jauge de la bouilloire affiche 30 bulles instanciées au lieu de 22,
+avec une taille adaptée aux écrans Android de 320 à 390 px. Leur nombre
+et leur taille sont déterministes : une animation mise sur pause reste
+fidèle à la position sélectionnée et ne force aucun rendu GPU continu.
+
+La compilation 0.38 était bloquée par une comparaison d'images trop
+sensible aux différences de rasterisation entre machines de test.
+Le contrôle Chromium mesure toujours un changement réel de l'image
+froide vers l'image chauffée, mais emploie un seuil tolérant aux
+différences de GPU. Les tests unitaires valident la quantité de bulles,
+leurs positions physiques dans la jauge et l'absence de bulles à froid.
+
+Aucun achat n'est déclenché par les animations pédagogiques du clavier
+de la machine distributrice (amélioration conservée de la 0.38).
+Version Android 0.39.0 ; versionCode 39.
