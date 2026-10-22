@@ -345,6 +345,14 @@ footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
 .mechanism-cutaway-row small{color:#506977;font-size:.74rem;line-height:1.35}
 
 
+/* Physical 3D command zoom is optional; the regular controls stay accessible. */
+#three-vending-zoom[aria-pressed="true"]{background:#c2ede3;border-color:#267c77;
+ color:#174d51}
+#three-vending-zoom:focus-visible{outline:3px solid #d78a52;outline-offset:2px}
+.vending-model-tip{margin:0;padding:11px 14px;background:#eaf6f2;
+ color:#254f5b;border-top:1px solid #a4cbc2;font-size:.79rem;line-height:1.5}
+.vending-model-tip[hidden]{display:none}
+#three-mount[data-vending-touch="on"] canvas{cursor:crosshair}
 /* Native-sized controls for the genuine vending controller in the 3D view.
    The iframe is sandboxed and still owns every transaction and coin. */
 .vending3d-panel{border-top:1px solid #c4dadd;background:#f5faf8;

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
+import * as THREE from 'three';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const HOST=process.env.TEST_BASE_URL ?? 'http://127.0.0.1:4174';
@@ -882,6 +883,63 @@ try{
       setTimeout(poll,30);
      };poll();
     }));
+   // Physical model interaction: use projected positions of the actual
+   // procedural meshes, not page-overlay buttons or synthetic sandbox edits.
+   const zoom=app.locator("#three-vending-zoom");
+   await zoom.click();
+   assert.equal(await zoom.getAttribute("aria-pressed"),"true");
+   const vendingTouchCanvas=app.locator(".object-three-canvas");
+   await vendingTouchCanvas.scrollIntoViewIfNeeded();
+   await app.waitForTimeout(800); // ensure camera transition after canvas reappears
+   const hitModel=async(x,y,z)=>{
+    const box=await vendingTouchCanvas.boundingBox();
+    assert.ok(box,"vending 3D canvas is not rendered");
+    const camera=new THREE.PerspectiveCamera(34,box.width/box.height,.1,90);
+    camera.position.set(.83,1.87,.82+1.55);
+    camera.lookAt(.83,1.87,.82);camera.updateMatrixWorld();
+    const ndc=new THREE.Vector3(x,y,z).project(camera);
+    const pixel={x:(ndc.x+1)*box.width/2,y:(1-ndc.y)*box.height/2};
+    assert.ok(pixel.x>0&&pixel.x<box.width&&pixel.y>0&&pixel.y<box.height,
+      "physical control projected outside mobile canvas");
+    await vendingTouchCanvas.click({position:pixel});
+    return {x:box.x+pixel.x,y:box.y+pixel.y};
+   };
+   // Three literal taps on the 3D coin slot credit the *sandbox controller*.
+   for(let i=0;i<3;i++)await hitModel(.81,2.18,.84);
+   await app.frameLocator("iframe.figure-frame").locator("body")
+    .evaluate(()=>new Promise((resolve,reject)=>{
+     const limit=Date.now()+2500;
+     const poll=()=>{
+      if(window.__st.credit===1.5)return resolve();
+      if(Date.now()>limit)return reject(Error("3D coin slot did not credit 1.50"));
+      setTimeout(poll,25);
+     };poll();
+    }));
+   await hitModel(.755,1.84,.83); // physical B key
+   await hitModel(.907,1.70,.83); // physical 3 key
+   await app.frameLocator("iframe.figure-frame").locator("body")
+    .evaluate(()=>new Promise((resolve,reject)=>{
+     const limit=Date.now()+4000;
+     const poll=()=>{
+      const s=window.__st;
+      if(s.stock[1][2]===1&&s.credit===0&&s.drop?.code==="B3")return resolve();
+      if(Date.now()>limit)return reject(Error("3D mesh keys B and 3 did not dispense B3"));
+      setTimeout(poll,25);
+     };poll();
+    }));
+   // Swipes rotate the model but must not count as an additional coin.
+   const coinPoint=await hitModel(.81,2.18,.84);
+   await app.waitForTimeout(220);
+   assert.equal(JSON.parse(await controllerState()).credit,.5);
+   await app.mouse.move(coinPoint.x,coinPoint.y);
+   await app.mouse.down();
+   await app.mouse.move(coinPoint.x+70,coinPoint.y+25,{steps:5});
+   await app.mouse.up();
+   await app.waitForTimeout(220);
+   assert.equal(JSON.parse(await controllerState()).credit,.5,
+    "dragging the vending model must never mint another coin");
+   await zoom.click();
+   assert.equal(await zoom.getAttribute("aria-pressed"),"false");
    await app.getByRole('button',{name:"Comprendre le mécanisme"}).click();
    assert.equal(await fields.evaluate(el=>el.disabled),true,
     "real purchases must be blocked during the simulated 3D lesson");
