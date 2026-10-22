@@ -296,6 +296,39 @@ try{
      "small mechanism touch target: "+id);
    assert.ok(flowBounds.scroll<=flowBounds.client+1,
      "mechanism panel causes horizontal overflow: "+id);
+    if(id==="flashlight"){
+     // The new battery lesson displays the cells through a transparent
+     // tube; its pulse/contacts cannot start current in an open circuit.
+     const scene=app.locator(".object-three-canvas");
+     const original=await app.frameLocator("iframe.figure-frame").locator("body")
+      .evaluate(()=>JSON.stringify(window.__st));
+     await app.waitForTimeout(550);
+     const closed=await scene.screenshot();
+     assert.equal(await flowPanel.locator("#mechanism-demo").isEnabled(),true);
+     await flowPanel.locator("#mechanism-scrub").fill("25");
+     await app.waitForTimeout(130);
+     const cells=await scene.screenshot();
+     const cutawayDelta=await changedPixelRatio(closed,cells);
+     assert.ok(cutawayDelta>.00005,
+       "battery teaching step did not reveal physical cells: "+cutawayDelta);
+     await flowPanel.locator('[data-flow-step="1"]').click();
+     await app.waitForTimeout(460);
+     await flowPanel.locator("#mechanism-scrub").fill("0");
+     await app.waitForTimeout(130); // finish the static WebGL redraw
+     const off=await scene.screenshot();
+     await flowPanel.locator("#mechanism-scrub").fill("70");
+     await app.waitForTimeout(140);
+     const on=await scene.screenshot();
+     const poweredDelta=await changedPixelRatio(off,on);
+     // Only the local contact and cue may be in view while the lesson
+     // camera is zoomed on the switch rather than the forward lamp.
+     assert.ok(poweredDelta>.00007,
+       "the physical switch / lamp circuit did not visibly energize: "+poweredDelta);
+     assert.equal(await app.frameLocator("iframe.figure-frame").locator("body")
+      .evaluate(()=>JSON.stringify(window.__st)),original,
+      "flashlight circuit preview mutated original 2D controls");
+     await flowPanel.locator('[data-flow-step="0"]').click();
+    }
    if(id==="kettle"){
     const svgNode=app.locator('.mechanism-flow-node[data-flow-node="2"]');
     assert.equal(await svgNode.getAttribute("role"),"button");

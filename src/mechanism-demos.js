@@ -40,9 +40,12 @@ const DEMOS=Object.freeze({
   t=>({water:.40,grounds:true,coffee:.22+.60*smooth(t),brewing:true})
  ],
  flashlight:[
-  null, // Batteries don't physically move during normal operation.
-  t=>({on:t>.23,glow:t>.23?.72:0,brightness:1}),
-  t=>({on:true,glow:.32+.68*smooth(t),brightness:2})
+  // Cells store chemical energy while the open switch blocks current.
+  // Their contact markers pulse to highlight the energy source; no
+  // electrical charge circulates until the circuit is closed.
+  t=>({on:false,open:true,glow:0,batteryPulse:t,circuitPhase:0}),
+  t=>({on:t>.23,open:false,glow:t>.23?.72:0,brightness:1,circuitPhase:t}),
+  t=>({on:true,open:false,glow:.32+.68*smooth(t),brightness:2,circuitPhase:t})
  ],
  washing:[
   t=>({run:false,prog:Math.min(2,Math.floor(t*3)),drawer:0,door:0,paused:false}),

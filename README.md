@@ -841,3 +841,34 @@ aux commandes de la simulation d'origine.
 
 Version Android 0.35.0, versionCode 35. Nouveaux tests de garde
 thermique, de coordonnées et de visualisation par étapes.
+
+
+## Version 0.36 — circuit électrique visible dans la lampe de poche
+
+La lampe de poche 3D possède désormais un compartiment transparent
+montrant **deux piles en série**, leurs bornes, le bouchon arrière
+amovible et un contact métallique qui ouvre ou ferme réellement
+la représentation mécanique de l'interrupteur. Le témoin et les
+particules d'électricité ne s'allument que lorsque la lampe est
+en marche **et** le compartiment refermé.
+
+Les 12 marqueurs du circuit utilisent un unique mesh instancié.
+Dans le modèle normal, leur position est fixe afin de laisser le
+GPU se reposer ; la progression circule uniquement lorsqu'une
+démonstration pédagogique est lancée ou déplacée image par image.
+Ces marqueurs représentent le trajet **schématique** du courant,
+pas la trajectoire réelle d'électrons individuels.
+
+La première étape « Alimenter » est désormais animée : elle montre
+le compartiment ouvert et les bornes des piles, mais **aucun courant
+circulant lorsque l'interrupteur est ouvert**. Les deux autres
+étapes illustrent le contact qui se ferme et la LED qui éclaire,
+sans modifier la simulation ColorFigures sous-jacente.
+
+Captures Chromium réelles en format Android :
+[Deux piles et compartiment ouvert](docs/previews/flashlight-batteries-lesson.webp) ·
+[Interrupteur et circuit fermé](docs/previews/flashlight-switch-circuit.webp).
+
+**25 démonstrations** parmi les neuf objets, tests du circuit électrique,
+tests de pixels WebGL et contrôles de non-mutation de la simulation 2D.
+Version Android 0.36.0, versionCode 36.

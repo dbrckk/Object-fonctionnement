@@ -36,7 +36,7 @@ export const MECHANISM_PATHS=Object.freeze({
   ["carafe","Recueillir","La boisson filtrée s’écoule dans la verseuse."]
  ],
  flashlight:[
-  ["cells","Alimenter","Les piles fournissent l’énergie électrique."],
+  ["cells","Alimenter","Deux piles en série fournissent une tension ; sans circuit fermé, la LED ne reçoit pas de courant."],
   ["switch","Fermer le circuit","L’interrupteur permet au courant de circuler."],
   ["led","Éclairer","La LED produit la lumière, concentrée par le réflecteur."]
  ],

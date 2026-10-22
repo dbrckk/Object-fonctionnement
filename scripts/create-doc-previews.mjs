@@ -199,6 +199,29 @@ try{
   console.log('kettle-boiling-lesson','actual paused heating lesson screenshot',webp.length,'bytes');
  }finally{await thermal.close();}
 
+ // Real Android-width educational screenshots: exposed battery contacts
+ // with the rear cap opened, then the closed switch/current path.
+ for(const [step,progress,name] of [
+  [0,25,'flashlight-batteries-lesson'],
+  [1,70,'flashlight-switch-circuit']
+ ]){
+  const power=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:2});
+  try{
+   await power.goto(url+'/#flashlight',{waitUntil:'load'});
+   await power.locator('.object-three-canvas').waitFor({timeout:16000});
+   await power.getByRole('button',{name:'Comprendre le mécanisme'}).click();
+   await power.locator('[data-flow-step="'+step+'"]').click();
+   await power.waitForTimeout(600);
+   await power.locator('#mechanism-scrub').evaluate((el,value)=>{
+    el.value=String(value);el.dispatchEvent(new Event('input',{bubbles:true}));
+   },progress);
+   await power.waitForTimeout(200);
+   const buffer=await power.locator('.three-shell').screenshot({animations:'disabled'});
+   const webp=await sharp(buffer).resize({width:850}).webp({quality:85,effort:6}).toBuffer();
+   await writeFile(path.join(folder,name+'.webp'),webp);
+   console.log(name,'genuine circuit cutaway',webp.length,'bytes');
+  }finally{await power.close();}
+ }
 }finally{
  if(browser)await browser.close();
  server.kill('SIGTERM');

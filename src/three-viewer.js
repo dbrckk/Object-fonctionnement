@@ -10,6 +10,7 @@ import {lockMechanics,washerMechanics,vendingMechanics} from "./mechanics-state.
 import {washerHydraulicState} from "./washer-hydraulics.js";
 import {getObjectParts} from "./part-annotations.js";
 import {getMechanismPath} from "./mechanism-paths.js";
+import {flashlightCircuitState,flashlightChargePoint} from "./flashlight-circuit.js";
 import {LOCK_SHEAR_Y,lockPinTarget,lockPinsAreAligned} from "./lock-pins.js";
 import {bicycleValveMotion} from "./check-valve.js";
 import {KETTLE_BUBBLE_COUNT,kettleBubbleStrength,kettleBubblePoint} from "./kettle-thermals.js";
@@ -782,42 +783,126 @@ function makeCoffee(root){
 function makeFlashlight(root){
  plate(root,3.2,2.1,.12);
  const shell=group(root,0,.7,0);
- const shaft=cylinder(shell,.27,.29,1.94,mats.charcoal,0,0,0);
+ // Transparent diagnostic barrel: two correctly oriented cells are
+ // visible inside the flashlight instead of being hidden by a solid tube.
+ // Only the front/rear metal sleeves remain opaque in the normal view.
+ const tailTube=cylinder(shell,.27,.29,.18,mats.charcoal,-.88,0,0);
+ tailTube.rotation.z=Math.PI/2;
+ const shaft=cylinder(shell,.27,.29,.35,mats.charcoal,.79,0,0);
  shaft.rotation.z=Math.PI/2;
- const back=cylinder(shell,.32,.32,.24,mats.dark,-1,0,0);back.rotation.z=Math.PI/2;
+ const inspectionMat=material({color:0xbbe8ef,roughness:.14,metalness:0,
+  transparent:true,opacity:.22,depthWrite:false,side:THREE.DoubleSide});
+ const inspection=cylinder(shell,.277,.277,1.45,inspectionMat,-.09,0,0,32);
+ inspection.rotation.z=Math.PI/2;
+ inspection.castShadow=false;
+ const tailCap=group(shell,-1,0,0);
+ const back=cylinder(tailCap,.32,.32,.24,mats.dark,0,0,0);
+ back.rotation.z=Math.PI/2;
+ // Two visible cells, their positive button terminals and negative
+ // flat contacts. The cells never translate when the light is switched on.
+ const cellBlue=material({color:0x2669b6,roughness:.46,metalness:.09});
+ const cellCopper=material({color:0xe39452,roughness:.49,metalness:.11});
+ const contactMat=material({color:0xffdf83,roughness:.29,metalness:.38,
+  emissive:0xfcb940,emissiveIntensity:.10});
+ const contactMarkers=[];
+ // The first positive button meets the second cell's flat negative
+ // contact: the two cells are physically aligned in series.
+ for(const [x,skin] of [[-.48,cellBlue],[.11,cellCopper]]){
+  const battery=group(shell,x,0,0);
+  const cell=cylinder(battery,.17,.17,.56,skin);
+  cell.rotation.z=Math.PI/2;
+  const minus=cylinder(battery,.168,.168,.018,mats.stainless,-.288,0,0);
+  minus.rotation.z=Math.PI/2;
+  const plus=cylinder(battery,.069,.069,.042,brassy,.300,0,0);
+  plus.rotation.z=Math.PI/2;
+  ring(battery,.159,.012,mats.steel,.250,0,0,0,Math.PI/2);
+  // Visible small polarity indicator on the front of each cell.
+  const marker=sphere(battery,.040,contactMat,.295,.13,.13);
+  contactMarkers.push(marker);
+ }
  const hood=cylinder(shell,.46,.25,.49,mats.steel,1.1,0,0);hood.rotation.z=Math.PI/2;
  const lens=cylinder(shell,.35,.35,.07,frosted,1.34,0,0);lens.rotation.z=Math.PI/2;
  const bulb=sphere(shell,.13,glow,1.41,0,0);
- for(let i=0;i<9;i++){
-  const tread=ring(shell,.27,.014,mats.rubber,-.68+i*.11,0,0,0,Math.PI/2);
+ for(const x of [-.92,-.86,-.80,.64,.71,.78,.85]){
+  ring(shell,.275,.014,mats.rubber,x,0,0,0,Math.PI/2);
  }
  const switcher=block(shell,.33,.1,.21,mats.turquoise,-.12,.31,0);
  badge(shell,"LED",.12,.38,.04,.31,.14,"#f1ddab","#243e50");
- // Reflector and concentric lens rings give the head a physically readable
- // optical assembly even when the lamp is off.
+ // Optical reflectors remain behind the converging lens.
  const reflector=cylinder(shell,.39,.27,.045,mats.stainless,1.30,0,0);
  reflector.rotation.z=Math.PI/2;
  for(const radius of [.19,.29,.38]){
   ring(shell,radius,.012,mats.steel,1.39,0,0,0,Math.PI/2);
  }
- const bezel=ring(shell,.43,.032,mats.dark,1.37,0,0,0,Math.PI/2);
- const batteryCap=ring(shell,.32,.025,mats.steel,-1.13,0,0,0,Math.PI/2);
- // Button travel is visible, not merely a color change.
+ ring(shell,.43,.032,mats.dark,1.37,0,0,0,Math.PI/2);
+ ring(shell,.32,.025,mats.steel,-1.13,0,0,0,Math.PI/2);
  const button=block(shell,.14,.075,.16,mats.ivory,-.12,.37,0);
+ // A local power LED makes contact closure readable even when the camera
+ // is focused tightly on the switch rather than the forward light beam.
+ const switchIndicatorMat=material({color:0x173b42,emissive:0x44eacb,
+  emissiveIntensity:.04,roughness:.23,metalness:.08});
+ const switchIndicator=sphere(shell,.072,switchIndicatorMat,-.34,.39,.26);
+ // Exposed mechanical switch: a metal contact bridges two terminals
+ // only when the ColorFigures lamp is on and its compartment is closed.
+ sphere(shell,.036,mats.stainless,-.28,.27,.29);
+ sphere(shell,.036,mats.stainless,.04,.27,.29);
+ const bridge=group(shell,-.12,.27,.29);
+ rod(bridge,[-.16,0,0],[.16,0,0],.026,mats.stainless);
+ // A schematic complete electrical path is shown along the diagnostic
+ // barrel. Luminous charge markers never circulate across an open
+ // switch; their progression is only animated during the opt-in lesson.
+ const circuitCurve=new THREE.CatmullRomCurve3([
+  [-.79,-.22,.17],[-.50,-.25,.22],[.14,-.25,.23],
+  [.77,-.17,.27],[1.20,-.08,.28],[1.20,.14,.28],
+  [.63,.26,.31],[.06,.30,.31],[-.39,.26,.30],[-.76,.12,.26]
+ ].map(p=>new THREE.Vector3(...p)),true);
+ const wireMat=material({color:0x6cc4da,roughness:.34,
+  transparent:true,opacity:.65,depthWrite:false});
+ const wires=new THREE.Mesh(new THREE.TubeGeometry(circuitCurve,96,.010,5,true),wireMat);
+ shell.add(wires);wires.castShadow=false;
+ const chargeMat=new THREE.MeshBasicMaterial({
+  color:0xfff5ac,transparent:true,opacity:1,depthWrite:false
+ });
+ const charges=new THREE.InstancedMesh(new THREE.SphereGeometry(.049,7,5),chargeMat,12);
+ charges.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+ charges.frustumCulled=false;charges.castShadow=false;charges.visible=false;
+ shell.add(charges);
+ const chargeTransform=new THREE.Object3D();
  const light=new THREE.SpotLight(0xffefb4,0,8,.32,.5,1);
  light.position.set(1.45,.77,0);light.target.position.set(3,.5,0);
  root.add(light,light.target);
  const beam=group(root,1.65,.74,0);
- const cone=new THREE.Mesh(new THREE.ConeGeometry(.87,2.9,40,1,true),new THREE.MeshBasicMaterial({color:0xffe6a5,transparent:true,opacity:.12,depthWrite:false,side:THREE.DoubleSide}));
+ const cone=new THREE.Mesh(new THREE.ConeGeometry(.87,2.9,40,1,true),
+  new THREE.MeshBasicMaterial({color:0xffe6a5,transparent:true,
+  opacity:.12,depthWrite:false,side:THREE.DoubleSide}));
  cone.rotation.z=-Math.PI/2;cone.position.x=1.42;beam.add(cone);
- return {shells:[shaft],update(s){
-  const v=s.on?Math.max(.02,Number(s.glow)||.6):0;
+ return {shells:[shaft,tailTube],update(s){
+  const circuit=flashlightCircuitState(s);
+  const v=circuit.powered?Math.max(.02,Number(s.glow)||.6):0;
   light.intensity=v*(s.brightness===2?11:5);
   beam.visible=v>.01;cone.material.opacity=v*(s.brightness===2?.15:.09);
   glow.emissiveIntensity=.35+v*1.7;
-  switcher.position.y=s.on?.37:.31;
-  button.position.y=s.on?.395:.365;
-  bulb.material=s.on?glow:mats.ivory;
+  switcher.position.y=circuit.powered?.37:.31;
+  button.position.y=circuit.powered?.395:.365;
+  bridge.rotation.z=circuit.powered?0:.67;
+  tailCap.position.x=circuit.compartmentOpen?-1.31:-1;
+  contactMat.emissiveIntensity=.1+1.4*circuit.pulse;
+  switchIndicatorMat.color.set(circuit.powered?0x45f5cd:0x173b42);
+  switchIndicatorMat.emissiveIntensity=circuit.powered?2.3:.04;
+  switchIndicator.scale.setScalar(circuit.powered?1.35:.78);
+  wires.visible=circuit.powered;
+  charges.visible=circuit.powered;
+  if(charges.visible){
+   for(let i=0;i<charges.count;i++){
+    const charge=flashlightChargePoint(i,circuit.phase,charges.count);
+    chargeTransform.position.copy(circuitCurve.getPoint(charge.progress));
+    chargeTransform.scale.setScalar(charge.size);
+    chargeTransform.updateMatrix();
+    charges.setMatrixAt(i,chargeTransform.matrix);
+   }
+   charges.instanceMatrix.needsUpdate=true;
+  }
+  bulb.material=circuit.powered?glow:mats.ivory;
  }};
 }
 function makeWashing(root){

@@ -33,7 +33,7 @@ export const OBJECT_PARTS = Object.freeze({
   {id:"carafe",label:"Verseuse",position:[.49,.72,.87],detail:"La verseuse collecte le café filtré. La plaque peut rester chaude après la préparation."}
  ],
  flashlight:[
-  {id:"cells",label:"Piles",position:[-.3,.75,.14],detail:"Les piles fournissent l'énergie électrique stockée sous forme chimique."},
+  {id:"cells",label:"Piles et contacts",position:[-.35,.75,.19],detail:"Les deux piles sont en série, du contact positif à la borne négative suivante. Leur énergie chimique est disponible même interrupteur ouvert, mais le courant ne circule que si le circuit est fermé."},
   {id:"switch",label:"Interrupteur",position:[-.12,1.02,.08],detail:"L'interrupteur ferme ou ouvre le circuit d'alimentation de la LED."},
   {id:"led",label:"LED et réflecteur",position:[1.39,.73,0],detail:"La LED émet la lumière et l'optique concentre le faisceau vers l'avant."}
  ],
