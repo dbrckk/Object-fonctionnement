@@ -784,6 +784,12 @@ try{
     document.getElementById("vending3d-fields")?.disabled===false,
     {timeout:6000});
    assert.equal(await panel.locator('[data-vending-command="key"]').count(),8);
+   assert.equal(await panel.locator("[data-vending-slot]").count(),16);
+   assert.match(await panel.locator('[data-vending-slot="B3"]').innerText(),/1,50 €/);
+   assert.match(await panel.locator('[data-vending-slot="C2"]').innerText(),/2,00 €/);
+   assert.match(await panel.locator('[data-vending-slot="D4"]').innerText(),/1,00 €/);
+   assert.equal(await panel.locator('[data-vending-slot="B3"]').isDisabled(),true,
+     "no-credit direct product selection must remain disabled");
    const key=async name=>panel.getByRole("button",{name:"Touche "+name}).click();
    const controllerState=()=>app.frameLocator("iframe.figure-frame")
     .locator("body").evaluate(()=>JSON.stringify(window.__st));
@@ -807,10 +813,9 @@ try{
    await coin.click();await coin.click();await coin.click();
    await app.waitForFunction(()=>document.getElementById("vending3d-credit")
     ?.textContent.includes("1,50 €"));
-   await key("B");
-   await app.waitForFunction(()=>document.getElementById("vending3d-selected")
-    ?.textContent.includes("B"));
-   await key("3");
+   await app.waitForFunction(()=>
+     document.querySelector('[data-vending-slot="B3"]')?.disabled===false);
+   await panel.locator('[data-vending-slot="B3"]').click();
    await app.frameLocator("iframe.figure-frame").locator("body")
     .evaluate(()=>new Promise((resolve,reject)=>{
      const deadline=Date.now()+4000;
@@ -856,6 +861,9 @@ try{
    const afterSale=JSON.parse(await controllerState());
    assert.equal(afterSale.stock[1][2],2,"3D sale should consume exactly one item");
    assert.equal(afterSale.credit,0,"3D sale should charge the real controller");
+   await app.waitForFunction(()=>
+     document.querySelector('[data-vending-slot="B3"] small')?.textContent==="Ajouter 1,50 €");
+   assert.match(await panel.locator('[data-vending-slot="B3"]').innerText(),/Ajouter 1,50 €/);
 
    await coin.click();await coin.click();
    await app.waitForFunction(()=>document.getElementById("vending3d-credit")
@@ -887,7 +895,7 @@ try{
     document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),
     "real 3D controls overflow 320px Android screen");
    await app.setViewportSize({width:390,height:844});
-   console.log("PASS fully operational 3D vending keypad, coins, stock, flap, pickup and Android controls");
+   console.log("PASS 16 live-price stock-aware selectors, transactional 3D vending, and 320px Android layout");
 
    await app.goto(HOST+'/',{waitUntil:'load'});
    assert.equal(await app.locator('.tour-completed-card').count(),9);

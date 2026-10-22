@@ -29,6 +29,12 @@
   // fields, validating and bounding their size before the sandbox message.
   // We do not forward arbitrary nested state, DOM nodes, or user data.
   if(Array.isArray(window.__st.stock)){
+   // Prices originate in the original machine; never trust an arbitrary
+   // unbounded array crossing the sandbox boundary.
+   next.prices=Array.isArray(window.__st.prices)
+    ?window.__st.prices.slice(0,4).map(value=>
+      typeof value==="number"&&Number.isFinite(value)&&value>0&&value<=5?value:null)
+    :[];
    next.stock=window.__st.stock.slice(0,4).map(row=>
     Array.isArray(row)?row.slice(0,4).map(value=>
      Math.max(0,Math.min(3,Math.floor(Number(value)||0)))):[]

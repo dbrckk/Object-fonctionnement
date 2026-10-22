@@ -8,7 +8,14 @@ const clampMoney=value=>{
 };
 const money=value=>clampMoney(value).toFixed(2).replace(".",",")+" €";
 export const VENDING_COMMANDS=Object.freeze(["coin","refund","takeCoins","flap","collect"]);
+export const VENDING_SLOT_CODES=Object.freeze(
+ "ABCD".split("").flatMap(letter=>[1,2,3,4].map(number=>letter+number))
+);
 export function vendingControlCommand(action,key){
+ if(action==="select"){
+  if(typeof key!=="string"||!VENDING_SLOT_CODES.includes(key))return null;
+  return {type:"object-figure:vending-command",action:"select",code:key};
+ }
  if(action==="key"){
   if(!VENDING_KEY_LABELS.includes(key))return null;
   return {type:"object-figure:vending-command",action:"key",key};
@@ -50,4 +57,31 @@ export function vendingControlView(state={}){
   collectDisabled:!tray||flap<.96,
   keysDisabled:Boolean(drop||tray)
  };
+}
+
+/**
+ * Product availability comes only from the sandboxed machine snapshot:
+ * prices are emitted from the controller's ROWS, and stocks are the real
+ * per-slot quantities. This adapter never authorizes a transaction.
+ */
+export function vendingSlotView(state={}){
+ const s=state&&typeof state==="object"?state:{};
+ const credit=clampMoney(s.credit);
+ const busy=Boolean(s.drop||s.tray);
+ return VENDING_SLOT_CODES.map(code=>{
+  const row=code.charCodeAt(0)-65,col=Number(code[1])-1;
+  const rawPrice=s.prices?.[row];
+  const price=typeof rawPrice==="number"&&Number.isFinite(rawPrice)
+    &&rawPrice>0&&rawPrice<=5?rawPrice:null;
+  const rawStock=s.stock?.[row]?.[col];
+  const stock=Number.isInteger(rawStock)&&rawStock>=0&&rawStock<=3?rawStock:null;
+  const missing=price===null?null:Math.max(0,Math.round((price-credit)*100)/100);
+  const disabled=busy||price===null||stock===null||stock===0||missing>0;
+  const note=price===null||stock===null?"Synchronisation…":
+    stock===0?"Épuisé":busy?"Transaction en cours":
+    missing>0?"Ajouter "+money(missing):
+    stock+" en stock";
+  return {code,price,priceText:price===null?"—":money(price),
+    stock,missing,disabled,note};
+ });
 }

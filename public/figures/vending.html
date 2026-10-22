@@ -468,7 +468,7 @@ function lying(kind,col){
 
 
 /* ---------- state ---------- */
-const st = { pal:'tomato', credit:0, returned:0, sel:'', msg:'', drop:null, tray:null, press:null, flap:0, flapTarget:0,
+const st = { pal:'tomato', credit:0, returned:0, prices:ROWS.map(row=>row.price), sel:'', msg:'', drop:null, tray:null, press:null, flap:0, flapTarget:0,
              stock: ROWS.map(() => COL_Y.map(() => 3)) };
 
 /* ---------- coins in the return cup ---------- */
@@ -820,6 +820,12 @@ if(window.parent!==window)window.addEventListener("message",event=>{
  if(action==="key"){
   const digit=event.data.key;
   if(typeof digit==="string"&&/^[A-D1-4]$/.test(digit))key(digit);
+ }else if(action==="select"){
+  // Validate one two-key gesture; the same credit and stock rules apply.
+  const code=event.data.code;
+  if(typeof code==="string"&&/^[A-D][1-4]$/.test(code)&&!st.drop&&!st.tray){
+   key(code[0]);key(code[1]);
+  }
  }else if(action==="coin")coin();
  else if(action==="refund")refund();
  else if(action==="takeCoins")takeCoins();
