@@ -811,6 +811,23 @@ ui = mountFigure({
     if (tq){ const r = 'ABCD'.indexOf(tq[1]), row = ROWS[r]; st.tray = { kind:row.kind, col:row.cols[+tq[2]-1], code:tq[0] }; }
   },
 });
+// Only the embedding parent can forward actions to this sandboxed vending
+// controller. The original functions enforce payment, stock, pickup-door
+// and coin-return rules. Never accept arbitrary state assignments.
+if(window.parent!==window)window.addEventListener("message",event=>{
+ if(event.source!==window.parent||event.data?.type!=="object-figure:vending-command")return;
+ const action=event.data.action;
+ if(action==="key"){
+  const digit=event.data.key;
+  if(typeof digit==="string"&&/^[A-D1-4]$/.test(digit))key(digit);
+ }else if(action==="coin")coin();
+ else if(action==="refund")refund();
+ else if(action==="takeCoins")takeCoins();
+ else if(action==="flap")toggleFlap();
+ else if(action==="collect"){
+  if(st.tray&&st.flap>=1)collect();
+ }
+});
 </script>
 <script src="./locale-fr.js"></script><script src="./bridge.js"></script></body>
 </html>

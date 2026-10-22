@@ -343,3 +343,38 @@ footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
  border:2px solid #247481;color:#174c56}
 .mechanism-cutaway-row button:focus-visible{outline:3px solid #d68c55;outline-offset:2px}
 .mechanism-cutaway-row small{color:#506977;font-size:.74rem;line-height:1.35}
+
+
+/* Native-sized controls for the genuine vending controller in the 3D view.
+   The iframe is sandboxed and still owns every transaction and coin. */
+.vending3d-panel{border-top:1px solid #c4dadd;background:#f5faf8;
+ padding:12px 14px 15px;color:#243e4c}
+.vending3d-summary{display:flex;align-items:center;flex-wrap:wrap;gap:5px 12px;
+ font-size:.79rem;font-variant-numeric:tabular-nums}
+.vending3d-summary strong{font-size:.75rem;letter-spacing:.06em;color:#255967}
+#vending3d-status{min-height:1.5em;margin:8px 0 10px;font-size:.78rem;
+ color:#496779;line-height:1.5}
+#vending3d-fields{border:0;min-width:0;padding:0;margin:0}
+#vending3d-fields legend{font-size:.75rem;font-weight:700;margin-bottom:7px}
+.vending3d-controls-grid{display:grid;grid-template-columns:minmax(112px,.92fr) minmax(0,1.08fr);
+ gap:12px;align-items:stretch}
+.vending3d-keypad{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ grid-template-rows:repeat(4,minmax(48px,1fr));gap:6px}
+.vending3d-panel button{background:#fffdf6;color:#214357;border:1px solid #aac3cd;
+ border-radius:11px;min-height:48px;touch-action:manipulation;
+ font-size:.85rem;font-weight:750;padding:6px;line-height:1.2;
+ cursor:pointer}
+.vending3d-keypad button{font-size:1.03rem;background:#eaf6f6}
+.vending3d-panel button:focus-visible{outline:3px solid #c56d3e;outline-offset:2px}
+.vending3d-panel button:active:not(:disabled){transform:translateY(1px);background:#bfe8de}
+.vending3d-panel button:disabled{opacity:.43;cursor:default}
+.vending3d-actions{display:grid;grid-template-columns:1fr;gap:6px}
+@media(min-width:680px){
+ .vending3d-controls-grid{grid-template-columns:minmax(180px,.75fr) minmax(0,1.25fr)}
+ .vending3d-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:350px){
+ .vending3d-panel{padding:10px}
+ .vending3d-controls-grid{gap:8px;grid-template-columns:minmax(100px,.85fr) minmax(0,1.15fr)}
+ .vending3d-panel button{font-size:.73rem}
+}

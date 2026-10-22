@@ -772,6 +772,123 @@ try{
    console.log("PASS selectable cans, bottles and snacks have matching 3D pickup models");
    console.log('PASS nested vending state transport, product drop, tray and 3D flap');
 
+   // The accessible 3D controls forward commands to the same *sandboxed*
+   // ColorFigures state machine as the 2D interface. They do not directly
+   // mutate credit/stock in the parent or shortcut purchase validation.
+   await app.goto(HOST+'/#vending',{waitUntil:'load'});
+   await app.locator(".object-three-canvas").waitFor();
+   const panel=app.locator("#vending3d-controls");
+   await panel.waitFor({state:"visible"});
+   const fields=panel.locator("#vending3d-fields");
+   await app.waitForFunction(()=>
+    document.getElementById("vending3d-fields")?.disabled===false,
+    {timeout:6000});
+   assert.equal(await panel.locator('[data-vending-command="key"]').count(),8);
+   const key=async name=>panel.getByRole("button",{name:"Touche "+name}).click();
+   const controllerState=()=>app.frameLocator("iframe.figure-frame")
+    .locator("body").evaluate(()=>JSON.stringify(window.__st));
+   const fresh=JSON.parse(await controllerState());
+   assert.equal(fresh.credit,0);
+   assert.equal(fresh.stock[1][2],3);
+
+   // No credit means no purchase, despite selecting a real article code.
+   await key("B");
+   await app.waitForFunction(()=>document.getElementById("vending3d-selected")
+     ?.textContent.includes("B"));
+   await key("3");
+   await app.waitForTimeout(220);
+   const insufficient=JSON.parse(await controllerState());
+   assert.equal(insufficient.credit,0);
+   assert.equal(insufficient.stock[1][2],3);
+   assert.equal(insufficient.drop,null);
+   assert.equal(insufficient.tray,null);
+
+   const coin=panel.locator('[data-vending-command="coin"]');
+   await coin.click();await coin.click();await coin.click();
+   await app.waitForFunction(()=>document.getElementById("vending3d-credit")
+    ?.textContent.includes("1,50 €"));
+   await key("B");
+   await app.waitForFunction(()=>document.getElementById("vending3d-selected")
+    ?.textContent.includes("B"));
+   await key("3");
+   await app.frameLocator("iframe.figure-frame").locator("body")
+    .evaluate(()=>new Promise((resolve,reject)=>{
+     const deadline=Date.now()+4000;
+     const poll=()=>{
+      const s=window.__st;
+      if(s.drop?.r===1&&s.drop?.c===2&&s.stock[1][2]===2&&s.credit===0)return resolve();
+      if(Date.now()>deadline)return reject(Error("real 3D keypad failed to vend B3"));
+      setTimeout(poll,30);
+     };poll();
+    }));
+   await app.frameLocator("iframe.figure-frame").locator("body")
+    .evaluate(()=>new Promise((resolve,reject)=>{
+     const deadline=Date.now()+4500;
+     const poll=()=>{
+      const s=window.__st;
+      if(!s.drop&&s.tray?.code==="B3")return resolve();
+      if(Date.now()>deadline)return reject(Error("B3 not delivered to collection tray"));
+      setTimeout(poll,30);
+     };poll();
+    }));
+   await app.waitForFunction(()=>
+    document.getElementById("vending3d-controls")?.textContent.includes("Produit B3 prêt"));
+   await panel.locator('[data-vending-command="flap"]').click();
+   await app.frameLocator("iframe.figure-frame").locator("body")
+    .evaluate(()=>new Promise((resolve,reject)=>{
+     const deadline=Date.now()+3000;
+     const poll=()=>{
+      if(window.__st.flap>=1)return resolve();
+      if(Date.now()>deadline)return reject(Error("3D trappe did not open"));
+      setTimeout(poll,30);
+     };poll();
+    }));
+   await panel.locator('[data-vending-command="collect"]').click();
+   await app.frameLocator("iframe.figure-frame").locator("body")
+    .evaluate(()=>new Promise((resolve,reject)=>{
+     const deadline=Date.now()+1500;
+     const poll=()=>{
+      if(window.__st.tray===null)return resolve();
+      if(Date.now()>deadline)return reject(Error("3D panel did not recover B3"));
+      setTimeout(poll,30);
+     };poll();
+    }));
+   const afterSale=JSON.parse(await controllerState());
+   assert.equal(afterSale.stock[1][2],2,"3D sale should consume exactly one item");
+   assert.equal(afterSale.credit,0,"3D sale should charge the real controller");
+
+   await coin.click();await coin.click();
+   await app.waitForFunction(()=>document.getElementById("vending3d-credit")
+    ?.textContent.includes("1,00 €"));
+   await panel.locator('[data-vending-command="refund"]').click();
+   await app.waitForFunction(()=>document.getElementById("vending3d-returned")
+    ?.textContent.includes("1,00 €"));
+   assert.equal(JSON.parse(await controllerState()).credit,0);
+   await panel.locator('[data-vending-command="takeCoins"]').click();
+   await app.frameLocator("iframe.figure-frame").locator("body")
+    .evaluate(()=>new Promise((resolve,reject)=>{
+     const deadline=Date.now()+1500;
+     const poll=()=>{
+      if(window.__st.returned===0)return resolve();
+      if(Date.now()>deadline)return reject(Error("3D panel did not collect change"));
+      setTimeout(poll,30);
+     };poll();
+    }));
+   await app.getByRole('button',{name:"Comprendre le mécanisme"}).click();
+   assert.equal(await fields.evaluate(el=>el.disabled),true,
+    "real purchases must be blocked during the simulated 3D lesson");
+   assert.equal(await panel.locator('[data-vending-command="coin"]').isDisabled(),true,
+    "3D transaction buttons must not remain actionable during lessons");
+   await app.getByRole('button',{name:"Masquer le parcours"}).click();
+   await app.waitForFunction(()=>document.getElementById("vending3d-fields")?.disabled===false);
+   // Narrow Android display must never gain horizontal scrolling.
+   await app.setViewportSize({width:320,height:780});
+   assert.ok(await app.evaluate(()=>
+    document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),
+    "real 3D controls overflow 320px Android screen");
+   await app.setViewportSize({width:390,height:844});
+   console.log("PASS fully operational 3D vending keypad, coins, stock, flap, pickup and Android controls");
+
    await app.goto(HOST+'/',{waitUntil:'load'});
    assert.equal(await app.locator('.tour-completed-card').count(),9);
   assert.ok((await app.locator('.hero-stat').innerText()).includes('9 visites effectuées'));

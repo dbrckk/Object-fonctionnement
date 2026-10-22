@@ -1,6 +1,6 @@
 {
   "name": "object-fonctionnement",
-  "version": "0.39.0",
+  "version": "0.40.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,7 +13,8 @@
     "test:browser": "node tests/browser.test.mjs",
     "generate:previews": "node scripts/generate-previews.mjs",
     "android:icons": "node scripts/generate-android-icons.mjs",
-    "generate:3d-previews": "node scripts/create-doc-previews.mjs"
+    "generate:3d-previews": "node scripts/create-doc-previews.mjs",
+    "generate:vending-controls-preview": "node scripts/create-vending-control-preview.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.0",

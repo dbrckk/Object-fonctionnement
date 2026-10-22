@@ -929,3 +929,33 @@ leurs positions physiques dans la jauge et l'absence de bulles à froid.
 Aucun achat n'est déclenché par les animations pédagogiques du clavier
 de la machine distributrice (amélioration conservée de la 0.38).
 Version Android 0.39.0 ; versionCode 39.
+
+
+## Version 0.40 — commandes réelles du distributeur en vue 3D
+
+Un panneau de commande accessible apparaît directement sous le modèle 3D
+du distributeur. Sur téléphone Android (320 à 390 px compris), il
+permet d'insérer des pièces de 0,50 €, de sélectionner une référence
+avec les huit touches A–D et 1–4, de récupérer un produit après
+l'ouverture de la trappe, de rendre la monnaie puis de prendre
+les pièces restantes.
+
+Toutes les actions sont transmises **uniquement** au contrôleur
+ColorFigures original dans son iframe sandboxée : aucune logique
+d'achat ou de stock parallèle n'est inventée. Le contrôleur original
+vérifie le crédit disponible, le stock, la distribution et la trappe.
+La vue 3D affiche en retour l'état du crédit, de la sélection, du
+produit et de la monnaie. Les contrôles sont désactivés pendant les
+animations d'apprentissage et en cas d'indisponibilité de la
+simulation. Messages strictement limités aux commandes attendues.
+
+La nouvelle capture provient de la vraie application en taille Android :
+[Commander le distributeur en 3D](docs/previews/vending-3d-controls.webp).
+
+Contrôles ajoutés : scénarios navigateur complets (insuffisance de
+crédit, achat de B3, décrémentation du stock, distribution, trappe,
+retrait et monnaie), navigation tactile sur petit écran,
+tests du protocole et de la validation des états.
+
+Régénérer la capture via \`npm run generate:vending-controls-preview\`.
+Android versionName 0.40.0 et versionCode 40.
