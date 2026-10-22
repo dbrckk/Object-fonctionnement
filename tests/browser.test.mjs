@@ -888,8 +888,9 @@ try{
    const zoom=app.locator("#three-vending-zoom");
    await zoom.click();
    assert.equal(await zoom.getAttribute("aria-pressed"),"true");
-   await app.waitForTimeout(800); // camera macro transition
    const vendingTouchCanvas=app.locator(".object-three-canvas");
+   await vendingTouchCanvas.scrollIntoViewIfNeeded();
+   await app.waitForTimeout(800); // ensure camera transition after canvas reappears
    const hitModel=async(x,y,z)=>{
     const box=await vendingTouchCanvas.boundingBox();
     assert.ok(box,"vending 3D canvas is not rendered");
