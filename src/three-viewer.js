@@ -1301,8 +1301,13 @@ function makeVending(root){
   root.add(pad);
   return pad;
  });
- coinSlot.userData.vendingCommand={action:"coin"};
- vendingTargets.push(coinSlot);
+ const coinTarget=new THREE.Mesh(
+  new THREE.BoxGeometry(.43,.14,.035),touchMaterial
+ );
+ coinTarget.position.set(coinSlot.position.x,coinSlot.position.y,.852);
+ coinTarget.userData.vendingCommand={action:"coin"};
+ root.add(coinTarget);
+ vendingTargets.push(coinTarget);
  let dropping=false;
  return {shells:[body,leftPanel,rightPanel,topPanel,lowerPanel],
   vendingTargets,
