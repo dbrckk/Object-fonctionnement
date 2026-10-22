@@ -369,6 +369,17 @@ footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
 .vending3d-panel button:active:not(:disabled){transform:translateY(1px);background:#bfe8de}
 .vending3d-panel button:disabled{opacity:.43;cursor:default}
 .vending3d-actions{display:grid;grid-template-columns:1fr;gap:6px}
+/* Prices and availability are sourced from the live sandbox state. */
+.vending3d-products{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+ gap:7px;margin-top:14px}
+.vending3d-products button{display:flex;flex-direction:column;align-items:center;
+ justify-content:center;gap:3px;min-width:0;min-height:80px;padding:8px 3px;
+ background:#eef8f5;border:1px solid #adcac8}
+.vending3d-products strong{font-size:.93rem;letter-spacing:.03em}
+.vending3d-products span{font-size:.78rem;font-variant-numeric:tabular-nums}
+.vending3d-products small{font-size:.63rem;line-height:1.25;
+ overflow-wrap:anywhere;white-space:normal}
+.vending3d-products button:disabled{background:#eef1ef}
 @media(min-width:680px){
  .vending3d-controls-grid{grid-template-columns:minmax(180px,.75fr) minmax(0,1.25fr)}
  .vending3d-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
