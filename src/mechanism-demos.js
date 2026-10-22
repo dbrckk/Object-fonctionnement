@@ -56,7 +56,9 @@ const DEMOS=Object.freeze({
   t=>({run:true,paused:false,prog:0,tau:2.7+t*1.5,laundry:"drum",drawer:0,door:0})
  ],
  vending:[
-  null, // Physical keypad pressing is not connected to a mechanical animation.
+  // Only the two physical keys B and 3 are pressed. No purchase, product
+  // release or change to credit and stock is attributed to this preview.
+  t=>({keypadDemo:t,press:null,sel:"",drop:null,tray:null}),
   t=>({credit:1.5,drop:{r:1,c:2,t:clamp(t)},tray:null,flap:0}),
   t=>({credit:0,drop:null,tray:{code:"B3",kind:"can"},flap:smooth(t)})
  ]

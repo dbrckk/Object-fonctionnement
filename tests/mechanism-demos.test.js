@@ -5,14 +5,14 @@ import {MECHANISM_DEMO_DURATION_MS,hasMechanismDemo,mechanismDemoState,supported
 
 test("every 3D object has a demonstrable physical step without inventing missing mechanisms",()=>{
  assert.equal(MECHANISM_DEMO_DURATION_MS,2100);
- assert.equal(supportedMechanismDemoCount(),25);
+ assert.equal(supportedMechanismDemoCount(),26);
  for(const object of OBJECTS){
   assert.ok([0,1,2].some(i=>hasMechanismDemo(object.id,i)),object.id);
  }
  assert.equal(hasMechanismDemo("kettle",2),false);
  assert.equal(hasMechanismDemo("bicycle",1),true);
  assert.equal(hasMechanismDemo("flashlight",0),true);
- assert.equal(hasMechanismDemo("vending",0),false);
+ assert.equal(hasMechanismDemo("vending",0),true);
  assert.equal(hasMechanismDemo("not-an-object",1),false);
  assert.equal(hasMechanismDemo("fan",3),false);
  assert.equal(hasMechanismDemo("fan",1.5),false);
@@ -55,6 +55,12 @@ test("mechanical demonstration states track the selected causal stage",()=>{
 
  assert.equal(mechanismDemoState("washing",2,.4).run,true);
  assert.ok(mechanismDemoState("vending",1,.5).drop.t===.5);
+ const selection=mechanismDemoState("vending",0,.68,{stock:[[3]],credit:1.5});
+ assert.equal(selection.keypadDemo,.68);
+ assert.equal(selection.drop,null);
+ assert.equal(selection.tray,null);
+ assert.equal(selection.credit,1.5);
+ assert.equal(mechanismDemoState("vending",0,0).keypadDemo,0);
  assert.equal(mechanismDemoState("flashlight",2,.9).on,true);
  const battery=mechanismDemoState("flashlight",0,.65,{battery:1});
  assert.equal(battery.on,false);

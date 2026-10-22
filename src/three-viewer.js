@@ -17,7 +17,7 @@ import {bicycleValveMotion} from "./check-valve.js";
 import {KETTLE_BUBBLE_COUNT,kettleBubbleStrength,kettleBubblePoint} from "./kettle-thermals.js";
 import {hasMechanismDemo,mechanismDemoState,MECHANISM_DEMO_DURATION_MS} from "./mechanism-demos.js";
 import {flowLinkGeometry,viewportFlowPoint} from "./flow-layout.js";
-import {VENDING_PRODUCT_ROWS,vendingProduct,vendingProductFromTray,feederRotation,vendingDropPose,vendingScreenState} from "./vending-visuals.js";
+import {VENDING_PRODUCT_ROWS,VENDING_KEY_LABELS,vendingKeypadVisual,vendingProduct,vendingProductFromTray,feederRotation,vendingDropPose,vendingScreenState} from "./vending-visuals.js";
 import {createSurfacePixels,SURFACE_SIZE} from "./surface-finishes.js";
 import {AIRFLOW_PARTICLE_COUNT,airflowPoint,airSpeed,airflowParticleBudget} from "./fan-airflow.js";
 
@@ -1185,10 +1185,49 @@ function makeVending(root){
  let activeFeeder=-1;
  // Front control module: tactile keypad, illuminated credit screen and coin slot.
  block(root,.46,1.32,.08,mats.dark,.84,1.81,.745);
- for(let j=0;j<12;j++){
-  const x=.73+(j%3)*.105,y=1.98-Math.floor(j/3)*.13;
-  sphere(root,.033,mats.stainless,x,y,.805);
- }
+ // Eight genuine tactile keys: A-D in the left column, 1-4 on the
+ // right, exactly as in the original ColorFigures simulation.
+ const keys=VENDING_KEY_LABELS.map((label,i)=>{
+  const x=i%2===0?.755:.907;
+  const y=1.98-Math.floor(i/2)*.14;
+  const cap=block(root,.119,.103,.040,mats.stainless,x,y,.809,.012);
+  // This inset is visible even when the front label plane masks the edges.
+  block(root,.127,.112,.018,mats.charcoal,x,y,.785,.008);
+  return {label,cap,z:.809};
+ });
+ // One shared atlas texture supplies all eight labels, without wasting
+ // GPU memory on eight unique textures. Every glyph is attached to its key
+ // cap, so it physically travels inward when the learner presses it.
+ const legendCanvas=document.createElement("canvas");
+ legendCanvas.width=300;legendCanvas.height=560;
+ const legendCtx=legendCanvas.getContext("2d");
+ legendCtx.clearRect(0,0,300,560);
+ legendCtx.fillStyle="#15303b";
+ legendCtx.textAlign="center";
+ legendCtx.textBaseline="middle";
+ legendCtx.font="bold 69px system-ui,sans-serif";
+ VENDING_KEY_LABELS.forEach((label,i)=>{
+  legendCtx.fillText(label,i%2===0?75:225,70+Math.floor(i/2)*140);
+ });
+ const legendTexture=new THREE.CanvasTexture(legendCanvas);
+ legendTexture.colorSpace=THREE.SRGBColorSpace;
+ const legendMaterial=new THREE.MeshBasicMaterial({
+  map:legendTexture,transparent:true,depthWrite:false,
+  side:THREE.DoubleSide
+ });
+ keys.forEach(({cap},i)=>{
+  const cellX=i%2,cellY=Math.floor(i/2);
+  const geometry=new THREE.PlaneGeometry(.100,.084);
+  const uv=geometry.getAttribute("uv");
+  for(let vertex=0;vertex<uv.count;vertex++){
+   const u=uv.getX(vertex),v=uv.getY(vertex);
+   uv.setXY(vertex,cellX*.5+u*.5,1-(cellY+1)*.25+v*.25);
+  }
+  const glyph=new THREE.Mesh(geometry,legendMaterial);
+  glyph.position.z=.0215;
+  glyph.userData.isDecal=true;
+  cap.add(glyph);
+ });
  const screenCanvas=document.createElement("canvas");
  screenCanvas.width=512;screenCanvas.height=192;
  const context=screenCanvas.getContext("2d");
@@ -1249,7 +1288,15 @@ function makeVending(root){
  let dropping=false;
  return {shells:[body,leftPanel,rightPanel,topPanel,lowerPanel],update(s){
   const m=vendingMechanics(s);
-  writeScreen({drop:m.drop,tray:s.tray,credit:m.credit});
+  const keypad=vendingKeypadVisual(s);
+  keys.forEach(({label,cap,z})=>{
+   const pressed=keypad.pressed===label;
+   cap.position.z=z-(pressed?.025:0);
+   cap.material=pressed?mats.amber:
+    keypad.selection.startsWith(label)&&label>="A"&&label<="D"
+      ?mats.turquoise:mats.stainless;
+  });
+  writeScreen({drop:m.drop,tray:s.tray,credit:m.credit,keypad});
   products.forEach(({row,col,stack})=>{
    const qty=m.stock?.[row]?.[col];
    const amount=qty===undefined?3:Math.max(0,Math.min(3,Math.floor(Number(qty)||0)));

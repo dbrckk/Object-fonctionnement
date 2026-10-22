@@ -885,3 +885,28 @@ emploient les mêmes données que les autres représentations 3D.
 
 Trois nouveaux tests couvrent l'arrêt, le débit visuel et les phases
 de déplacement. Android versionCode 37.
+
+
+## Version 0.38 — clavier physique du distributeur
+
+Le distributeur 3D utilise désormais les **huit véritables touches** de
+la simulation originale : A, B, C, D et 1, 2, 3, 4. Les capsules
+mécaniques s'enfoncent pendant la saisie, et leurs caractères suivent
+les touches, imprimés depuis **un seul atlas de texture** pour préserver
+la mémoire graphique Android.
+
+Le premier chapitre du parcours causal (« Commander ») contient
+une démonstration reproductible de la sélection **B3**, consultable
+image par image. Le panneau indique explicitement « SAISIE (DÉMO) » :
+aucun débit de crédit et aucun changement de stock n'a lieu.
+La sélection et les touches réelles restent synchronisées avec la
+simulation ColorFigures lorsque l'utilisateur interagit avec celle-ci.
+
+La version 0.38 totalise **26 étapes mécaniques animées** sur 27,
+et reste entièrement utilisable hors ligne. Les tests couvrent la
+saisie, les 8 touches, les cas invalides, la priorité des transactions,
+la stabilité du rendu figé et l'absence d'achat lors du tutoriel.
+
+Aperçu : [sélection B3 sur Android](docs/previews/vending-keypad-lesson.webp).
+
+Android versionCode 38, versionName 0.38.0.

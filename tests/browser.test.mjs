@@ -296,6 +296,32 @@ try{
      "small mechanism touch target: "+id);
    assert.ok(flowBounds.scroll<=flowBounds.client+1,
      "mechanism panel causes horizontal overflow: "+id);
+    if(id==="vending"){
+     // The B3 selection is a local 3D lesson, never a purchase.
+     const scene=app.locator(".object-three-canvas");
+     const original=await app.frameLocator("iframe.figure-frame").locator("body")
+      .evaluate(()=>JSON.stringify(window.__st));
+     await app.waitForTimeout(650);
+     assert.equal(await flowPanel.locator("#mechanism-demo").isEnabled(),true);
+     await flowPanel.locator("#mechanism-scrub").fill("20");
+     await app.waitForTimeout(160);
+     const first=await scene.screenshot();
+     await flowPanel.locator("#mechanism-scrub").fill("68");
+     await app.waitForTimeout(160);
+     const second=await scene.screenshot();
+     const delta=await changedPixelRatio(first,second);
+     assert.ok(delta>.00008,
+       "3D keypad press and selection were not visibly animated: "+delta);
+     const still=await scene.screenshot();
+     await app.waitForTimeout(220);
+     assert.ok(await changedPixelRatio(still,await scene.screenshot())<.0003,
+       "scrubbed keypad preview must stay frozen");
+     assert.equal(await app.frameLocator("iframe.figure-frame").locator("body")
+      .evaluate(()=>JSON.stringify(window.__st)),original,
+      "keypad teaching must never debit credit or modify product stock");
+     await flowPanel.locator("#mechanism-reset").click();
+     console.log("PASS real 8-key vending keypad and no-purchase selection lesson");
+    }
     if(id==="flashlight"){
      // The new battery lesson displays the cells through a transparent
      // tube; its pulse/contacts cannot start current in an open circuit.
@@ -387,6 +413,9 @@ try{
     const previewBefore=id==="lock"
       ?await app.locator(".object-three-canvas").screenshot():null;
     await motionButton.click();
+    // Return the rendering viewport to view after the keypad panel's
+    // reset controls: off-screen scenes intentionally suspend WebGL work.
+    if(id==="vending")await app.locator(".object-three-canvas").scrollIntoViewIfNeeded();
     assert.equal(await app.locator("#three-mount").getAttribute("data-mechanism-demo"),"2");
     await app.waitForTimeout(450);
     assert.equal(await motionButton.isEnabled(),true);

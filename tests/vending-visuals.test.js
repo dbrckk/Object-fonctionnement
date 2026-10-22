@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {VENDING_PRODUCT_ROWS,vendingProduct,vendingProductFromTray,feederRotation,vendingDropPose,vendingScreenState} from "../src/vending-visuals.js";
+import {VENDING_PRODUCT_ROWS,vendingProduct,vendingProductFromTray,feederRotation,vendingDropPose,vendingScreenState,VENDING_KEY_LABELS,vendingKeypadVisual} from "../src/vending-visuals.js";
 
 test("all 16 selections match the original ColorFigures product rows and colors",()=>{
  assert.deepEqual(VENDING_PRODUCT_ROWS.map(x=>x.kind),["can","can","bottle","snack"]);
@@ -74,4 +74,39 @@ test("transaction display prioritizes selected product and pickup over credit",(
  assert.equal(tray.detail,"D4");
  assert.equal(vendingScreenState({credit:1.5,tray:{code:"Z9"}}).mode,"idle");
  assert.equal(vendingScreenState({credit:Infinity}).detail,"0.00 €");
+});
+
+test("eight physical keypad keys mirror the vending controller's A-D and 1-4",()=>{
+ assert.deepEqual(VENDING_KEY_LABELS,["A","1","B","2","C","3","D","4"]);
+ assert.deepEqual(vendingKeypadVisual({sel:"B",press:"B"}),
+  {pressed:"B",selection:"B",preview:false});
+ assert.deepEqual(vendingKeypadVisual({sel:"B",press:"3"}),
+  {pressed:"3",selection:"B",preview:false});
+ assert.equal(vendingKeypadVisual({press:"9",sel:"Z"}).pressed,null);
+ assert.equal(vendingKeypadVisual({press:"9",sel:"Z"}).selection,"");
+});
+test("selection preview presses B then 3 without changing transaction data",()=>{
+ const before={stock:[[3]],credit:2,sel:"A",press:"A",drop:null,keypadDemo:.2};
+ const snapshot=JSON.stringify(before);
+ const first=vendingKeypadVisual(before);
+ assert.equal(first.pressed,"B");
+ assert.equal(first.preview,true);
+ assert.equal(vendingKeypadVisual({...before,keypadDemo:.45}).selection,"B");
+ const digit=vendingKeypadVisual({...before,keypadDemo:.68});
+ assert.equal(digit.pressed,"3");
+ assert.equal(digit.selection,"B3");
+ assert.equal(vendingKeypadVisual({...before,keypadDemo:1}).pressed,null);
+ assert.equal(JSON.stringify(before),snapshot);
+ const preview=vendingScreenState({credit:0,keypad:digit});
+ assert.equal(preview.mode,"preview");
+ assert.equal(preview.detail,"B3");
+ assert.equal(preview.headline,"SAISIE (DÉMO)");
+});
+test("real selection screen keeps drop and pickup transactions authoritative",()=>{
+ const keypad=vendingKeypadVisual({sel:"C",press:null});
+ assert.equal(vendingScreenState({credit:1,keypad}).mode,"selection");
+ assert.equal(vendingScreenState({credit:1,keypad}).detail,"C_");
+ assert.equal(vendingScreenState({drop:{row:1,col:2,progress:.35},keypad}).mode,
+  "dispensing");
+ assert.equal(vendingScreenState({tray:{code:"B3"},keypad}).mode,"ready");
 });

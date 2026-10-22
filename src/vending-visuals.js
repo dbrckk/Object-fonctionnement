@@ -24,6 +24,23 @@ export function feederRotation(progress){
   return Math.PI*2*Math.max(0,Math.min(1,Number.isFinite(t)?t:0));
 }
 
+// The actual vending controller uses A-D and 1-4, not a twelve-digit pad.
+// A local instructional preview illustrates pressing B then 3; it never
+// changes payment, stock or the original controller's selection.
+export const VENDING_KEY_LABELS=Object.freeze(["A","1","B","2","C","3","D","4"]);
+export function vendingKeypadVisual(state={}){
+ const raw=state&&typeof state==="object"?state:{};
+ if(typeof raw.keypadDemo==="number"&&Number.isFinite(raw.keypadDemo)){
+  const t=Math.max(0,Math.min(1,raw.keypadDemo));
+  const pressed=t>=.12&&t<.30?"B":t>=.57&&t<.76?"3":null;
+  const selection=t<.35?"":t<.57?"B":"B3";
+  return {pressed,selection,preview:true};
+ }
+ const pressed=VENDING_KEY_LABELS.includes(raw.press)?raw.press:null;
+ const selection=typeof raw.sel==="string"&&/^[A-D]$/.test(raw.sel)?raw.sel:"";
+ return {pressed,selection,preview:false};
+}
+
 // Screen feedback and dispense animation are pure: the SVG controller owns
 // transaction state, Three.js only presents it without inventing purchases.
 const clamp01=n=>Math.max(0,Math.min(1,Number.isFinite(Number(n))?Number(n):0));
@@ -62,6 +79,13 @@ export function vendingScreenState(state={}){
  }
  if(tray)return {headline:"À RÉCUPÉRER",detail:tray.code,
   accent:"#9df2c8",progress:1,mode:"ready"};
+ // The explanation remains a demonstrator: displaying B3 does not
+ // imply that any payment occurred or that stock was dispensed.
+ const keypad=state.keypad;
+ if(keypad?.preview)return {headline:"SAISIE (DÉMO)",
+  detail:keypad.selection||"A–D  /  1–4",accent:"#f8d49c",progress:0,mode:"preview"};
+ if(keypad?.selection)return {headline:"SÉLECTION",detail:keypad.selection+"_",
+  accent:"#a8f2d2",progress:0,mode:"selection"};
  const credit=Number(state.credit);
  const safeCredit=Math.max(0,Math.min(999,Number.isFinite(credit)?credit:0));
  return {headline:"CRÉDIT DISPONIBLE",detail:safeCredit.toFixed(2)+" €",

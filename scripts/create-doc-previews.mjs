@@ -222,6 +222,24 @@ try{
    console.log(name,'genuine circuit cutaway',webp.length,'bytes');
   }finally{await power.close();}
  }
+ // Genuine 3D selection preview: the B3 keys are physically depressible
+ // and the display explicitly identifies the input as a demonstration.
+ const keypad=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:2});
+ try{
+  await keypad.goto(url+'/#vending',{waitUntil:'load'});
+  await keypad.locator('.object-three-canvas').waitFor({timeout:16000});
+  await keypad.getByRole('button',{name:'Comprendre le mécanisme'}).click();
+  await keypad.locator('[data-flow-step="0"]').click();
+  await keypad.waitForTimeout(600);
+  await keypad.locator('#mechanism-scrub').evaluate(el=>{
+   el.value='68';el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  await keypad.waitForTimeout(180);
+  const buffer=await keypad.locator('.three-shell').screenshot({animations:'disabled'});
+  const webp=await sharp(buffer).resize({width:850}).webp({quality:85,effort:6}).toBuffer();
+  await writeFile(path.join(folder,'vending-keypad-lesson.webp'),webp);
+  console.log('vending-keypad-lesson','actual eight-key selection screenshot',webp.length,'bytes');
+ }finally{await keypad.close();}
 }finally{
  if(browser)await browser.close();
  server.kill('SIGTERM');
