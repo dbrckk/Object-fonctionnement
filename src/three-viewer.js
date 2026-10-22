@@ -1288,9 +1288,18 @@ function makeVending(root){
  const coinSlot=block(root,.43,.1,.04,mats.charcoal,.81,2.18,.81);
  // Raycast only against the physical control surfaces. The buyer's
  // actual credit and inventory remain exclusively in the 2D sandbox.
- const vendingTargets=keys.map(({label,cap})=>{
-  cap.userData.vendingCommand={action:"key",key:label};
-  return cap;
+ // Enlarged *invisible* hit planes yield >=44px touch regions in
+ // macro view at 320px, without changing the visible keypad geometry.
+ const touchGeometry=new THREE.BoxGeometry(.137,.132,.035);
+ const touchMaterial=new THREE.MeshBasicMaterial({
+  transparent:true,opacity:0,depthWrite:false,colorWrite:false
+ });
+ const vendingTargets=keys.map(({label,cap,z})=>{
+  const pad=new THREE.Mesh(touchGeometry,touchMaterial);
+  pad.position.set(cap.position.x,cap.position.y,z+.043);
+  pad.userData.vendingCommand={action:"key",key:label};
+  root.add(pad);
+  return pad;
  });
  coinSlot.userData.vendingCommand={action:"coin"};
  vendingTargets.push(coinSlot);
