@@ -19,6 +19,7 @@ import {hasMechanismDemo,mechanismDemoState,MECHANISM_DEMO_DURATION_MS} from "./
 import {flowLinkGeometry,viewportFlowPoint} from "./flow-layout.js";
 import {VENDING_PRODUCT_ROWS,VENDING_KEY_LABELS,vendingKeypadVisual,vendingProduct,vendingProductFromTray,feederRotation,vendingDropPose,vendingScreenState} from "./vending-visuals.js";
 import {createSurfacePixels,SURFACE_SIZE} from "./surface-finishes.js";
+import {isIntentionalTap} from "./three-touch.js";
 import {AIRFLOW_PARTICLE_COUNT,airflowPoint,airSpeed,airflowParticleBudget} from "./fan-airflow.js";
 
 const M={
@@ -1285,8 +1286,18 @@ function makeVending(root){
  block(flap,1.10,.24,.05,mats.stainless,0,.12,.016);
  rod(flap,[-.49,.02,.07],[.49,.02,.07],.018,mats.charcoal);
  const coinSlot=block(root,.43,.1,.04,mats.charcoal,.81,2.18,.81);
+ // Raycast only against the physical control surfaces. The buyer's
+ // actual credit and inventory remain exclusively in the 2D sandbox.
+ const vendingTargets=keys.map(({label,cap})=>{
+  cap.userData.vendingCommand={action:"key",key:label};
+  return cap;
+ });
+ coinSlot.userData.vendingCommand={action:"coin"};
+ vendingTargets.push(coinSlot);
  let dropping=false;
- return {shells:[body,leftPanel,rightPanel,topPanel,lowerPanel],update(s){
+ return {shells:[body,leftPanel,rightPanel,topPanel,lowerPanel],
+  vendingTargets,
+  update(s){
   const m=vendingMechanics(s);
   const keypad=vendingKeypadVisual(s);
   keys.forEach(({label,cap,z})=>{
@@ -1691,6 +1702,7 @@ export function createObjectViewer(container,id){
   function toggleMechanismPath(visible){
     if(disposed)return false;
     stopMechanismPreview();
+    if(visible)setVendingFocus(false);
     flowOpen=Boolean(visible);
     flowSvg.toggleAttribute("hidden",!flowOpen);
     if(flowOpen){
@@ -1795,6 +1807,44 @@ export function createObjectViewer(container,id){
   const clock=new THREE.Clock();
   let state={},stateSignature="",active=true,intersecting=true;
   let disposed=false,frame=0,dirty=true,last=0;
+  let vendingControlsFocused=false,pointerStart=null;
+  const controlRay=new THREE.Raycaster();
+  const canvas=renderer.domElement;
+  const defaultCanvasLabel=canvas.getAttribute("aria-label");
+  function setVendingFocus(enabled){
+    vendingControlsFocused=Boolean(enabled);
+    container.dataset.vendingTouch=vendingControlsFocused?"on":"off";
+    canvas.setAttribute("aria-label",vendingControlsFocused
+      ?"Distributeur 3D : touchez les touches A à D, 1 à 4 ou la fente à pièces. Glissez pour pivoter."
+      :defaultCanvasLabel);
+  }
+  function onControlPointerDown(event){
+    pointerStart=vendingControlsFocused&&event.isPrimary&&event.button===0
+      ?{pointerId:event.pointerId,button:event.button,isPrimary:event.isPrimary,
+        clientX:event.clientX,clientY:event.clientY,timeStamp:event.timeStamp}
+      :null;
+  }
+  function onControlPointerUp(event){
+    const previous=pointerStart;
+    pointerStart=null;
+    if(!vendingControlsFocused||flowOpen||mechanismPreview||disposed||!active
+       ||!isIntentionalTap(previous,event)||cameraMove)return;
+    const rect=canvas.getBoundingClientRect();
+    if(!rect.width||!rect.height)return;
+    controlRay.setFromCamera(new THREE.Vector2(
+      ((event.clientX-rect.left)/rect.width)*2-1,
+      1-((event.clientY-rect.top)/rect.height)*2
+    ),camera);
+    const hit=controlRay.intersectObjects(machine.vendingTargets||[],false)[0];
+    const detail=hit?.object?.userData?.vendingCommand;
+    if(!detail)return;
+    container.dispatchEvent(new CustomEvent("object-3d-vending-command",{
+      bubbles:true,detail:{...detail}
+    }));
+  }
+  canvas.addEventListener("pointerdown",onControlPointerDown);
+  canvas.addEventListener("pointerup",onControlPointerUp);
+  canvas.addEventListener("pointercancel",()=>{pointerStart=null;});
   // Do not run an idle 60Hz requestAnimationFrame loop on a battery-powered
   // Android device. Schedule a frame only on input, scene changes or motion.
   function requestFrame(){
@@ -1886,6 +1936,32 @@ export function createObjectViewer(container,id){
   }
   requestFrame();
   return {
+    focusVendingControls(){
+      if(id!=="vending"||disposed||!active)return false;
+      if(flowOpen)toggleMechanismPath(false);
+      endTour(false);
+      showParts=false;markerLayer.hidden=true;
+      description.hidden=true;partLocator.visible=false;
+      cameraMove=null;
+      setVendingFocus(true);
+      cameraCustomized=true;
+      controls.minDistance=1.25;
+      controls.maxDistance=Math.max(12,controls.maxDistance);
+      // Straight-on macro view: physical keys occupy finger-sized pixels.
+      // The lower pickup door remains accessible through the panel below.
+      const focus=new THREE.Vector3(.83,1.87,.82);
+      const finishCamera=focus.clone().add(new THREE.Vector3(0,0,1.55));
+      if(motionReduced){
+        controls.target.copy(focus);camera.position.copy(finishCamera);
+        controls.update();
+      }else{
+        cameraMove={start:performance.now(),
+          startTarget:controls.target.clone(),startCamera:camera.position.clone(),
+          finishTarget:focus,finishCamera};
+      }
+      dirty=true;requestFrame();
+      return true;
+    },
     setMechanismPath(visible){return toggleMechanismPath(visible);},
     setMechanismStep(index){return focusMechanismStep(index);},
     playMechanismStep(index,onFinish,onProgress,fromProgress){
@@ -1929,6 +2005,7 @@ export function createObjectViewer(container,id){
     startTour(onFinish){
       if(disposed||points.length===0)return false;
       if(flowOpen)toggleMechanismPath(false);
+      setVendingFocus(false);
       showParts=true;
       markerLayer.hidden=false;
       tourStep=0;
@@ -1945,6 +2022,7 @@ export function createObjectViewer(container,id){
       const index=points.findIndex(point=>point.part.id===partId);
       if(index<0||disposed)return false;
       if(flowOpen)toggleMechanismPath(false);
+      setVendingFocus(false);
       showParts=true;markerLayer.hidden=false;
       focusPart(index);dirty=true;requestFrame();
       return true;
@@ -1966,6 +2044,7 @@ export function createObjectViewer(container,id){
       return showParts;
     },
     resetCamera(){
+      setVendingFocus(false);
       if(tourStep>=0)endTour(false);
       if(flowOpen)toggleMechanismPath(false);
       cameraMove=null;cameraCustomized=false;
@@ -1980,6 +2059,9 @@ export function createObjectViewer(container,id){
       endTour(false);
       disposed=true;cancelAnimationFrame(frame);
       observer.disconnect();visibleObserver.disconnect();document.removeEventListener("visibilitychange",onVisibility);
+      canvas.removeEventListener("pointerdown",onControlPointerDown);
+      canvas.removeEventListener("pointerup",onControlPointerUp);
+      delete container.dataset.vendingTouch;
       controls.dispose();
       const shared=new Set([...Object.values(mats),glow,steamMaterial,frosted,liquid,alertMat,brassy,blue,white,tint,edgeMaterial]);
       const unique=new Set();
