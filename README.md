@@ -959,3 +959,26 @@ tests du protocole et de la validation des états.
 
 Régénérer la capture via \`npm run generate:vending-controls-preview\`.
 Android versionName 0.40.0 et versionCode 40.
+
+
+## Version 0.41 — catalogue tactile des 16 produits avec prix et stocks réels
+
+Le distributeur possède maintenant une grille mobile de 16 références A1 à D4,
+avec les prix (1,00 €, 1,50 € ou 2,00 €), le stock de chaque case et le crédit
+manquant. Les produits deviennent sélectionnables automatiquement lorsque le
+crédit suffit. Les produits épuisés, les données manquantes et les transactions
+en cours sont désactivés sans ambiguïté.
+
+Les prix proviennent directement du tableau ROWS de la simulation 2D et
+transitent dans un message sandboxé borné ; aucune grille de prix divergente
+n'est maintenue dans l'application. Le toucher d'une case envoie le code
+sélectionné au contrôleur existant. Celui-ci rejoue ses deux touches puis
+**vérifie lui-même le crédit et le stock** avant toute distribution.
+La vue 3D n'invente ni paiement ni achat. Les touches manuelles restent
+disponibles, y compris pour montrer une sélection au crédit insuffisant.
+
+Scénarios unitaires : les 16 codes, rejets des codes invalides, prix,
+stocks, crédits insuffisants et états indisponibles. Scénarios Chromium :
+prix originaux, achat direct de B3, baisse réelle du stock, retrait
+et absence de débordement sur téléphone de 320 px.
+Android : versionName 0.41.0, versionCode 41.
