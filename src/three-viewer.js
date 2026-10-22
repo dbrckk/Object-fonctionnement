@@ -10,6 +10,7 @@ import {lockMechanics,washerMechanics,vendingMechanics} from "./mechanics-state.
 import {washerHydraulicState} from "./washer-hydraulics.js";
 import {getObjectParts} from "./part-annotations.js";
 import {getMechanismPath} from "./mechanism-paths.js";
+import {coffeeFlowState,coffeeFlowParticle} from "./coffee-flow.js";
 import {flashlightCircuitState,flashlightChargePoint} from "./flashlight-circuit.js";
 import {LOCK_SHEAR_Y,lockPinTarget,lockPinsAreAligned} from "./lock-pins.js";
 import {bicycleValveMotion} from "./check-valve.js";
@@ -696,6 +697,27 @@ function makeCoffee(root){
  const tubeMesh=new THREE.Mesh(new THREE.TubeGeometry(circuitCurve,48,.023,6,false),tubeMaterial);
  waterCircuit.add(tubeMesh);
  const circuitDots=Array.from({length:6},()=>sphere(waterCircuit,.037,liquid,0,0,0));
+ // Exposed compact heater and pump assembly on the front inspection side.
+ // A hot-water spiral follows the reservoir tube before the filter.
+ const heater=group(root,-.78,.73,.68);
+ const heaterMetal=material({color:0x727e89,metalness:.76,roughness:.28,
+  emissive:0xf47730,emissiveIntensity:.04});
+ cylinder(heater,.105,.105,.29,mats.stainless);
+ const heaterCoil=new THREE.Mesh(new THREE.TubeGeometry(
+  new THREE.CatmullRomCurve3(Array.from({length:49},(_,i)=>{
+   const t=i/48,angle=t*Math.PI*10;
+   return new THREE.Vector3(.112*Math.cos(angle),-.12+t*.24,.112*Math.sin(angle));
+  })),72,.012,6,false),heaterMetal);
+ heater.add(heaterCoil);
+ const pumpHousing=group(root,-.78,.51,.68);
+ cylinder(pumpHousing,.13,.13,.13,mats.dark).rotation.x=Math.PI/2;
+ const pumpRotor=group(pumpHousing,0,0,.075);
+ for(let i=0;i<4;i++){
+  const blade=block(pumpRotor,.14,.026,.02,mats.stainless,.08,0,0);
+  blade.rotation.z=i*Math.PI/2;
+  blade.position.set(Math.cos(i*Math.PI/2)*.067,Math.sin(i*Math.PI/2)*.067,0);
+ }
+
  // Exposed filter funnel, removable brown grounds and pouring nozzle.
  const filter=cylinder(root,.36,.12,.39,mats.dark,.42,1.79,.19);
  // Concentric mesh ridges make the removable filter basket readable.
@@ -736,7 +758,10 @@ function makeCoffee(root){
  badge(root,"BREW  /  FILTER",-.47,1.99,.39,.9,.16,"#304456","#fdf5e5");
  return {shells:[body],update(s,dt,time){
   const volume=truncate(s.coffee,0,1),water=truncate(s.water,0,1);
-  const brewing=Boolean(s.brewing);
+  const flow=coffeeFlowState(s,time);
+  const brewing=flow.active;
+  heaterMetal.emissiveIntensity=flow.heat*.82+.04;
+  pumpRotor.rotation.z=flow.active?time*6:0;
   const coffeeHeight=.56*volume;
   coffee.scale.y=Math.max(.006,coffeeHeight/.25);
   coffee.position.y=-.38+coffeeHeight/2;
@@ -756,7 +781,7 @@ function makeCoffee(root){
   circuitDots.forEach((p,i)=>{
    p.visible=brewing&&water>.02;
    if(p.visible){
-    const phase=(time*.53+i/circuitDots.length)%1;
+    const phase=coffeeFlowParticle(flow.phase,i,circuitDots.length);
     p.position.copy(circuitCurve.getPoint(phase));
     p.scale.setScalar(.78+.22*Math.sin(phase*Math.PI));
    }

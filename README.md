@@ -872,3 +872,16 @@ Captures Chromium réelles en format Android :
 **25 démonstrations** parmi les neuf objets, tests du circuit électrique,
 tests de pixels WebGL et contrôles de non-mutation de la simulation 2D.
 Version Android 0.36.0, versionCode 36.
+
+
+## Version 0.37 — circuit d'eau chaude et pompe de cafetière
+
+La cafetière 3D montre désormais un serpentin chauffant en acier, une
+petite pompe avec rotor et le cheminement des gouttelettes d'eau jusqu'au
+filtre. Le serpentin s'illumine et le rotor tourne uniquement pendant
+l'extraction avec eau et café moulu. À l'arrêt, la circulation s'arrête
+et le GPU peut de nouveau dormir. Les animations des visites guidées
+emploient les mêmes données que les autres représentations 3D.
+
+Trois nouveaux tests couvrent l'arrêt, le débit visuel et les phases
+de déplacement. Android versionCode 37.
