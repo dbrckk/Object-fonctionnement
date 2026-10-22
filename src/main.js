@@ -7,7 +7,7 @@ import {readTours,saveTours} from "./learning-progress.js";
 import {buildGlossary,filterGlossary} from "./glossary.js";
 import {getMechanismPath} from "./mechanism-paths.js";
 import {hasMechanismDemo} from "./mechanism-demos.js";
-import {vendingControlView,vendingControlCommand} from "./vending-controls.js";
+import {vendingControlView,vendingControlCommand,vendingSlotView,VENDING_SLOT_CODES} from "./vending-controls.js";
 import {GRAPHICS_KEY,readGraphicsMode,validGraphicsMode} from "./graphics-quality.js";
 const root=document.getElementById("app");
 let quizProgress={};
@@ -40,7 +40,11 @@ function vendingPanelMarkup(){
     '<button type="button" data-vending-command="takeCoins">Prendre les pièces</button>'+
     '<button type="button" data-vending-command="flap">Ouvrir / fermer la trappe</button>'+
     '<button type="button" data-vending-command="collect">Récupérer le produit</button>'+
-   '</div></div></fieldset></section>';
+   '</div></div>'+
+   '<div class="vending3d-products" role="group" aria-label="Catalogue des 16 produits">'+
+   VENDING_SLOT_CODES.map(code=>'<button type="button" disabled data-vending-slot="'+code+'" aria-label="Produit '+code+'">'+
+     '<strong>'+code+'</strong><span>—</span><small>Synchronisation…</small></button>').join("")+
+   '</div></fieldset></section>';
 }
 function updateVendingControls(figureState=lastFigureState){
  const panel=document.getElementById("vending3d-controls");
@@ -70,13 +74,26 @@ function updateVendingControls(figureState=lastFigureState){
  panel.querySelectorAll("[data-vending-command]").forEach(button=>{
   button.disabled=inactive||Boolean(disabledByAction[button.dataset.vendingCommand]);
  });
+ const slots=new Map(vendingSlotView(figureState).map(slot=>[slot.code,slot]));
+ panel.querySelectorAll("[data-vending-slot]").forEach(button=>{
+  const slot=slots.get(button.dataset.vendingSlot);
+  if(!slot)return;
+  button.disabled=inactive||slot.disabled;
+  const price=button.querySelector("span"),note=button.querySelector("small");
+  if(price&&price.textContent!==slot.priceText)price.textContent=slot.priceText;
+  if(note&&note.textContent!==slot.note)note.textContent=slot.note;
+  button.setAttribute("aria-label","Produit "+slot.code+" — "+slot.priceText+
+   " — "+slot.note);
+ });
 }
 function sendVendingCommand(button){
  if(state.selected!=="vending"||!state.view3D||!currentViewer||
     mechanismFlowActive||!lastFigureState)return;
  const frame=document.querySelector("iframe.figure-frame");
  if(!frame?.contentWindow)return;
- const command=vendingControlCommand(button.dataset.vendingCommand,button.dataset.vendingKey);
+ const command=button.dataset.vendingSlot
+  ?vendingControlCommand("select",button.dataset.vendingSlot)
+  :vendingControlCommand(button.dataset.vendingCommand,button.dataset.vendingKey);
  if(!command)return;
  frame.contentWindow.postMessage(command,"*"); // sandbox has an opaque origin
 }
@@ -288,7 +305,7 @@ function renderDetail(o){
  const vendingPanel=document.getElementById("vending3d-controls");
  if(vendingPanel){
   vendingPanel.addEventListener("click",event=>{
-   const button=event.target.closest("button[data-vending-command]");
+   const button=event.target.closest("button[data-vending-command],button[data-vending-slot]");
    if(button&&!button.disabled)sendVendingCommand(button);
   });
   updateVendingControls();
