@@ -982,3 +982,30 @@ stocks, crédits insuffisants et états indisponibles. Scénarios Chromium :
 prix originaux, achat direct de B3, baisse réelle du stock, retrait
 et absence de débordement sur téléphone de 320 px.
 Android : versionName 0.41.0, versionCode 41.
+
+
+## Version 0.42 — commandes physiques utilisables directement sur le modèle 3D
+
+Le distributeur conserve le panneau tactile v0.41 et propose désormais le
+bouton **Approcher les commandes 3D**. Celui-ci cadre la façade avec une
+caméra proche et orientée de face, de sorte que les huit touches mécaniques
+et la fente à pièces soient manipulables au doigt. Touchez A–D, 1–4 ou la
+fente sur le **modèle WebGL lui-même** : un raycaster Three.js identifie la
+pièce visée et demande au contrôleur ColorFigures sandboxé d'effectuer
+l'action. Le crédit, le stock, les erreurs et la distribution demeurent
+entièrement gérés par la simulation 2D originale.
+
+Les commandes sont désactivées pendant les parcours d'apprentissage et
+hors du mode zoom. Un déplacement du doigt, un geste multipoint ou un appui
+long ne doit jamais acheter un produit : l'analyse des gestes distingue
+les appuis des rotations et pincements. Le bouton de recentrage, les
+visites guidées et le retour 2D remettent la caméra dans son état normal.
+
+La trappe, la récupération et la monnaie restent disponibles depuis le
+panneau accessible sous le modèle. Aucun nouveau droit Android ni service
+réseau requis.
+
+Tests : filtre déterministe des gestes, parcours Chromium avec véritables
+raycasts sur la fente à pièces et les touches B et 3, prélèvement du crédit
+et vérification du stock, puis rotation qui n'ajoute pas de pièce.
+Android : versionName 0.42.0, versionCode 42.
