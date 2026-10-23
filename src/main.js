@@ -812,6 +812,9 @@ function returnToCatalog(){
 // Capacitor normally exits on Android Back if no native backButton handler is installed.
 if(Capacitor.isNativePlatform()){
  void App.addListener("backButton",()=>{
+  // Dismiss local legal information before leaving the running simulation.
+  const legal=document.getElementById("legal-dialog");
+  if(legal?.open){legal.close();return;}
   if(state.selected){returnToCatalog();}
   else {void App.minimizeApp();}
  }).catch(error=>console.error("Android back-button listener:",error));
