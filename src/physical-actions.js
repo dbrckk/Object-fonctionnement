@@ -52,8 +52,10 @@ export function physicalActionLabel(action){
  * No component changes the controller's simulation state in this module.
  */
 export function partMechanismAction(objectId,partId,figureState={}){
- const baseline=PHYSICAL_PART_ACTIONS[objectId]?.[partId];
- if(!baseline)return null;
+ if(typeof objectId!=="string"||!Object.hasOwn(PHYSICAL_PART_ACTIONS,objectId))return null;
+ const byPart=PHYSICAL_PART_ACTIONS[objectId];
+ if(typeof partId!=="string"||!Object.hasOwn(byPart,partId))return null;
+ const baseline=byPart[partId];
  const s=figureState&&typeof figureState==="object"?figureState:{};
  if(objectId==="coffee"&&partId==="carafe"&&
     typeof s.coffee==="number"&&s.coffee>0&&!s.brewing)
