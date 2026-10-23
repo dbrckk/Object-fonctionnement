@@ -1652,7 +1652,9 @@ export function createObjectViewer(container,id){
   const projected=new THREE.Vector3();
   const cameraTarget=new THREE.Vector3();
   function updatePartPositions(){
-    if(!showParts)return;
+    // Hidden lesson pins also supply the live projected coordinates used by
+    // the physical touch targets. Keep these anchors current while operating.
+    if(!showParts&&!mechanismTouchMode)return;
     const width=renderer.domElement.clientWidth,height=renderer.domElement.clientHeight;
     if(width===0||height===0)return;
     leaders.setAttribute("viewBox","0 0 "+width+" "+height);
