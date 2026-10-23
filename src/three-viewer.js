@@ -20,6 +20,7 @@ import {flowLinkGeometry,viewportFlowPoint} from "./flow-layout.js";
 import {VENDING_PRODUCT_ROWS,VENDING_KEY_LABELS,vendingKeypadVisual,vendingProduct,vendingProductFromTray,feederRotation,vendingDropPose,vendingScreenState} from "./vending-visuals.js";
 import {createSurfacePixels,SURFACE_SIZE} from "./surface-finishes.js";
 import {isIntentionalTap} from "./three-touch.js";
+import {closestProjectedPart} from "./part-picking.js";
 import {AIRFLOW_PARTICLE_COUNT,airflowPoint,airSpeed,airflowParticleBudget} from "./fan-airflow.js";
 
 const M={
@@ -1830,35 +1831,69 @@ export function createObjectViewer(container,id){
     container.dataset.vendingTouch=vendingControlsFocused?"on":"off";
     canvas.setAttribute("aria-label",vendingControlsFocused
       ?"Distributeur 3D : touchez les touches A à D, 1 à 4 ou la fente à pièces. Glissez pour pivoter."
-      :defaultCanvasLabel);
+      :defaultCanvasLabel+" ; toucher une pièce du modèle affiche son fonctionnement.");
   }
   function onControlPointerDown(event){
-    pointerStart=vendingControlsFocused&&event.isPrimary&&event.button===0
-      ?{pointerId:event.pointerId,button:event.button,isPrimary:event.isPrimary,
-        clientX:event.clientX,clientY:event.clientY,timeStamp:event.timeStamp}
-      :null;
+    // Ignore non-primary and secondary-button presses. Starting another finger
+    // invalidates the entire gesture, including the first pointer's release.
+    if(!event.isPrimary||event.button!==0){pointerStart=null;return;}
+    pointerStart={pointerId:event.pointerId,button:event.button,isPrimary:event.isPrimary,
+      clientX:event.clientX,clientY:event.clientY,timeStamp:event.timeStamp};
   }
   function onControlPointerUp(event){
     const previous=pointerStart;
     pointerStart=null;
-    if(!vendingControlsFocused||flowOpen||mechanismPreview||disposed||!active
-       ||!isIntentionalTap(previous,event)||cameraMove)return;
+    if(disposed||!active||flowOpen||mechanismPreview||tourStep>=0||
+       !isIntentionalTap(previous,event)||cameraMove)return;
     const rect=canvas.getBoundingClientRect();
     if(!rect.width||!rect.height)return;
-    controlRay.setFromCamera(new THREE.Vector2(
-      ((event.clientX-rect.left)/rect.width)*2-1,
-      1-((event.clientY-rect.top)/rect.height)*2
-    ),camera);
-    const hit=controlRay.intersectObjects(machine.vendingTargets||[],false)[0];
-    const detail=hit?.object?.userData?.vendingCommand;
-    if(!detail)return;
-    container.dispatchEvent(new CustomEvent("object-3d-vending-command",{
-      bubbles:true,detail:{...detail}
+    const nx=((event.clientX-rect.left)/rect.width)*2-1;
+    const ny=1-((event.clientY-rect.top)/rect.height)*2;
+    if(Math.abs(nx)>1||Math.abs(ny)>1)return;
+    controlRay.setFromCamera(new THREE.Vector2(nx,ny),camera);
+    if(vendingControlsFocused){
+      // Physical vending input always has priority over educational picking.
+      const hit=controlRay.intersectObjects(machine.vendingTargets||[],false)[0];
+      const detail=hit?.object?.userData?.vendingCommand;
+      if(!detail)return;
+      container.dispatchEvent(new CustomEvent("object-3d-vending-command",{
+        bubbles:true,detail:{...detail}
+      }));
+      return;
+    }
+    // Require real front-facing mesh geometry under the finger: tapping the
+    // surrounding empty canvas cannot activate an explanatory component.
+    const modelHit=controlRay.intersectObjects(root.children,true).some(({object})=>{
+      if(!object.isMesh||!object.visible)return false;
+      const materials=Array.isArray(object.material)?object.material:[object.material];
+      return materials.some(mat=>mat&&mat.visible!==false&&
+        !(mat.transparent&&mat.opacity<.01));
+    });
+    if(!modelHit)return;
+    const x=event.clientX-rect.left,y=event.clientY-rect.top;
+    const anchors=points.map(point=>{
+      const p=point.world.clone().project(camera);
+      return {x:(p.x+1)*rect.width*.5,y:(1-p.y)*rect.height*.5,
+        visible:p.z>=-1&&p.z<=1&&Math.abs(p.x)<=1&&Math.abs(p.y)<=1};
+    });
+    const index=closestProjectedPart(anchors,x,y);
+    if(index<0)return;
+    if(!showParts){
+      showParts=true;
+      markerLayer.hidden=false;
+      updatePartPositions();
+    }
+    focusPart(index);
+    // Keep the existing toolbar in sync without changing ColorFigures state.
+    container.dispatchEvent(new CustomEvent("object-3d-part-selected",{
+      bubbles:true,detail:{partId:points[index].part.id}
     }));
   }
+  function cancelControlPointer(){pointerStart=null;}
   canvas.addEventListener("pointerdown",onControlPointerDown);
   canvas.addEventListener("pointerup",onControlPointerUp);
-  canvas.addEventListener("pointercancel",()=>{pointerStart=null;});
+  canvas.addEventListener("pointercancel",cancelControlPointer);
+  canvas.addEventListener("pointerleave",cancelControlPointer);
   // Do not run an idle 60Hz requestAnimationFrame loop on a battery-powered
   // Android device. Schedule a frame only on input, scene changes or motion.
   function requestFrame(){
@@ -2077,6 +2112,8 @@ export function createObjectViewer(container,id){
       observer.disconnect();visibleObserver.disconnect();document.removeEventListener("visibilitychange",onVisibility);
       canvas.removeEventListener("pointerdown",onControlPointerDown);
       canvas.removeEventListener("pointerup",onControlPointerUp);
+      canvas.removeEventListener("pointercancel",cancelControlPointer);
+      canvas.removeEventListener("pointerleave",cancelControlPointer);
       delete container.dataset.vendingTouch;
       controls.dispose();
       const shared=new Set([...Object.values(mats),glow,steamMaterial,frosted,liquid,alertMat,brassy,blue,white,tint,edgeMaterial]);

@@ -1009,3 +1009,29 @@ Tests : filtre déterministe des gestes, parcours Chromium avec véritables
 raycasts sur la fente à pièces et les touches B et 3, prélèvement du crédit
 et vérification du stock, puis rotation qui n'ajoute pas de pièce.
 Android : versionName 0.42.0, versionCode 42.
+
+
+## Version 0.43 — identifier les pièces par un toucher sur l'objet 3D
+
+Sur chacun des neuf objets, toucher une zone visible du modèle 3D à proximité
+d'une pièce documentée ouvre directement son explication et oriente la caméra
+vers le composant. Les 27 points pédagogiques existants restent la source des
+noms et descriptions, et les repères numérotés restent disponibles pour la
+navigation tactile explicite et au clavier.
+
+La sélection utilise une interception de la géométrie réelle par Three.js
+(aucune leçon sur un toucher du fond vide), puis le point technique projeté
+le plus proche dans un rayon limité à 74 px. Un appui bref est distinct
+d'un glissement de rotation, d'un pincement ou d'un appui long. Les gestes
+sont bloqués pendant une visite guidée ou une démonstration du mécanisme.
+En zoom sur le distributeur, les commandes physiques de la v0.42 restent
+prioritaires : toucher la fente ou le clavier continue d'envoyer des actions
+au contrôleur d'origine, sans mutation directe du stock.
+
+En ouvrant une explication par le modèle lui-même, le bouton « Identifier
+les pièces » reflète désormais l'état réel des annotations. Le modèle et
+l'illustration 2D continuent à partager leur fonctionnement antérieur.
+
+Tests : sélection pure et bornée des repères, clics WebGL réels sur la
+bouilloire, le lave-linge et le distributeur, absence d'activation au
+glissement, régression des neuf modèles. APK Android v0.43.0/versionCode 43.
