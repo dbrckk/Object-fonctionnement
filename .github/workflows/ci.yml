@@ -22,7 +22,10 @@ jobs:
           distribution: temurin
           java-version: '21'
       - run: npm ci --no-audit --no-fund
-      - run: npx playwright install --with-deps chromium
+      # Ubuntu hosted runners already provide Chromium's common runtime
+      # libraries. Avoid apt-get update on every push: it can stall for many
+      # minutes even though the app and browser tests have not started.
+      - run: npx playwright install chromium
       - run: npm run generate:previews
       - run: npm run test:browser
       - run: npm run check
