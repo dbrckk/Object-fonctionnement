@@ -36,7 +36,8 @@
   if(event.source!==window.parent||event.data?.type!=="object-figure:mechanism-command")return;
   const {label,action}=event.data;
   if(typeof label!=="string"||label.length>70||!allowed[figure]?.includes(label)||
-     (action!=="press"&&action!=="cycle"))return;
+     (action!=="press"&&action!=="cycle"&&action!=="step"))return;
+  if(action==="step"&&event.data.direction!==1&&event.data.direction!==-1)return;
   // The legacy washer controller is authored in English but locale-fr.js
   // translates button TEXT NODES after mount. Route canonical commands to
   // their French UI labels without ever changing which controller executes.
@@ -60,9 +61,10 @@
    const chips=[...wrap.querySelectorAll(".chips > button.chip")];
    if(!chips.length)return;
    const current=chips.findIndex(ch=>ch.classList.contains("current"));
-   const next=chips[(current+1)%chips.length];
+   const direction=action==="step"?event.data.direction:1;
+   const selected=chips[(current+direction+chips.length)%chips.length];
    // Controller itself checks whether this option is enabled or locked.
-   next.click();
+   selected.click();
   }
  });
  let previousState="";
