@@ -12,6 +12,7 @@ import {GRAPHICS_KEY,readGraphicsMode,validGraphicsMode} from "./graphics-qualit
 import {getObjectParts} from "./part-annotations.js";
 import {INTERACTIVE_MODELS,physicalControlCommand,partMechanismAction,physicalActionLabel} from "./physical-actions.js";
 import {physicalGestureType,dragInstruction} from "./physical-gestures.js";
+import {physicalReadouts,physicalCommandConfirmed} from "./physical-telemetry.js";
 const root=document.getElementById("app");
 let quizProgress={};
 try{quizProgress=parseQuizProgress(localStorage.getItem(QUIZ_STORAGE_KEY));}catch{}
@@ -21,6 +22,11 @@ const VIEW_KEY="object-fonctionnement:view:v1";
 function initialView(){try{return localStorage.getItem(VIEW_KEY)!=="2d";}catch{return true;}}
 let currentViewer=null,loadingViewer=0,lastFigureState=null,pendingPart=null;
 let mechanismFlowActive=false,mechanismFlowIndex=0;
+let physicalPending=null,physicalResponseTimer=0;
+function resetPhysicalResponse(){
+ clearTimeout(physicalResponseTimer);
+ physicalResponseTimer=0;physicalPending=null;
+}
 function physicalPanelMarkup(id){
  const parts=getObjectParts(id);
  return '<section class="three-operate-panel" id="three-operate-panel" hidden '+
@@ -28,6 +34,13 @@ function physicalPanelMarkup(id){
   '<p>Touche une pièce pour agir sur sa simulation. Glisse le piston vers le bas '+
   'pour pomper, ou horizontalement sur certains réglages. Glisser ailleurs fait '+
   'pivoter le modèle. Les boutons restent utilisables au clavier.</p>'+
+  '<div class="three-sensor-heading">ÉTAT RÉEL DE LA SIMULATION</div>'+
+  '<div class="three-sensor-grid" role="group" aria-label="Mesures de la simulation">'+
+    physicalReadouts(id,{}).map(sensor=>
+      '<div class="three-sensor" data-physical-sensor="'+sensor.id+'">'+
+      '<span>'+escapeHtml(sensor.label)+'</span>'+
+      '<strong>'+escapeHtml(sensor.value)+'</strong></div>').join("")+
+  '</div>'+
   '<div class="three-operate-grid">'+parts.map(part=>
    '<button type="button" data-physical-part="'+part.id+'" disabled>'+
     escapeHtml(part.label)+'</button>').join("")+'</div>'+
@@ -105,6 +118,22 @@ function updateVendingControls(figureState=lastFigureState){
 function updatePhysicalActions(){
  const panel=document.getElementById("three-operate-panel");
  if(!panel)return;
+ const readouts=physicalReadouts(state.selected,lastFigureState);
+ for(const reading of readouts){
+  const node=panel.querySelector('[data-physical-sensor="'+reading.id+'"] strong');
+  if(node&&node.textContent!==reading.value)node.textContent=reading.value;
+ }
+ if(physicalPending&&physicalPending.model===state.selected&&lastFigureState&&
+    physicalCommandConfirmed(state.selected,physicalPending.command,
+      physicalPending.before,lastFigureState)){
+  const label=physicalActionLabel(physicalPending.command);
+  resetPhysicalResponse();
+  const status=document.getElementById("three-operate-status");
+  if(status&&panel.hidden===false){
+   status.dataset.result="confirmed";
+   status.textContent="Action confirmée par la simulation : "+label+".";
+  }
+ }
  const ready=Boolean(lastFigureState&&currentViewer&&state.view3D)&&!mechanismFlowActive;
  panel.querySelectorAll("[data-physical-part]").forEach(button=>{
   const action=partMechanismAction(state.selected,button.dataset.physicalPart,lastFigureState);
@@ -130,6 +159,7 @@ function sendVendingCommand(button){
  frame.contentWindow.postMessage(command,"*"); // sandbox has an opaque origin
 }
 function unmountViewer(){
+ resetPhysicalResponse();
  loadingViewer++;
  mechanismFlowActive=false;mechanismFlowIndex=0;
  lastFigureState=null;
@@ -350,6 +380,7 @@ function renderDetail(o){
  const operationPanel=document.getElementById("three-operate-panel");
  const operationStatus=document.getElementById("three-operate-status");
  function stopOperate(){
+  resetPhysicalResponse();
   if(!operate)return;
   currentViewer?.setMechanismTouchMode(false);
   operate.setAttribute("aria-pressed","false");
@@ -377,21 +408,37 @@ function renderDetail(o){
   }
   const iframe=document.querySelector("iframe.figure-frame");
   if(!iframe?.contentWindow)return;
+  resetPhysicalResponse();
+  operationStatus.dataset.result="pending";
+  const requestedModel=o.id;
+  physicalPending={model:requestedModel,command,before:lastFigureState};
   iframe.contentWindow.postMessage(command,"*"); // sandboxed opaque origin
-  operationStatus.textContent="Commande demandée : "+physicalActionLabel(command)+
-   ". Les conditions de fonctionnement restent vérifiées par la simulation.";
+  operationStatus.textContent="En attente de confirmation : "+physicalActionLabel(command)+"…";
+  const currentRequest=physicalPending;
+  physicalResponseTimer=setTimeout(()=>{
+   if(physicalPending!==currentRequest)return;
+   resetPhysicalResponse();
+   const status=document.getElementById("three-operate-status");
+   if(status&&status.isConnected&&!operationPanel.hidden&&
+     state.selected===requestedModel){
+    status.dataset.result="unconfirmed";
+    status.textContent="Aucun changement confirmé par la simulation. Vérifie les conditions d'utilisation de l'objet et réessaie.";
+   }
+  },1800);
  }
  if(operate){
   operate.addEventListener("click",()=>{
    if(!currentViewer)return;
    const enable=operate.getAttribute("aria-pressed")!=="true";
    if(enable&&mechanismFlowActive)toggleMechanismFlow(false);
+   if(!enable)resetPhysicalResponse();
    const enabled=currentViewer.setMechanismTouchMode(enable);
    operate.setAttribute("aria-pressed",String(enabled));
    operate.textContent=enabled?"Quitter la manipulation":"Manipuler en 3D";
    operationPanel.hidden=!enabled;
    if(enabled){
-    operationStatus.textContent="Choisis un composant ou touche le modèle. Les rotations restent possibles.";
+    operationStatus.dataset.result="ready";
+    operationStatus.textContent="Mesures synchronisées avec la simulation. Choisis un composant ou touche le modèle.";
     const partBtn=document.getElementById("three-parts");
     partBtn.setAttribute("aria-pressed","false");
     partBtn.textContent="Identifier les pièces";
