@@ -9,6 +9,8 @@ import {getMechanismPath} from "./mechanism-paths.js";
 import {hasMechanismDemo} from "./mechanism-demos.js";
 import {vendingControlView,vendingControlCommand,vendingSlotView,VENDING_SLOT_CODES} from "./vending-controls.js";
 import {GRAPHICS_KEY,readGraphicsMode,validGraphicsMode} from "./graphics-quality.js";
+import {getObjectParts} from "./part-annotations.js";
+import {INTERACTIVE_MODELS,physicalControlCommand,partMechanismAction} from "./physical-actions.js";
 const root=document.getElementById("app");
 let quizProgress={};
 try{quizProgress=parseQuizProgress(localStorage.getItem(QUIZ_STORAGE_KEY));}catch{}
@@ -18,6 +20,18 @@ const VIEW_KEY="object-fonctionnement:view:v1";
 function initialView(){try{return localStorage.getItem(VIEW_KEY)!=="2d";}catch{return true;}}
 let currentViewer=null,loadingViewer=0,lastFigureState=null,pendingPart=null;
 let mechanismFlowActive=false,mechanismFlowIndex=0;
+function physicalPanelMarkup(id){
+ const parts=getObjectParts(id);
+ return '<section class="three-operate-panel" id="three-operate-panel" hidden '+
+  'aria-label="Actions réelles du modèle 3D">'+
+  '<p>Touches une pièce sur le modèle pour agir sur sa simulation. '+
+  'Les boutons suivants effectuent les mêmes actions et restent utilisables au clavier.</p>'+
+  '<div class="three-operate-grid">'+parts.map(part=>
+   '<button type="button" data-physical-part="'+part.id+'" disabled>'+
+    escapeHtml(part.label)+'</button>').join("")+'</div>'+
+  '<p id="three-operate-status" role="status" aria-live="polite">'+
+   'Le fonctionnement suit les règles de la simulation originale.</p></section>';
+}
 
 // One real vending controller is shared between the 2D sandbox and the 3D
 // panel. The latter only sends validated commands; it never owns credit,
@@ -86,6 +100,18 @@ function updateVendingControls(figureState=lastFigureState){
    " — "+slot.note);
  });
 }
+function updatePhysicalActions(){
+ const panel=document.getElementById("three-operate-panel");
+ if(!panel)return;
+ const ready=Boolean(lastFigureState&&currentViewer&&state.view3D)&&!mechanismFlowActive;
+ panel.querySelectorAll("[data-physical-part]").forEach(button=>{
+  const action=partMechanismAction(state.selected,button.dataset.physicalPart,lastFigureState);
+  const part=getObjectParts(state.selected).find(p=>p.id===button.dataset.physicalPart);
+  const label=(part?.label||"Composant")+" : "+(action?.label||"indicateur seulement");
+  if(button.textContent!==label)button.textContent=label;
+  button.disabled=!ready||!action;
+ });
+}
 function sendVendingCommand(button){
  if(state.selected!=="vending"||!state.view3D||!currentViewer||
     mechanismFlowActive||!lastFigureState)return;
@@ -145,6 +171,7 @@ async function mountViewer(id){
   }
   if(lastFigureState)currentViewer.setState(lastFigureState);
   updateVendingControls();
+  updatePhysicalActions();
   host.closest(".three-shell").hidden=false;
   const stage=document.querySelector(".simulation");
   stage?.classList.add("show-3d");
@@ -165,6 +192,13 @@ function toggleView(){
   if(zoom){zoom.setAttribute("aria-pressed","false");zoom.textContent="Approcher les commandes 3D";}
   const hint=document.getElementById("three-vending-hint");
   if(hint)hint.hidden=true;
+  const operate=document.getElementById("three-operate");
+  if(operate){
+   operate.setAttribute("aria-pressed","false");
+   operate.textContent="Manipuler en 3D";
+  }
+  const operationPanel=document.getElementById("three-operate-panel");
+  if(operationPanel)operationPanel.hidden=true;
   unmountViewer();
   document.querySelector(".three-shell")?.setAttribute("hidden","");
   document.querySelector(".simulation")?.classList.remove("show-3d");
@@ -299,13 +333,65 @@ function toggleFavorite(id){
 }
 function renderDetail(o){
  const flowSteps=getMechanismPath(o.id);
- root.innerHTML='<header class="detail-header"><button id="back" class="back">← Catalogue</button><button id="global-sound" class="audio-toggle" aria-label="Activer ou désactiver les bruitages" aria-pressed="'+state.soundEnabled+'">'+(state.soundEnabled?"♫ Son activé":"♪ Son coupé")+'</button><span class="brand small">OBJET<span>·</span>FONCTIONNEMENT</span></header><main class="detail"><p class="eyebrow">'+escapeHtml(o.category)+' / COMPRENDRE</p><h1>'+escapeHtml(o.name)+'</h1><p class="intro">'+escapeHtml(o.summary)+'</p><div class="audio-mix-row"><label for="global-volume">Volume des bruitages</label><input type="range" id="global-volume" min="0" max="100" step="5" value="'+state.volume+'" aria-label="Volume des bruitages"><output id="volume-number" for="global-volume">'+state.volume+' %</output></div><div class="simulation" style="--object:'+o.color+'">'+(o.figure ? '<div class="three-shell" hidden><div class="three-header"><span class="three-label">MODÈLE 3D INTERACTIF</span><div class="three-actions"><label class="graphics-label" for="graphics-quality">Qualité 3D</label><select id="graphics-quality" aria-label="Qualité graphique 3D"><option value="auto"'+(state.graphicsQuality==="auto"?" selected":"")+'>Automatique</option><option value="eco"'+(state.graphicsQuality==="eco"?" selected":"")+'>Économie</option><option value="high"'+(state.graphicsQuality==="high"?" selected":"")+'>Haute qualité</option></select><button id="three-flow" aria-pressed="false" aria-controls="mechanism-flow-panel">Comprendre le mécanisme</button><button id="three-tour" aria-label="Commencer la visite guidée des pièces">'+(state.completedTours.includes(o.id)?"Revoir les pièces":"Visite guidée")+'</button><button id="three-parts" aria-pressed="false">Identifier les pièces</button><button id="three-explore" aria-pressed="false">Voir les pièces internes</button>'+(o.id==="vending"?'<button id="three-vending-zoom" type="button" aria-pressed="false" aria-controls="three-mount">Approcher les commandes 3D</button>':"")+(o.id==="fan"?'<button id="three-airflow" aria-controls="fan-airflow-explanation" aria-pressed="'+state.airflowEnabled+'">'+(state.airflowEnabled?"Masquer le flux d’air":"Visualiser le flux d’air")+'</button>':"")+'<button id="three-reset" aria-label="Recentrer la caméra 3D">↺ Recentrer</button></div></div><div id="three-mount"></div>'+(o.id==="vending"?'<p class="vending-model-tip" id="three-vending-hint" hidden>Commandes sur le modèle : touchez une touche A–D, 1–4 ou la fente à pièces. Glissez pour tourner ; le panneau ci-dessous reste accessible.</p>'+vendingPanelMarkup():"")+'<section id="mechanism-flow-panel" class="mechanism-flow-panel" aria-label="Parcours du mécanisme" hidden><p class="mechanism-flow-intro">Touchez les étapes numérotées sur le modèle ou dans la liste. Les flèches relient des fonctions, pas des conduits ou des câbles réels.</p><div class="mechanism-cutaway-row"><button type="button" id="mechanism-cutaway" aria-pressed="false" aria-controls="three-mount">Voir les mécanismes internes</button><small>Enveloppe transparente pour observer les pièces en mouvement.</small></div><ol class="mechanism-flow-list">'+flowSteps.map((step,i)=>'<li><button type="button" data-flow-step="'+i+'" aria-pressed="'+(i===0)+'"><span class="flow-step-number">'+(i+1)+'</span><span><strong>'+escapeHtml(step.title)+'</strong><small>'+escapeHtml(step.partLabel)+'</small></span></button></li>').join("")+'</ol><p id="mechanism-flow-detail" class="mechanism-flow-detail" role="status" aria-live="polite"></p><div class="mechanism-demo-row"><button id="mechanism-demo" type="button" aria-describedby="mechanism-demo-hint">▶ Voir le mouvement</button><span id="mechanism-demo-hint">Aperçu illustratif du modèle 3D, sans modifier la simulation.</span></div><div id="mechanism-scrub-row" class="mechanism-scrub-row" hidden><label for="mechanism-scrub">Examiner image par image</label><input type="range" id="mechanism-scrub" min="0" max="100" step="1" value="0" aria-label="Position du mouvement illustratif, de 0 à 100 %" aria-describedby="mechanism-demo-hint"><output id="mechanism-scrub-value" for="mechanism-scrub">0 %</output><button type="button" id="mechanism-reset">Retour à la simulation</button></div><p id="mechanism-demo-status" role="status" aria-live="polite" class="mechanism-demo-status"></p><div class="mechanism-flow-nav"><span id="mechanism-flow-counter"></span><button id="mechanism-previous" type="button">← Précédent</button><button id="mechanism-next" type="button">Suivant →</button><button id="mechanism-exit" type="button">Fermer</button></div></section>'+(o.id==="fan"?'<p id="fan-airflow-explanation" class="fan-airflow-explanation"'+(state.airflowEnabled?"":" hidden")+'><strong>Trajet de l’air :</strong> les particules représentent la direction du courant créé par les pales. Active le moteur dans la simulation pour les voir. Illustration pédagogique, pas une mesure de débit.</p>':"")+'<p class="three-help">Toucher une pièce du modèle : explication · Glisser : rotation · Pincer : zoom · Repères numérotés disponibles</p><p id="tour-status" class="tour-status" role="status">'+(state.completedTours.includes(o.id)?"Visite guidée terminée":"3 pièces à découvrir")+'</p></div><button id="view-mode" class="view-switch" aria-pressed="false">Explorer en 3D</button><iframe class="figure-frame"  title="Démonstration interactive : '+escapeHtml(o.name)+'" src="/figures/'+o.figure+'.html" sandbox="allow-scripts" loading="eager" referrerpolicy="no-referrer"></iframe><p class="simulation-note">Manipule les commandes du modèle isométrique ci-dessus. Modèle isométrique interactif basé sur ColorFigures (licence MIT). Les commandes simulent le principe de fonctionnement.</p>' : '<div class="simulation-figure '+(state.running?'animated':'')+'" aria-hidden="true"><span>'+o.icon+'</span></div><div class="simulation-status" role="status" aria-live="polite">'+escapeHtml(o.states[state.phase])+'</div><button id="simulate" class="primary" '+(state.running?'disabled':'')+'>'+(state.running?'Simulation en cours…':'▶ '+escapeHtml(o.action))+'</button><p class="simulation-note">Animation pédagogique simplifiée, non représentative de toutes les pièces internes.</p>')+'</div><section class="information"><h2>Comment ça fonctionne ?</h2><p>'+escapeHtml(o.how)+'</p></section><section class="information"><h2>Mode d’utilisation</h2><ol class="steps">'+o.steps.map(s=>'<li>'+escapeHtml(s)+'</li>').join("")+'</ol></section><section class="safety"><strong>À savoir</strong><p>'+escapeHtml(o.safety)+'</p></section><section class="quiz-panel" aria-label="Vérification des connaissances"><div class="quiz-heading"><h2>As-tu compris le mécanisme ?</h2><span id="quiz-status">'+(quizProgress[o.id]?"✓ Connaissance validée":"Une question pour vérifier")+'</span></div><p>'+escapeHtml(QUESTIONS[o.id].q)+'</p><div id="quiz-choices" class="quiz-choices">'+QUESTIONS[o.id].options.map((choice,index)=>'<button data-answer="'+index+'" aria-label="Réponse '+(index+1)+' : '+escapeHtml(choice)+'">'+escapeHtml(choice)+'</button>').join("")+'</div><p id="quiz-feedback" role="status" aria-live="polite"></p></section><button id="favorite-detail" class="secondary" aria-pressed="'+state.favorites.includes(o.id)+'">'+(state.favorites.includes(o.id)?"★ Retirer des favoris":"☆ Ajouter aux favoris")+'</button></main><footer>Les indications peuvent varier selon le modèle. Consulte sa notice.</footer>';
+ root.innerHTML='<header class="detail-header"><button id="back" class="back">← Catalogue</button><button id="global-sound" class="audio-toggle" aria-label="Activer ou désactiver les bruitages" aria-pressed="'+state.soundEnabled+'">'+(state.soundEnabled?"♫ Son activé":"♪ Son coupé")+'</button><span class="brand small">OBJET<span>·</span>FONCTIONNEMENT</span></header><main class="detail"><p class="eyebrow">'+escapeHtml(o.category)+' / COMPRENDRE</p><h1>'+escapeHtml(o.name)+'</h1><p class="intro">'+escapeHtml(o.summary)+'</p><div class="audio-mix-row"><label for="global-volume">Volume des bruitages</label><input type="range" id="global-volume" min="0" max="100" step="5" value="'+state.volume+'" aria-label="Volume des bruitages"><output id="volume-number" for="global-volume">'+state.volume+' %</output></div><div class="simulation" style="--object:'+o.color+'">'+(o.figure ? '<div class="three-shell" hidden><div class="three-header"><span class="three-label">MODÈLE 3D INTERACTIF</span><div class="three-actions"><label class="graphics-label" for="graphics-quality">Qualité 3D</label><select id="graphics-quality" aria-label="Qualité graphique 3D"><option value="auto"'+(state.graphicsQuality==="auto"?" selected":"")+'>Automatique</option><option value="eco"'+(state.graphicsQuality==="eco"?" selected":"")+'>Économie</option><option value="high"'+(state.graphicsQuality==="high"?" selected":"")+'>Haute qualité</option></select><button id="three-flow" aria-pressed="false" aria-controls="mechanism-flow-panel">Comprendre le mécanisme</button><button id="three-tour" aria-label="Commencer la visite guidée des pièces">'+(state.completedTours.includes(o.id)?"Revoir les pièces":"Visite guidée")+'</button><button id="three-parts" aria-pressed="false">Identifier les pièces</button>'+(INTERACTIVE_MODELS.includes(o.id)?'<button id="three-operate" type="button" aria-pressed="false" aria-controls="three-operate-panel">Manipuler en 3D</button>':"")+'<button id="three-explore" aria-pressed="false">Voir les pièces internes</button>'+(o.id==="vending"?'<button id="three-vending-zoom" type="button" aria-pressed="false" aria-controls="three-mount">Approcher les commandes 3D</button>':"")+(o.id==="fan"?'<button id="three-airflow" aria-controls="fan-airflow-explanation" aria-pressed="'+state.airflowEnabled+'">'+(state.airflowEnabled?"Masquer le flux d’air":"Visualiser le flux d’air")+'</button>':"")+'<button id="three-reset" aria-label="Recentrer la caméra 3D">↺ Recentrer</button></div></div><div id="three-mount"></div>'+(INTERACTIVE_MODELS.includes(o.id)?physicalPanelMarkup(o.id):"")+(o.id==="vending"?'<p class="vending-model-tip" id="three-vending-hint" hidden>Commandes sur le modèle : touchez une touche A–D, 1–4 ou la fente à pièces. Glissez pour tourner ; le panneau ci-dessous reste accessible.</p>'+vendingPanelMarkup():"")+'<section id="mechanism-flow-panel" class="mechanism-flow-panel" aria-label="Parcours du mécanisme" hidden><p class="mechanism-flow-intro">Touchez les étapes numérotées sur le modèle ou dans la liste. Les flèches relient des fonctions, pas des conduits ou des câbles réels.</p><div class="mechanism-cutaway-row"><button type="button" id="mechanism-cutaway" aria-pressed="false" aria-controls="three-mount">Voir les mécanismes internes</button><small>Enveloppe transparente pour observer les pièces en mouvement.</small></div><ol class="mechanism-flow-list">'+flowSteps.map((step,i)=>'<li><button type="button" data-flow-step="'+i+'" aria-pressed="'+(i===0)+'"><span class="flow-step-number">'+(i+1)+'</span><span><strong>'+escapeHtml(step.title)+'</strong><small>'+escapeHtml(step.partLabel)+'</small></span></button></li>').join("")+'</ol><p id="mechanism-flow-detail" class="mechanism-flow-detail" role="status" aria-live="polite"></p><div class="mechanism-demo-row"><button id="mechanism-demo" type="button" aria-describedby="mechanism-demo-hint">▶ Voir le mouvement</button><span id="mechanism-demo-hint">Aperçu illustratif du modèle 3D, sans modifier la simulation.</span></div><div id="mechanism-scrub-row" class="mechanism-scrub-row" hidden><label for="mechanism-scrub">Examiner image par image</label><input type="range" id="mechanism-scrub" min="0" max="100" step="1" value="0" aria-label="Position du mouvement illustratif, de 0 à 100 %" aria-describedby="mechanism-demo-hint"><output id="mechanism-scrub-value" for="mechanism-scrub">0 %</output><button type="button" id="mechanism-reset">Retour à la simulation</button></div><p id="mechanism-demo-status" role="status" aria-live="polite" class="mechanism-demo-status"></p><div class="mechanism-flow-nav"><span id="mechanism-flow-counter"></span><button id="mechanism-previous" type="button">← Précédent</button><button id="mechanism-next" type="button">Suivant →</button><button id="mechanism-exit" type="button">Fermer</button></div></section>'+(o.id==="fan"?'<p id="fan-airflow-explanation" class="fan-airflow-explanation"'+(state.airflowEnabled?"":" hidden")+'><strong>Trajet de l’air :</strong> les particules représentent la direction du courant créé par les pales. Active le moteur dans la simulation pour les voir. Illustration pédagogique, pas une mesure de débit.</p>':"")+'<p class="three-help">Toucher une pièce du modèle : explication · Glisser : rotation · Pincer : zoom · Repères numérotés disponibles</p><p id="tour-status" class="tour-status" role="status">'+(state.completedTours.includes(o.id)?"Visite guidée terminée":"3 pièces à découvrir")+'</p></div><button id="view-mode" class="view-switch" aria-pressed="false">Explorer en 3D</button><iframe class="figure-frame"  title="Démonstration interactive : '+escapeHtml(o.name)+'" src="/figures/'+o.figure+'.html" sandbox="allow-scripts" loading="eager" referrerpolicy="no-referrer"></iframe><p class="simulation-note">Manipule les commandes du modèle isométrique ci-dessus. Modèle isométrique interactif basé sur ColorFigures (licence MIT). Les commandes simulent le principe de fonctionnement.</p>' : '<div class="simulation-figure '+(state.running?'animated':'')+'" aria-hidden="true"><span>'+o.icon+'</span></div><div class="simulation-status" role="status" aria-live="polite">'+escapeHtml(o.states[state.phase])+'</div><button id="simulate" class="primary" '+(state.running?'disabled':'')+'>'+(state.running?'Simulation en cours…':'▶ '+escapeHtml(o.action))+'</button><p class="simulation-note">Animation pédagogique simplifiée, non représentative de toutes les pièces internes.</p>')+'</div><section class="information"><h2>Comment ça fonctionne ?</h2><p>'+escapeHtml(o.how)+'</p></section><section class="information"><h2>Mode d’utilisation</h2><ol class="steps">'+o.steps.map(s=>'<li>'+escapeHtml(s)+'</li>').join("")+'</ol></section><section class="safety"><strong>À savoir</strong><p>'+escapeHtml(o.safety)+'</p></section><section class="quiz-panel" aria-label="Vérification des connaissances"><div class="quiz-heading"><h2>As-tu compris le mécanisme ?</h2><span id="quiz-status">'+(quizProgress[o.id]?"✓ Connaissance validée":"Une question pour vérifier")+'</span></div><p>'+escapeHtml(QUESTIONS[o.id].q)+'</p><div id="quiz-choices" class="quiz-choices">'+QUESTIONS[o.id].options.map((choice,index)=>'<button data-answer="'+index+'" aria-label="Réponse '+(index+1)+' : '+escapeHtml(choice)+'">'+escapeHtml(choice)+'</button>').join("")+'</div><p id="quiz-feedback" role="status" aria-live="polite"></p></section><button id="favorite-detail" class="secondary" aria-pressed="'+state.favorites.includes(o.id)+'">'+(state.favorites.includes(o.id)?"★ Retirer des favoris":"☆ Ajouter aux favoris")+'</button></main><footer>Les indications peuvent varier selon le modèle. Consulte sa notice.</footer>';
  document.getElementById("back").addEventListener("click",returnToCatalog);
  document.getElementById("global-sound").addEventListener("click",()=>setSound(!state.soundEnabled));
  document.getElementById("global-volume").addEventListener("input",event=>setVolume(event.target.value));
  const frame=document.querySelector("iframe.figure-frame");
  if(frame)frame.addEventListener("load",()=>{postSoundSetting();postViewMode(currentViewer?"3d":"2d");});
  document.getElementById("view-mode").addEventListener("click",toggleView);
+ const operate=document.getElementById("three-operate");
+ const operationPanel=document.getElementById("three-operate-panel");
+ const operationStatus=document.getElementById("three-operate-status");
+ function stopOperate(){
+  if(!operate)return;
+  currentViewer?.setMechanismTouchMode(false);
+  operate.setAttribute("aria-pressed","false");
+  operate.textContent="Manipuler en 3D";
+  operationPanel.hidden=true;
+ }
+ function sendPhysicalAction(partId){
+  if(!operate||operate.getAttribute("aria-pressed")!=="true"||
+     state.selected!==o.id||!state.view3D||!lastFigureState||
+     !currentViewer||mechanismFlowActive)return;
+  const command=physicalControlCommand(o.id,partId,lastFigureState);
+  if(!command){
+   operationStatus.textContent="Cette pièce est uniquement informative ; aucune commande n'est associée.";
+   return;
+  }
+  const iframe=document.querySelector("iframe.figure-frame");
+  if(!iframe?.contentWindow)return;
+  iframe.contentWindow.postMessage(command,"*"); // sandboxed opaque origin
+  operationStatus.textContent="Commande demandée : "+command.label+
+   ". Les conditions de fonctionnement restent vérifiées par la simulation.";
+ }
+ if(operate){
+  operate.addEventListener("click",()=>{
+   if(!currentViewer)return;
+   const enable=operate.getAttribute("aria-pressed")!=="true";
+   if(enable&&mechanismFlowActive)toggleMechanismFlow(false);
+   const enabled=currentViewer.setMechanismTouchMode(enable);
+   operate.setAttribute("aria-pressed",String(enabled));
+   operate.textContent=enabled?"Quitter la manipulation":"Manipuler en 3D";
+   operationPanel.hidden=!enabled;
+   if(enabled){
+    operationStatus.textContent="Choisis un composant ou touche le modèle. Les rotations restent possibles.";
+    const partBtn=document.getElementById("three-parts");
+    partBtn.setAttribute("aria-pressed","false");
+    partBtn.textContent="Identifier les pièces";
+   }
+   updatePhysicalActions();
+  });
+  document.getElementById("three-mount").addEventListener("object-3d-mechanism-press",event=>{
+   if(event.target===document.getElementById("three-mount")&&
+      typeof event.detail?.partId==="string")sendPhysicalAction(event.detail.partId);
+  });
+  operationPanel.addEventListener("click",event=>{
+   const button=event.target.closest("button[data-physical-part]");
+   if(button&&!button.disabled)sendPhysicalAction(button.dataset.physicalPart);
+  });
+  updatePhysicalActions();
+ }
  const vendingPanel=document.getElementById("vending3d-controls");
  const vendingZoom=document.getElementById("three-vending-zoom");
  function syncVendingZoom(enabled){
@@ -368,6 +454,7 @@ function renderDetail(o){
   document.getElementById("mechanism-next").textContent=index===flowSteps.length-1?"Terminer":"Suivant →";
  }
  function toggleMechanismFlow(enabled){
+  if(enabled)stopOperate();
   const active=currentViewer?.setMechanismPath(Boolean(enabled))??false;
   mechanismFlowActive=active;
   if(active)syncVendingZoom(false);
@@ -481,6 +568,7 @@ function renderDetail(o){
  });
  document.getElementById("mechanism-exit").addEventListener("click",()=>toggleMechanismFlow(false));
  document.getElementById("three-tour").addEventListener("click",()=>{
+  stopOperate();
   syncVendingZoom(false);
   if(mechanismFlowActive)toggleMechanismFlow(false);
   if(!currentViewer)return;
@@ -493,6 +581,7 @@ function renderDetail(o){
  });
  document.getElementById("three-parts").addEventListener("click",event=>{
   if(!currentViewer)return;
+  stopOperate();
   syncVendingZoom(false);
   if(mechanismFlowActive)toggleMechanismFlow(false);
   const button=event.currentTarget;
@@ -504,6 +593,7 @@ function renderDetail(o){
  const airflowButton=document.getElementById("three-airflow");
  if(airflowButton)airflowButton.addEventListener("click",()=>setAirflowPreference(!state.airflowEnabled));
  document.getElementById("three-reset").addEventListener("click",()=>{
+  stopOperate();
   syncVendingZoom(false);
   if(mechanismFlowActive)toggleMechanismFlow(false);
   currentViewer?.resetCamera();
@@ -569,6 +659,7 @@ window.addEventListener("message",event=>{
    lastFigureState=event.data.value;
    currentViewer?.setState(lastFigureState);
    updateVendingControls();
+   updatePhysicalActions();
   }
   return;
  }
