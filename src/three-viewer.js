@@ -1842,6 +1842,7 @@ export function createObjectViewer(container,id){
     container.dataset.mechanismTouch=mechanismTouchMode?"on":"off";
     pointerStart=null;
     directionalPointer=null;
+    gestureHint.hidden=true;
     if(mechanismTouchMode){
       endTour(false);
       showParts=false;
