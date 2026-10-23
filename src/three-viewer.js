@@ -1928,7 +1928,7 @@ export function createObjectViewer(container,id){
   container.append(gestureHint);
   function gesturePick(start){
     if(!mechanismTouchMode||disposed||!active||flowOpen||
-       mechanismPreview||tourStep>=0||cameraMove)return null;
+       mechanismPreview||tourStep>=0)return null;
     const rect=canvas.getBoundingClientRect();
     if(!rect.width||!rect.height)return null;
     const sx=start.clientX-rect.left,sy=start.clientY-rect.top;
@@ -1958,6 +1958,9 @@ export function createObjectViewer(container,id){
     }
     const part=gesturePick(event);
     if(!part)return;
+    // An intentional physical input takes priority over an unfinished
+    // 440ms camera ease. Freeze the camera where the finger found the part.
+    if(cameraMove){cameraMove=null;cameraCustomized=true;dirty=true;requestFrame();}
     const start={pointerId:event.pointerId,button:event.button,isPrimary:event.isPrimary,
       clientX:event.clientX,clientY:event.clientY,timeStamp:event.timeStamp};
     directionalPointer={...part,start,live:false};
