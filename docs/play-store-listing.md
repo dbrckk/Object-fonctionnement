@@ -52,4 +52,4 @@ Le workflow `Build, test and Play release prep` produit `play-store-v048-graphic
 - **Publicités** : Non (dans la version 0.48)
 - **Accès** : Gratuit, sans compte (dans la version 0.48)
 - **Contact développeur** : les coordonnées exactes doivent provenir du compte Play Console, jamais être inventées
-- **URL confidentialité envisagée** : `https://dbrckk.github.io/Object-fonctionnement/privacy.html` **uniquement après activation et vérification de GitHub Pages**
+- **URL de confidentialité publiée** : https://auroral-drive-8h58f6y.shipstatic.com/privacy.html (hébergement ShipStatic connecté, publication permanente). La même politique est intégrée hors ligne à l’APK.
