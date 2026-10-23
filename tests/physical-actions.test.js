@@ -38,6 +38,11 @@ test("washing drum respects its true load, run, stop and unload phases",()=>{
  assert.equal(action({laundry:"drum",run:true}),"Start / pause");
  assert.equal(action({laundry:"drum",run:false,done:true}),"Open door, unload");
  assert.equal(action({laundry:"basket",run:true,paused:true}),"Start / pause");
+ assert.equal(partMechanismAction("washing","drum",{laundry:"drum",doorT:1}),null);
+ assert.equal(partMechanismAction("washing","drum",{laundry:"drum",door:.2}),null);
+ assert.equal(partMechanismAction("washing","drum",{laundry:"drum",xfer:{dir:"in"}}),null);
+ assert.equal(partMechanismAction("washing","program",{run:true}),null);
+ assert.equal(partMechanismAction("washing","drawer",{run:true}),null);
 });
 test("all mapping calls are immutable and fail closed for unknown parts",()=>{
  const original=JSON.stringify(PHYSICAL_PART_ACTIONS);
