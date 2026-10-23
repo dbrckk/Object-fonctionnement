@@ -21,6 +21,7 @@ import {VENDING_PRODUCT_ROWS,VENDING_KEY_LABELS,vendingKeypadVisual,vendingProdu
 import {createSurfacePixels,SURFACE_SIZE} from "./surface-finishes.js";
 import {isIntentionalTap} from "./three-touch.js";
 import {closestProjectedPart} from "./part-picking.js";
+import {physicalGestureType,mechanicalGestureCommand} from "./physical-gestures.js";
 import {AIRFLOW_PARTICLE_COUNT,airflowPoint,airSpeed,airflowParticleBudget} from "./fan-airflow.js";
 
 const M={
@@ -1823,6 +1824,7 @@ export function createObjectViewer(container,id){
   let state={},stateSignature="",active=true,intersecting=true;
   let disposed=false,frame=0,dirty=true,last=0;
   let vendingControlsFocused=false,mechanismTouchMode=false,pointerStart=null;
+  let directionalPointer=null;
   const controlRay=new THREE.Raycaster();
   const canvas=renderer.domElement;
   const defaultCanvasLabel=canvas.getAttribute("aria-label");
@@ -1839,6 +1841,7 @@ export function createObjectViewer(container,id){
     mechanismTouchMode=Boolean(visible)&&!disposed&&id!=="vending";
     container.dataset.mechanismTouch=mechanismTouchMode?"on":"off";
     pointerStart=null;
+    directionalPointer=null;
     if(mechanismTouchMode){
       endTour(false);
       showParts=false;
@@ -1914,7 +1917,104 @@ export function createObjectViewer(container,id){
       bubbles:true,detail:{partId:points[index].part.id}
     }));
   }
+  // A mechanical stroke is intentionally different from orbiting a model:
+  // capture only when the finger starts on a documented directional part.
+  // OrbitControls continues handling all other canvas gestures unchanged.
+  const gestureHint=document.createElement("div");
+  gestureHint.className="three-gesture-hint";
+  gestureHint.hidden=true;
+  gestureHint.setAttribute("aria-hidden","true");
+  container.append(gestureHint);
+  function gesturePick(start){
+    if(!mechanismTouchMode||disposed||!active||flowOpen||
+       mechanismPreview||tourStep>=0||cameraMove)return null;
+    const rect=canvas.getBoundingClientRect();
+    if(!rect.width||!rect.height)return null;
+    const sx=start.clientX-rect.left,sy=start.clientY-rect.top;
+    const nx=sx/rect.width*2-1,ny=1-sy/rect.height*2;
+    if(Math.abs(nx)>1||Math.abs(ny)>1)return null;
+    controlRay.setFromCamera(new THREE.Vector2(nx,ny),camera);
+    const hit=controlRay.intersectObjects(root.children,true).some(({object})=>{
+      if(!object.isMesh||!object.visible)return false;
+      const materials=Array.isArray(object.material)?object.material:[object.material];
+      return materials.some(mat=>mat&&mat.visible!==false&&
+       !(mat.transparent&&mat.opacity<.01));
+    });
+    if(!hit)return null;
+    const anchors=points.map(point=>{
+      const p=point.world.clone().project(camera);
+      return {x:(p.x+1)*rect.width*.5,y:(1-p.y)*rect.height*.5,
+       visible:p.z>=-1&&p.z<=1&&Math.abs(p.x)<=1&&Math.abs(p.y)<=1};
+    });
+    const index=closestProjectedPart(anchors,sx,sy);
+    if(index<0)return null;
+    const partId=points[index].part.id;
+    const descriptor=physicalGestureType(id,partId,state);
+    return descriptor?{partId,descriptor}:null;
+  }
+  function onGesturePointerDown(event){
+    if(!mechanismTouchMode)return;
+    if(!event.isPrimary||event.button!==0){
+      // A second finger cancels an unfinished mechanical gesture.
+      directionalPointer=null;pointerStart=null;gestureHint.hidden=true;
+      return;
+    }
+    const part=gesturePick(event);
+    if(!part)return;
+    const start={pointerId:event.pointerId,button:event.button,isPrimary:event.isPrimary,
+      clientX:event.clientX,clientY:event.clientY,timeStamp:event.timeStamp};
+    directionalPointer={...part,start,live:false};
+    pointerStart=null;
+    gestureHint.textContent=part.descriptor.hint;
+    gestureHint.hidden=false;
+    gestureHint.style.setProperty("--stroke-progress","0%");
+    try{canvas.setPointerCapture(event.pointerId);}catch{}
+    // OrbitControls sees neither pointerdown nor subsequent move/up.
+    event.stopImmediatePropagation();
+    event.preventDefault();
+  }
+  function onGesturePointerMove(event){
+    if(!directionalPointer||event.pointerId!==directionalPointer.start.pointerId)return;
+    const start=directionalPointer.start;
+    const delta=directionalPointer.descriptor.axis==="x"
+     ?event.clientX-start.clientX:event.clientY-start.clientY;
+    directionalPointer.live=true;
+    const scale=directionalPointer.descriptor.direction===1
+     ?Math.max(0,delta):Math.abs(delta);
+    gestureHint.style.setProperty("--stroke-progress",
+     Math.round(Math.min(1,scale/60)*100)+"%");
+    event.stopImmediatePropagation();
+    event.preventDefault();
+  }
+  function onGesturePointerUp(event){
+    if(!directionalPointer||event.pointerId!==directionalPointer.start.pointerId)return;
+    const current=directionalPointer;
+    directionalPointer=null;pointerStart=null;gestureHint.hidden=true;
+    event.stopImmediatePropagation();
+    event.preventDefault();
+    if(disposed||!mechanismTouchMode||flowOpen||cameraMove)return;
+    const command=mechanicalGestureCommand(id,current.partId,current.start,event,state);
+    if(command){
+      container.dispatchEvent(new CustomEvent("object-3d-mechanism-gesture",{
+        bubbles:true,detail:{partId:current.partId,command}
+      }));
+    }else if(isIntentionalTap(current.start,event)){
+      // A short physical tap remains the existing v0.44 action.
+      container.dispatchEvent(new CustomEvent("object-3d-mechanism-press",{
+        bubbles:true,detail:{partId:current.partId}
+      }));
+    }
+  }
+  function onGesturePointerCancel(event){
+    if(directionalPointer&&event.pointerId===directionalPointer.start.pointerId){
+      directionalPointer=null;pointerStart=null;gestureHint.hidden=true;
+    }
+  }
   function cancelControlPointer(){pointerStart=null;}
+  canvas.addEventListener("pointerdown",onGesturePointerDown,true);
+  canvas.addEventListener("pointermove",onGesturePointerMove,true);
+  canvas.addEventListener("pointerup",onGesturePointerUp,true);
+  canvas.addEventListener("pointercancel",onGesturePointerCancel,true);
   canvas.addEventListener("pointerdown",onControlPointerDown);
   canvas.addEventListener("pointerup",onControlPointerUp);
   canvas.addEventListener("pointercancel",cancelControlPointer);
@@ -2145,6 +2245,11 @@ export function createObjectViewer(container,id){
       endTour(false);
       disposed=true;cancelAnimationFrame(frame);
       observer.disconnect();visibleObserver.disconnect();document.removeEventListener("visibilitychange",onVisibility);
+      canvas.removeEventListener("pointerdown",onGesturePointerDown,true);
+      canvas.removeEventListener("pointermove",onGesturePointerMove,true);
+      canvas.removeEventListener("pointerup",onGesturePointerUp,true);
+      canvas.removeEventListener("pointercancel",onGesturePointerCancel,true);
+      gestureHint.remove();
       canvas.removeEventListener("pointerdown",onControlPointerDown);
       canvas.removeEventListener("pointerup",onControlPointerUp);
       canvas.removeEventListener("pointercancel",cancelControlPointer);
