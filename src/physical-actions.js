@@ -37,6 +37,16 @@ export const PHYSICAL_PART_ACTIONS=Object.freeze({
  })
 });
 export const INTERACTIVE_MODELS=Object.freeze(Object.keys(PHYSICAL_PART_ACTIONS));
+const FRENCH_CONTROLLER_LABELS=Object.freeze({
+ "Load laundry":"Charger le linge",
+ "Add soap":"Ajouter la lessive",
+ "Choose program":"Choisir le programme",
+ "Start / pause":"Démarrer / pause",
+ "Open door, unload":"Ouvrir et décharger"
+});
+export function physicalActionLabel(action){
+ return FRENCH_CONTROLLER_LABELS[action?.label]||action?.label||"";
+}
 /**
  * Derive the action from the selected part and the live sandbox snapshot.
  * No component changes the controller's simulation state in this module.
