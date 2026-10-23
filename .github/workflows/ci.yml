@@ -6,7 +6,7 @@ on:
 # Keep only the newest validation per branch. Frequent Android iterations
 # must not leave dozens of stale Chromium downloads and Gradle builds running.
 concurrency:
-  group: object-fonctionnement-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  group: of-app-fast-ci-v2-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 jobs:
   android:
@@ -22,7 +22,10 @@ jobs:
           distribution: temurin
           java-version: '21'
       - run: npm ci --no-audit --no-fund
-      - run: npx playwright install --with-deps chromium
+      # Ubuntu hosted runners already provide Chromium's common runtime
+      # libraries. Avoid apt-get update on every push: it can stall for many
+      # minutes even though the app and browser tests have not started.
+      - run: npx playwright install chromium
       - run: npm run generate:previews
       - run: npm run test:browser
       - run: npm run check
@@ -31,8 +34,8 @@ jobs:
       - run: npx cap sync android
       - run: npm run android:icons
       - run: |
-          sed -i 's/versionCode 1/versionCode 45/' android/app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "0.45.0"/' android/app/build.gradle
+          sed -i 's/versionCode 1/versionCode 46/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "0.46.0"/' android/app/build.gradle
       - run: chmod +x android/gradlew
       - run: ./gradlew assembleDebug --no-daemon
         working-directory: android

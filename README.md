@@ -1104,3 +1104,29 @@ Tests : classification pure des gestes sur les cinq composants,
 réglage aller-retour du ventilateur, vrai cycle de gonflage au geste
 sur la pompe, et conservation des parcours des neuf objets.
 Version Android 0.45.0, versionCode 45.
+
+
+## Version 0.46 — tableau de bord de fonctionnement en direct
+
+En mode « Manipuler en 3D », huit appareils présentent chacun trois mesures
+issues du contrôleur ColorFigures d'origine, soit **24 indications réelles** :
+niveau d'eau et chauffage, brunissage, vitesse et oscillation, état de serrure,
+pression et pompages, préparation du café, batterie ou déroulement du lavage.
+Une valeur absente reste « — » au lieu d'être estimée artificiellement.
+
+Après chaque geste ou bouton 3D, l'application attend une preuve du contrôleur :
+seul un changement d'état pertinent pour la commande confirme sa réussite.
+Les animations d'arrière-plan (montée en température, mouvement de l'hélice,
+progression d'une infusion) ne servent pas à confirmer abusivement une
+nouvelle action. Après 1,8 seconde sans transition correspondante,
+l'application indique qu'aucun changement n'a pu être confirmé et propose
+de vérifier les conditions d'utilisation.
+
+Les mesures se mettent à jour avec les messages d'état déjà diffusés par
+l'iframe d'origine, sans boucle de calcul supplémentaire. Changer de mode
+ou d'objet annule les confirmations en attente. Les contrôles restent
+accessibles depuis le panneau tactile et au clavier.
+
+Tests : 24 indicateurs, transitions discrètes, refus des fausses confirmations
+en cours d'animation, parcours Chromium du chauffage, du ventilateur,
+de la pompe et du lave-linge. APK Android v0.46.0/versionCode 46.
