@@ -48,7 +48,7 @@ function physicalPanelMarkup(id){
    '<button type="button" data-physical-part="'+part.id+'" disabled>'+
     escapeHtml(part.label)+'</button>').join("")+'</div>'+
   '<div class="mission-start-row"><button type="button" id="mission-start">Défi pratique : '+escapeHtml(missionFor(id).title)+'</button>'+
-   '<small>Réalise les actions dans la simulation d'origine, sans automatisation.</small></div>'+
+   '<small>Réalise les actions sur le modèle original, sans automatisation.</small></div>'+
   '<section class="practical-mission" id="practical-mission" hidden aria-label="Défi pratique">'+
    '<div class="mission-progress-line"><strong id="mission-counter">0 / '+missionFor(id).steps.length+' étapes</strong>'+
    '<progress id="mission-progress" max="'+missionFor(id).steps.length+'" value="0"></progress></div>'+
