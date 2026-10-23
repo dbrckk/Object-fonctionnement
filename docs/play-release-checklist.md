@@ -18,7 +18,7 @@
 
 ## Étapes qui exigent encore une intervention
 
-1. **Activer GitHub Pages**, source `Deploy from a branch`, branche `main`, dossier `/docs`, puis ouvrir `https://dbrckk.github.io/Object-fonctionnement/privacy.html`. **Ne pas ajouter une URL hypothétique à Play Console avant vérification réelle.**
+1. **Politique de confidentialité publiée** : https://auroral-drive-8h58f6y.shipstatic.com/privacy.html (déploiement permanent, sans échéance de suppression). Utiliser cette URL dans Play Console ; vérifier son ouverture depuis le téléphone et la conserver disponible lors des mises à jour.
 2. **Créer et conserver la clé de signature d'importation**. Elle est indispensable pour la publication ; ne jamais l'envoyer dans le chat, le dépôt ou un ticket public. Garder une copie sûre. Ajouter les 4 secrets dans `GitHub > Settings > Secrets and variables > Actions`.
 3. Relancer le workflow, puis contrôler l'artefact `object-fonctionnement-v048-signed-play-aab`. Un artefact marqué `UNSIGNED` est impropre à la distribution.
 4. Créer l'application dans Play Console avec l'identifiant exact `com.dbrckk.objectfonctionnement` et le nom définitif. Cet identifiant est destiné à rester stable sur les futures mises à jour.
