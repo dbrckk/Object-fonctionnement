@@ -50,16 +50,16 @@ export function physicalReadouts(model,state){
 // The fields that *prove* whether an original controller has acted. Do not
 // interpret unrelated 60fps visual animation as evidence of a successful click.
 const PROOF_FIELDS=Object.freeze({
- kettle:{"Chauffer":["heating","phase","hot"],"Remplir d'eau":["water"],"Verser":["water"]},
- toaster:{"Abaisser / griller":["toasting","done","hot"],"Insérer le pain":["bread"],
+ kettle:{"Chauffer":["heating","phase"],"Remplir d'eau":["water"],"Verser":["water"]},
+ toaster:{"Abaisser / griller":["toasting","done"],"Insérer le pain":["bread"],
   "Régler le brunissage":["level"]},
  fan:{"Marche / arrêt":["speed"],"Vitesse":["speed"],"Oscillation":["oscillate"]},
  lock:{"Insérer la bonne clé":["key","aligned"],"Tourner la clé":["locked","turning"],
   "Retirer la clé":["key","aligned"]},
- bicycle:{"Pomper":["pumping","pumps","pressure"],"Raccorder / retirer embout":["connected"]},
+ bicycle:{"Pomper":["pumping"],"Raccorder / retirer embout":["connected"]},
  coffee:{"Ajouter de l'eau":["water"],"Mettre le café moulu":["grounds"],
-  "Préparer le café":["brewing","progress","coffee"],"Servir":["coffee"]},
- flashlight:{"Compartiment piles":["open"],"Marche / arrêt":["on","glow"],
+  "Préparer le café":["brewing"],"Servir":["coffee"]},
+ flashlight:{"Compartiment piles":["open"],"Marche / arrêt":["on"],
   "Intensité":["brightness"]},
  washing:{"Load laundry":["xfer","laundry","doorT"],"Add soap":["soap","soapAnim","soapLvl"],
   "Choose program":["prog"],"Start / pause":["run","paused"],
