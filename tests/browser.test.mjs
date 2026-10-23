@@ -994,6 +994,9 @@ try{
    assert.equal(await kettleOperate.getAttribute("aria-pressed"),"true");
    const kettlePanel=app.locator("#three-operate-panel");
    assert.equal(await kettlePanel.locator("[data-physical-part]").count(),3);
+   assert.equal(await kettlePanel.locator("[data-physical-sensor]").count(),3);
+   await app.waitForFunction(()=>document.querySelector(
+    '#three-operate-panel [data-physical-sensor="water"] strong')?.textContent==="55 %");
    await kettlePanel.locator('[data-physical-part="tank"]').click();
    await app.frameLocator("iframe.figure-frame").locator("body")
     .evaluate(()=>new Promise((resolve,reject)=>{
@@ -1004,6 +1007,11 @@ try{
       setTimeout(check,25);
      };check();
     }));
+   await app.waitForFunction(()=>document.querySelector(
+    '#three-operate-panel [data-physical-sensor="water"] strong')?.textContent==="85 %");
+   await app.waitForFunction(()=>document.querySelector(
+    "#three-operate-status")?.dataset.result==="confirmed");
+   assert.match(await app.locator("#three-operate-status").innerText(),/Remplir d'eau/);
    await kettlePanel.locator('[data-physical-part="heater"]').click();
    await app.frameLocator("iframe.figure-frame").locator("body")
     .evaluate(()=>new Promise((resolve,reject)=>{
@@ -1014,6 +1022,16 @@ try{
       setTimeout(check,25);
      };check();
     }));
+   await app.waitForFunction(()=>document.querySelector(
+    '#three-operate-panel [data-physical-sensor="heater"] strong')?.textContent==="En cours");
+   await app.waitForFunction(()=>document.querySelector(
+    "#three-operate-status")?.dataset.result==="confirmed");
+   // A second heat command is rejected by the real controller while
+   // heating; the 3D dashboard must not invent a successful response.
+   await kettlePanel.locator('[data-physical-part="heater"]').click();
+   await app.waitForFunction(()=>document.querySelector(
+    "#three-operate-status")?.dataset.result==="unconfirmed",{timeout:4200});
+   assert.match(await app.locator("#three-operate-status").innerText(),/Aucun changement confirmé/);
    await app.getByRole("button",{name:"Identifier les pièces"}).click();
    assert.equal(await kettleOperate.getAttribute("aria-pressed"),"false");
    assert.equal(await kettlePanel.isHidden(),true);
@@ -1055,6 +1073,8 @@ try{
      };check();
     }));
    const fanFrame=app.frameLocator("iframe.figure-frame");
+   await app.waitForFunction(()=>document.querySelector(
+    '#three-operate-panel [data-physical-sensor="motor"] strong')?.textContent==="Vitesse 2");
    await app.evaluate(()=>{
     window.__gestureTestEvents=[];
     for(const name of ["object-3d-mechanism-gesture","object-3d-mechanism-press"]){
@@ -1150,6 +1170,9 @@ try{
    await app.setViewportSize({width:320,height:780});
    assert.ok(await app.evaluate(()=>document.documentElement.scrollWidth<=
      document.documentElement.clientWidth+1),"3D operation panel overflows 320px Android");
+   assert.equal(await washerPanel.locator('[data-physical-sensor]').count(),3);
+   await app.waitForFunction(()=>document.querySelector(
+     '#three-operate-panel [data-physical-sensor="cycle"] strong')?.textContent==="En cours");
    await app.setViewportSize({width:390,height:844});
    console.log("PASS 3D washer programmed, loaded and started using real guarded controller");
 
@@ -1197,6 +1220,10 @@ try{
     };poll();
    }));
    assert.ok(await bikeFrame.locator("body").evaluate(()=>window.__st.pressure)>.7);
+   await app.waitForFunction(()=>document.querySelector(
+    '#three-operate-panel [data-physical-sensor="pumps"] strong')?.textContent==="1");
+   await app.waitForFunction(()=>document.querySelector(
+    "#three-operate-status")?.dataset.result==="confirmed");
    assert.equal(await app.locator(".three-gesture-hint").isHidden(),true);
    console.log("PASS real bicycle 3D downward piston stroke and accidental-drag guards");
 
