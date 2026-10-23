@@ -452,3 +452,43 @@ footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
  .vending3d-controls-grid{gap:8px;grid-template-columns:minmax(100px,.85fr) minmax(0,1.15fr)}
  .vending3d-panel button{font-size:.73rem}
 }
+
+
+/* Hands-on learning remains part of the ordinary physical-control panel. */
+.mission-start-row{display:flex;flex-direction:column;gap:6px;margin-top:16px;
+ border-top:1px solid #b5d7d0;padding-top:14px}
+.mission-start-row button{font:inherit;font-size:.86rem;font-weight:850;
+ padding:12px 13px;border:1px solid #285f62;border-radius:12px;
+ color:#f8fcf8;background:#20666c;text-align:left;cursor:pointer;
+ min-height:49px;touch-action:manipulation}
+.mission-start-row button:disabled{opacity:.5;cursor:default}
+.mission-start-row small{color:#506e74;font-size:.72rem;line-height:1.5}
+.practical-mission{background:#fffdf7;border:1px solid #afd4c9;
+ border-radius:15px;padding:14px 12px;margin:12px 0 6px}
+.practical-mission[hidden]{display:none}
+.mission-progress-line{display:flex;justify-content:space-between;align-items:center;
+ flex-wrap:wrap;gap:9px;margin-bottom:12px}
+.mission-progress-line strong{font-size:.82rem;color:#25535e}
+.mission-progress-line progress{appearance:none;width:160px;max-width:100%;height:9px;
+ border-radius:20px;overflow:hidden;background:#d7e7df}
+.mission-progress-line progress::-webkit-progress-bar{background:#d7e7df}
+.mission-progress-line progress::-webkit-progress-value{background:#328e75}
+.mission-progress-line progress::-moz-progress-bar{background:#328e75}
+#mission-steps{list-style:none;display:grid;gap:7px;margin:0;padding:0}
+#mission-steps li{display:flex;gap:10px;align-items:flex-start;border:1px solid #e2e7df;
+ border-radius:11px;padding:10px;color:#687674;background:#f6f7f4}
+#mission-steps li[data-status="current"]{border-color:#5d9eab;background:#e7f4f1;
+ color:#204f5f}
+#mission-steps li[data-status="done"]{border-color:#c2dfd1;background:#f1f8ee;
+ color:#246353}
+#mission-steps .mission-state{font-size:1.18rem;line-height:1.2;min-width:20px;
+ font-weight:800;text-align:center}
+#mission-steps li strong,#mission-steps li small{display:block;line-height:1.42}
+#mission-steps li strong{font-size:.82rem}
+#mission-steps li small{font-size:.72rem;margin-top:3px}
+#mission-message{font-size:.81rem;line-height:1.55;margin:12px 0 11px;color:#245a63}
+#mission-stop{font:inherit;min-height:44px;padding:8px 12px;border-radius:10px;
+ background:#fff;color:#356375;border:1px solid #9dbbc1}
+.mission-completed-card{display:inline-block;border-radius:20px;background:#d8f2e5;
+ color:#205b44;font-size:.7rem;font-weight:800;padding:5px 9px;margin:3px 4px 4px 0}
+@media(max-width:350px){.mission-progress-line progress{width:100%}}
