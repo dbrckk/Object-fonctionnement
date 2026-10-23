@@ -1086,8 +1086,16 @@ try{
    });
    // Horizontal swipes must select the original controller in both
    // directions, without rotating the camera or triggering a second tap.
+   // Clicking the lower 3D command panel can scroll WebGL out of view.
+   // Reactivate its IntersectionObserver and reproject the anchor *after*
+   // returning to the canvas, exactly as a real finger would do.
+   await fanCanvas.scrollIntoViewIfNeeded();
+   await app.waitForTimeout(250);
+   const latestMotorAnchor=await app.locator(".three-part-leader").nth(1).evaluate(node=>({
+    x:Number(node.getAttribute("x1")),y:Number(node.getAttribute("y1"))
+   }));
    const motorBounds=await fanCanvas.boundingBox();
-   const motorPoint={x:motorBounds.x+motorAnchor.x,y:motorBounds.y+motorAnchor.y};
+   const motorPoint={x:motorBounds.x+latestMotorAnchor.x,y:motorBounds.y+latestMotorAnchor.y};
    const swipe=async(point,dx,dy)=>{
     await app.mouse.move(point.x,point.y);
     await app.mouse.down();
@@ -1198,8 +1206,13 @@ try{
      setTimeout(poll,25);
     };poll();
    }));
+   await pumpCanvas.scrollIntoViewIfNeeded();
+   await app.waitForTimeout(250);
+   const activePistonAnchor=await app.locator(".three-part-leader").first().evaluate(node=>({
+    x:Number(node.getAttribute("x1")),y:Number(node.getAttribute("y1"))
+   }));
    const pumpBounds=await pumpCanvas.boundingBox();
-   const pistonPoint={x:pumpBounds.x+pistonAnchor.x,y:pumpBounds.y+pistonAnchor.y};
+   const pistonPoint={x:pumpBounds.x+activePistonAnchor.x,y:pumpBounds.y+activePistonAnchor.y};
    const bicycleSwipe=async(dx,dy)=>{
     await app.mouse.move(pistonPoint.x,pistonPoint.y);
     await app.mouse.down();
