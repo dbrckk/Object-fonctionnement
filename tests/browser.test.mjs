@@ -1087,8 +1087,22 @@ try{
       setTimeout(check,40);
      };check();
     }));
-   await app.waitForFunction(()=>document.querySelector(
-    '#three-operate-panel [data-physical-part="drum"]')?.textContent.includes("Start / pause"));
+   // The washer finishes transferring clothing before the physical door
+   // fully closes. Wait for the genuine interlock, not only laundry state.
+   await app.frameLocator("iframe.figure-frame").locator("body").evaluate(()=>
+    new Promise((resolve,reject)=>{
+     const stop=Date.now()+5500;
+     const check=()=>{
+      const s=window.__st;
+      if(s.laundry==="drum"&&!s.xfer&&s.door===0&&s.doorT===0)return resolve();
+      if(Date.now()>stop)return reject(Error("washer door interlock never closed after loading"));
+      setTimeout(check,30);
+     };check();
+    }));
+   await app.waitForFunction(()=>{
+    const control=document.querySelector('#three-operate-panel [data-physical-part="drum"]');
+    return control?.textContent.includes("Démarrer / pause")&&!control.disabled;
+   });
    await washerPanel.locator('[data-physical-part="drum"]').click();
    await app.frameLocator("iframe.figure-frame").locator("body").evaluate(()=>
     new Promise((resolve,reject)=>{
