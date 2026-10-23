@@ -1,6 +1,6 @@
 {
   "name": "object-fonctionnement",
-  "version": "0.47.0",
+  "version": "0.48.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,16 +14,18 @@
     "generate:previews": "node scripts/generate-previews.mjs",
     "android:icons": "node scripts/generate-android-icons.mjs",
     "generate:3d-previews": "node scripts/create-doc-previews.mjs",
-    "generate:vending-controls-preview": "node scripts/create-vending-control-preview.mjs"
+    "generate:vending-controls-preview": "node scripts/create-vending-control-preview.mjs",
+    "android:release:prepare": "node scripts/prepare-android-release.mjs",
+    "store:assets": "node scripts/create-play-store-assets.mjs"
   },
   "dependencies": {
-    "@capacitor/android": "^7.4.0",
-    "@capacitor/app": "^7.1.2",
-    "@capacitor/core": "^7.4.0",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
     "three": "^0.180.0"
   },
   "devDependencies": {
-    "@capacitor/cli": "^7.4.0",
+    "@capacitor/cli": "^8.0.0",
     "playwright": "^1.58.2",
     "sharp": "^0.34.5",
     "vite": "^7.3.0"

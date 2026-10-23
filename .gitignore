@@ -7,3 +7,7 @@ android/local.properties
 *.keystore
 *.jks
 .DS_Store
+store-assets/
+*.aab
+*.apk
+*.pem

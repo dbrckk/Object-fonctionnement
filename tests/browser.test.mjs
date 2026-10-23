@@ -116,6 +116,22 @@ try{
  await app.evaluate(()=>localStorage.setItem("object-fonctionnement:view:v1","2d"));
  await app.reload();
  assert.equal(await app.locator('article.object-card').count(),9,'Catalog boot failure: '+JSON.stringify(pageErrors));
+ // These Play Store disclosures are local and cannot reset the active app.
+ await app.getByRole('button',{name:'Confidentialité'}).click();
+ assert.equal(await app.locator('#legal-dialog').isVisible(),true);
+ assert.equal(await app.frameLocator('#legal-dialog-frame').locator('h1').innerText(),
+  'Politique de confidentialité');
+ assert.match(await app.frameLocator('#legal-dialog-frame').locator('body').innerText(),
+  /stockage du navigateur intégré/);
+ await app.getByRole('button',{name:'Fermer la page légale'}).click();
+ assert.equal(await app.locator('#legal-dialog').isVisible(),false);
+ await app.getByRole('button',{name:'Licences et crédits'}).click();
+ assert.equal(await app.frameLocator('#legal-dialog-frame').locator('h1').innerText(),
+  'Licences et crédits');
+ assert.match(await app.frameLocator('#legal-dialog-frame').locator('body').innerText(),
+  /MIT/);
+ await app.getByRole('button',{name:'Fermer la page légale'}).click();
+ console.log('PASS offline privacy and licenses accessible without leaving app');
  for(const img of await app.locator('.object-figure img').all()){
   await img.scrollIntoViewIfNeeded();
   await img.evaluate(el=>el.decode());

@@ -492,3 +492,26 @@ footer{padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
 .mission-completed-card{display:inline-block;border-radius:20px;background:#d8f2e5;
  color:#205b44;font-size:.7rem;font-weight:800;padding:5px 9px;margin:3px 4px 4px 0}
 @media(max-width:350px){.mission-progress-line progress{width:100%}}
+
+/* Play Store compliance: locally bundled policy and attribution. */
+.legal-links{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:14px}
+.legal-links button{font:inherit;font-size:.78rem;background:transparent;border:0;
+ color:#277b8a;text-decoration:underline;text-underline-offset:3px;cursor:pointer;
+ padding:10px;min-height:44px}
+.legal-dialog{box-sizing:border-box;width:min(730px,calc(100vw - 24px));
+ height:min(85dvh,780px);max-height:85dvh;margin:auto;padding:0;
+ border:1px solid #a3c5c7;border-radius:18px;overflow:hidden;background:#f3f7f6;
+ color:#183949;box-shadow:0 24px 70px #09192770}
+.legal-dialog::backdrop{background:#071b32a6}
+.legal-dialog-head{display:flex;justify-content:space-between;align-items:center;gap:9px;
+ padding:12px 14px;background:#12374a;color:white}
+.legal-dialog-head h2{font-size:.91rem;margin:0}
+.legal-dialog-head button{border:1px solid #95b8c5;border-radius:8px;
+ padding:9px;background:#1e536b;color:white;font-weight:700;min-height:44px}
+#legal-dialog-frame{display:block;width:100%;height:calc(100% - 69px);border:0;background:#f3f7f6}
+
+/* Android 16 edge-to-edge: Capacitor 8's native SystemBars mode gives
+   older WebViews native padding and modern WebViews correct env() insets.
+   Pad only vertically so all fixed-width 320px layouts stay intact. */
+body{padding-top:env(safe-area-inset-top,0px);
+ padding-bottom:env(safe-area-inset-bottom,0px)}

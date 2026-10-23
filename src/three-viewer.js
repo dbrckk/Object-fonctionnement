@@ -1929,7 +1929,9 @@ export function createObjectViewer(container,id){
   gestureHint.setAttribute("aria-hidden","true");
   container.append(gestureHint);
   function gesturePick(start){
-    if(!mechanismTouchMode||disposed||!active||flowOpen||
+    // If a finger is on the canvas, the interaction itself is authoritative,
+    // even before IntersectionObserver has marked the WebGL area as active.
+    if(!mechanismTouchMode||disposed||flowOpen||
        mechanismPreview||tourStep>=0)return null;
     const rect=canvas.getBoundingClientRect();
     if(!rect.width||!rect.height)return null;
@@ -1941,15 +1943,18 @@ export function createObjectViewer(container,id){
     // gives predictable finger input without requiring a visible raycast hit
     // on a tiny or rear-facing mesh. Other parts still use ordinary orbit.
     const anchors=points.map(point=>{
+      const descriptor=physicalGestureType(id,point.part.id,state);
       const p=point.world.clone().project(camera);
+      // Decorative components often project over the fan's real motor:
+      // only eligible mechanical controls participate in swipe hit-testing.
       return {x:(p.x+1)*rect.width*.5,y:(1-p.y)*rect.height*.5,
-       visible:p.z>=-1&&p.z<=1&&Math.abs(p.x)<=1&&Math.abs(p.y)<=1};
+       visible:!!descriptor&&Number.isFinite(p.z)&&p.z>=-1&&p.z<=1&&
+        Math.abs(p.x)<=1.12&&Math.abs(p.y)<=1.12};
     });
-    const index=closestProjectedPart(anchors,sx,sy,40);
+    const index=closestProjectedPart(anchors,sx,sy,54);
     if(index<0)return null;
     const partId=points[index].part.id;
-    const descriptor=physicalGestureType(id,partId,state);
-    return descriptor?{partId,descriptor}:null;
+    return {partId,descriptor:physicalGestureType(id,partId,state)};
   }
   function onGesturePointerDown(event){
     if(!mechanismTouchMode)return;

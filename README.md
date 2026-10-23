@@ -1164,3 +1164,48 @@ Tests Node : correspondances exactes entre composants et commandes,
 déduplication. Tests Chromium : réalisation intégrale des défis
 ventilateur et lave-linge, badges, persistance après rechargement et
 interface smartphone 320 px. Android v0.47.0/versionCode 47.
+
+
+## Version 0.48 — préparation officielle Google Play (Android 16)
+
+La branche de publication quitte Capacitor 7 pour **Capacitor 8** et ses
+dépendances Android compatibles avec **compileSdk/targetSdk API 36**.
+Les interactions 3D, les neuf appareils, les quiz, les visites et les huit
+défis de v0.47 restent inchangés sur le plan fonctionnel.
+
+La CI exécute `npm ci` sur un verrouillage de dépendances Capacitor 8,
+puis la suite Playwright, les vérifications Node et Vite, et une compilation
+Android Gradle `assembleDebug bundleRelease`. La version native est
+**0.48.0 (versionCode 48)** ; l'identifiant de package reste
+`com.dbrckk.objectfonctionnement`.
+
+### Fichiers de publication
+
+Chaque exécution verte présente les artefacts :
+- `object-fonctionnement-v048-debug-apk` : APK de test sur smartphone ;
+- `play-store-v048-graphics-and-screenshots` : icône 512x512, bannière
+  1024x500 et 4 captures 1080x1920 de la vraie application ;
+- `object-fonctionnement-v048-UNSIGNED-aab-not-for-upload` :
+  **fichier de contrôle technique, à ne pas envoyer à Google Play**.
+
+Si les quatre secrets de signature sont configurés dans GitHub Actions,
+le troisième artefact est remplacé par
+`object-fonctionnement-v048-signed-play-aab`.
+Aucune clé ni aucun mot de passe n'est enregistré dans le dépôt ni affiché
+par le script de signature. Voir `docs/play-release-checklist.md` pour
+préparer ce keystore et renseigner le compte Play Console.
+
+La politique de confidentialité est accessible dans l'application sans
+connexion Internet et publiée à :
+https://auroral-drive-8h58f6y.shipstatic.com/privacy.html
+Les avis de licence MIT sont consultables sous « Licences et crédits »,
+depuis le catalogue et depuis chaque fiche.
+
+Le texte français de la fiche, les formats d'images et les démarches
+restantes sont documentés dans `docs/play-store-listing.md`.
+
+**Attention aux installations :** remplacer un APK de débogage par une
+application signée de production ne constitue pas une mise à jour normale
+si les signatures sont différentes. Une désinstallation préalable peut être
+nécessaire et effacer la progression stockée localement. Ne pas supprimer
+l'ancienne installation sans avoir accepté cette conséquence.
