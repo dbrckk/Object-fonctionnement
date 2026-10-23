@@ -13,6 +13,8 @@ import {getObjectParts} from "./part-annotations.js";
 import {INTERACTIVE_MODELS,physicalControlCommand,partMechanismAction,physicalActionLabel} from "./physical-actions.js";
 import {physicalGestureType,dragInstruction} from "./physical-gestures.js";
 import {physicalReadouts,physicalCommandConfirmed} from "./physical-telemetry.js";
+import {PRACTICAL_MISSION_IDS,missionFor,advanceMission,
+ readMissionCompletions,saveMissionCompletions} from "./practical-missions.js";
 const root=document.getElementById("app");
 let quizProgress={};
 try{quizProgress=parseQuizProgress(localStorage.getItem(QUIZ_STORAGE_KEY));}catch{}
@@ -23,6 +25,7 @@ function initialView(){try{return localStorage.getItem(VIEW_KEY)!=="2d";}catch{r
 let currentViewer=null,loadingViewer=0,lastFigureState=null,pendingPart=null;
 let mechanismFlowActive=false,mechanismFlowIndex=0;
 let physicalPending=null,physicalResponseTimer=0;
+let activePracticalMission=null;
 function resetPhysicalResponse(){
  clearTimeout(physicalResponseTimer);
  physicalResponseTimer=0;physicalPending=null;
@@ -44,6 +47,16 @@ function physicalPanelMarkup(id){
   '<div class="three-operate-grid">'+parts.map(part=>
    '<button type="button" data-physical-part="'+part.id+'" disabled>'+
     escapeHtml(part.label)+'</button>').join("")+'</div>'+
+  '<div class="mission-start-row"><button type="button" id="mission-start">Défi pratique : '+escapeHtml(missionFor(id).title)+'</button>'+
+   '<small>Réalise les actions sur le modèle original, sans automatisation.</small></div>'+
+  '<section class="practical-mission" id="practical-mission" hidden aria-label="Défi pratique">'+
+   '<div class="mission-progress-line"><strong id="mission-counter">0 / '+missionFor(id).steps.length+' étapes</strong>'+
+   '<progress id="mission-progress" max="'+missionFor(id).steps.length+'" value="0"></progress></div>'+
+   '<ol id="mission-steps">'+missionFor(id).steps.map((step,i)=>
+    '<li data-mission-step="'+i+'"><span class="mission-state" aria-hidden="true">○</span>'+
+    '<span><strong>'+escapeHtml(step.label)+'</strong><small>'+escapeHtml(step.hint)+'</small></span></li>').join("")+'</ol>'+
+   '<p id="mission-message" role="status" aria-live="polite">Suis les étapes dans l’ordre.</p>'+
+   '<button type="button" id="mission-stop">Quitter le défi</button></section>'+
   '<p id="three-operate-status" role="status" aria-live="polite">'+
    'Le fonctionnement suit les règles de la simulation originale.</p></section>';
 }
@@ -134,7 +147,10 @@ function updatePhysicalActions(){
    status.textContent="Action confirmée par la simulation : "+label+".";
   }
  }
+ updatePracticalMission();
  const ready=Boolean(lastFigureState&&currentViewer&&state.view3D)&&!mechanismFlowActive;
+ const challengeStart=panel.querySelector("#mission-start");
+ if(challengeStart)challengeStart.disabled=!ready;
  panel.querySelectorAll("[data-physical-part]").forEach(button=>{
   const action=partMechanismAction(state.selected,button.dataset.physicalPart,lastFigureState);
   const part=getObjectParts(state.selected).find(p=>p.id===button.dataset.physicalPart);
@@ -146,6 +162,40 @@ function updatePhysicalActions(){
   button.title=hint||label;
   button.disabled=!ready||!action;
  });
+}
+function updatePracticalMission(){
+ const panel=document.getElementById("practical-mission");
+ if(!panel||!activePracticalMission||panel.hidden||
+    activePracticalMission.id!==state.selected||!lastFigureState)return;
+ const mission=missionFor(activePracticalMission.id);
+ if(!mission)return;
+ const previous=activePracticalMission.index;
+ const outcome=advanceMission(activePracticalMission.id,previous,lastFigureState);
+ activePracticalMission.index=outcome.index;
+ const count=mission.steps.length;
+ const progress=document.getElementById("mission-progress");
+ const counter=document.getElementById("mission-counter");
+ if(progress)progress.value=outcome.index;
+ if(counter)counter.textContent=outcome.index+" / "+count+" étapes";
+ panel.querySelectorAll("[data-mission-step]").forEach(node=>{
+  const index=Number(node.dataset.missionStep);
+  node.dataset.status=index<outcome.index?"done":index===outcome.index?"current":"upcoming";
+  const marker=node.querySelector(".mission-state");
+  if(marker)marker.textContent=index<outcome.index?"✓":index===outcome.index?"→":"○";
+ });
+ const message=document.getElementById("mission-message");
+ if(outcome.completed){
+  if(!state.completedPracticalMissions.includes(activePracticalMission.id)){
+   state.completedPracticalMissions=saveMissionCompletions(localStorage,[
+    ...state.completedPracticalMissions,activePracticalMission.id]);
+  }
+  if(message)message.textContent="Défi réussi ! Les "+count+
+   " objectifs ont été observés dans la simulation réelle.";
+ }else if(message){
+  const step=mission.steps[outcome.index];
+  message.textContent="Étape "+(outcome.index+1)+" : "+step.label+
+   ". "+step.hint+(outcome.advanced?" Objectif précédent validé.":"");
+ }
 }
 function sendVendingCommand(button){
  if(state.selected!=="vending"||!state.view3D||!currentViewer||
@@ -159,6 +209,7 @@ function sendVendingCommand(button){
  frame.contentWindow.postMessage(command,"*"); // sandbox has an opaque origin
 }
 function unmountViewer(){
+ activePracticalMission=null;
  resetPhysicalResponse();
  loadingViewer++;
  mechanismFlowActive=false;mechanismFlowIndex=0;
@@ -303,7 +354,7 @@ function markTourFinished(id){
  if(btn)btn.textContent="Revoir les pièces";
 }
 
-const state={view3D:initialView(),graphicsQuality:readGraphicsMode(localStorage),airflowEnabled:initialAirflow(),query:"",category:"Tout",favoritesOnly:false,reviewOnly:false,glossaryOpen:false,glossaryQuery:"",favorites:readFavorites(),completedTours:readTours(localStorage,allObjectIds),selected:null,running:false,phase:0,soundEnabled:initialSound(),volume:initialVolume()};
+const state={view3D:initialView(),graphicsQuality:readGraphicsMode(localStorage),airflowEnabled:initialAirflow(),query:"",category:"Tout",favoritesOnly:false,reviewOnly:false,glossaryOpen:false,glossaryQuery:"",favorites:readFavorites(),completedTours:readTours(localStorage,allObjectIds),completedPracticalMissions:readMissionCompletions(localStorage),selected:null,running:false,phase:0,soundEnabled:initialSound(),volume:initialVolume()};
 let timeoutA;
 const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(state.favorites));}catch{}}
@@ -311,7 +362,7 @@ function clearTimers(){clearTimeout(timeoutA);state.running=false;state.phase=0;
 function display(){unmountViewer();const selected=OBJECTS.find(o=>o.id===state.selected);if(selected){renderDetail(selected);return;}renderCatalog();}
 function renderCatalog(){
  const results=filterObjects(OBJECTS,state).filter(o=>!state.reviewOnly||quizProgress[o.id]!==true);
- root.innerHTML='<header class="hero"><div class="brand">OBJET<span>·</span>FONCTIONNEMENT</div><p class="eyebrow">LE MONDE, EXPLIQUÉ</p><h1>Comment ça <em>marche ?</em></h1><p>Explore les objets du quotidien. Comprends leur mécanisme et apprends à les utiliser.</p><div class="hero-stat">'+OBJECTS.length+' objets à découvrir <span>•</span> 100 % hors ligne <span>•</span> '+state.completedTours.length+'/'+OBJECTS.length+' visites effectuées <span>•</span> '+progressCount(quizProgress)+'/'+OBJECTS.length+' connaissances validées</div></header><main><div class="search-bar"><span aria-hidden="true">⌕</span><input id="search" aria-label="Rechercher un objet" placeholder="Rechercher un objet..." autocomplete="off" value="'+escapeHtml(state.query)+'"></div><div class="filters" aria-label="Catégories">'+CATEGORIES.map(c=>'<button class="chip '+(state.category===c?'active':'')+'" data-category="'+escapeHtml(c)+'">'+escapeHtml(c)+'</button>').join("")+'</div><div class="glossary-toggle-row"><button id="glossary-toggle" class="text-button" aria-expanded="'+state.glossaryOpen+'" aria-controls="glossary-panel">'+(state.glossaryOpen?"Fermer le glossaire":"Glossaire des mécanismes ("+glossaryEntries.length+")")+'</button></div><section id="glossary-panel" class="glossary-panel" aria-label="Glossaire technique" '+(state.glossaryOpen?"":"hidden")+'><div class="glossary-intro"><h2>Comprendre les pièces</h2><p>27 composants expliqués, accessibles hors ligne. Sélectionne une pièce pour la retrouver en 3D.</p></div><label for="glossary-search">Rechercher un composant</label><input id="glossary-search" type="search" autocomplete="off" placeholder="Ex. moteur, thermostat, goupilles…" value="'+escapeHtml(state.glossaryQuery)+'"><div id="glossary-results" class="glossary-results"></div></section><div class="section-header"><h2>'+ (state.reviewOnly?"Objets à réviser":state.favoritesOnly?"Mes favoris":"Explorer les objets")+'</h2><div class="catalog-actions"><button id="review-filter" class="text-button" aria-pressed="'+state.reviewOnly+'">'+(state.reviewOnly?"✓ Voir tous les objets":"À réviser ("+(OBJECTS.length-progressCount(quizProgress))+")")+'</button><button id="fav-filter" class="text-button" aria-pressed="'+state.favoritesOnly+'">'+(state.favoritesOnly?"Voir tout":"☆ Favoris")+'</button></div></div><div class="object-grid">'+(results.length?results.map(o=>'<article class="object-card" style="--object:'+o.color+'"><button class="card-open" data-open="'+o.id+'" aria-label="Découvrir '+escapeHtml(o.name)+'"><div class="object-figure" aria-hidden="true"><img src="/previews/'+escapeHtml(o.figure)+'.webp" alt="" width="480" height="360" loading="lazy" decoding="async"></div><div class="card-category">'+escapeHtml(o.category)+'</div>'+(state.completedTours.includes(o.id)?'<span class="tour-completed-card">✓ Visite effectuée</span>':'')+'<h3>'+escapeHtml(o.name)+'</h3><p>'+escapeHtml(o.summary)+'</p><span class="discover">Découvrir <span aria-hidden="true">↗</span></span></button><button class="favorite" data-favorite="'+o.id+'" aria-label="'+(state.favorites.includes(o.id)?"Retirer des favoris":"Ajouter aux favoris")+'" aria-pressed="'+state.favorites.includes(o.id)+'">'+(state.favorites.includes(o.id)?"★":"☆")+'</button></article>').join(""):'<p class="empty">Aucun objet trouvé. Essaie une autre recherche.</p>')+'</div></main><footer>Explications pédagogiques — toujours suivre la notice du fabricant.</footer>';
+ root.innerHTML='<header class="hero"><div class="brand">OBJET<span>·</span>FONCTIONNEMENT</div><p class="eyebrow">LE MONDE, EXPLIQUÉ</p><h1>Comment ça <em>marche ?</em></h1><p>Explore les objets du quotidien. Comprends leur mécanisme et apprends à les utiliser.</p><div class="hero-stat">'+OBJECTS.length+' objets à découvrir <span>•</span> 100 % hors ligne <span>•</span> '+state.completedTours.length+'/'+OBJECTS.length+' visites effectuées <span>•</span> '+progressCount(quizProgress)+'/'+OBJECTS.length+' connaissances validées <span>•</span> '+state.completedPracticalMissions.length+'/'+PRACTICAL_MISSION_IDS.length+' défis pratiques réussis</div></header><main><div class="search-bar"><span aria-hidden="true">⌕</span><input id="search" aria-label="Rechercher un objet" placeholder="Rechercher un objet..." autocomplete="off" value="'+escapeHtml(state.query)+'"></div><div class="filters" aria-label="Catégories">'+CATEGORIES.map(c=>'<button class="chip '+(state.category===c?'active':'')+'" data-category="'+escapeHtml(c)+'">'+escapeHtml(c)+'</button>').join("")+'</div><div class="glossary-toggle-row"><button id="glossary-toggle" class="text-button" aria-expanded="'+state.glossaryOpen+'" aria-controls="glossary-panel">'+(state.glossaryOpen?"Fermer le glossaire":"Glossaire des mécanismes ("+glossaryEntries.length+")")+'</button></div><section id="glossary-panel" class="glossary-panel" aria-label="Glossaire technique" '+(state.glossaryOpen?"":"hidden")+'><div class="glossary-intro"><h2>Comprendre les pièces</h2><p>27 composants expliqués, accessibles hors ligne. Sélectionne une pièce pour la retrouver en 3D.</p></div><label for="glossary-search">Rechercher un composant</label><input id="glossary-search" type="search" autocomplete="off" placeholder="Ex. moteur, thermostat, goupilles…" value="'+escapeHtml(state.glossaryQuery)+'"><div id="glossary-results" class="glossary-results"></div></section><div class="section-header"><h2>'+ (state.reviewOnly?"Objets à réviser":state.favoritesOnly?"Mes favoris":"Explorer les objets")+'</h2><div class="catalog-actions"><button id="review-filter" class="text-button" aria-pressed="'+state.reviewOnly+'">'+(state.reviewOnly?"✓ Voir tous les objets":"À réviser ("+(OBJECTS.length-progressCount(quizProgress))+")")+'</button><button id="fav-filter" class="text-button" aria-pressed="'+state.favoritesOnly+'">'+(state.favoritesOnly?"Voir tout":"☆ Favoris")+'</button></div></div><div class="object-grid">'+(results.length?results.map(o=>'<article class="object-card" style="--object:'+o.color+'"><button class="card-open" data-open="'+o.id+'" aria-label="Découvrir '+escapeHtml(o.name)+'"><div class="object-figure" aria-hidden="true"><img src="/previews/'+escapeHtml(o.figure)+'.webp" alt="" width="480" height="360" loading="lazy" decoding="async"></div><div class="card-category">'+escapeHtml(o.category)+'</div>'+(state.completedTours.includes(o.id)?'<span class="tour-completed-card">✓ Visite effectuée</span>':'')+(state.completedPracticalMissions.includes(o.id)?'<span class="mission-completed-card">✓ Défi réussi</span>':'')+'<h3>'+escapeHtml(o.name)+'</h3><p>'+escapeHtml(o.summary)+'</p><span class="discover">Découvrir <span aria-hidden="true">↗</span></span></button><button class="favorite" data-favorite="'+o.id+'" aria-label="'+(state.favorites.includes(o.id)?"Retirer des favoris":"Ajouter aux favoris")+'" aria-pressed="'+state.favorites.includes(o.id)+'">'+(state.favorites.includes(o.id)?"★":"☆")+'</button></article>').join(""):'<p class="empty">Aucun objet trouvé. Essaie une autre recherche.</p>')+'</div></main><footer>Explications pédagogiques — toujours suivre la notice du fabricant.</footer>';
  document.getElementById("search").addEventListener("input",e=>{const position=e.target.selectionStart;state.query=e.target.value;renderCatalog();const input=document.getElementById("search");input.focus();input.setSelectionRange(position,position);});
  document.querySelectorAll("[data-category]").forEach(el=>el.addEventListener("click",()=>{state.category=el.dataset.category;display();}));
  document.querySelectorAll("[data-open]").forEach(el=>el.addEventListener("click",()=>{state.selected=el.dataset.open;history.pushState({source:"object-fonctionnement",object:state.selected},"","#"+state.selected);display();window.scrollTo(0,0);}));
@@ -380,6 +431,9 @@ function renderDetail(o){
  const operationPanel=document.getElementById("three-operate-panel");
  const operationStatus=document.getElementById("three-operate-status");
  function stopOperate(){
+  activePracticalMission=null;
+  const practical=document.getElementById("practical-mission");
+  if(practical)practical.hidden=true;
   resetPhysicalResponse();
   if(!operate)return;
   currentViewer?.setMechanismTouchMode(false);
@@ -431,7 +485,11 @@ function renderDetail(o){
    if(!currentViewer)return;
    const enable=operate.getAttribute("aria-pressed")!=="true";
    if(enable&&mechanismFlowActive)toggleMechanismFlow(false);
-   if(!enable)resetPhysicalResponse();
+   if(!enable){
+    activePracticalMission=null;
+    operationPanel.querySelector("#practical-mission").hidden=true;
+    resetPhysicalResponse();
+   }
    const enabled=currentViewer.setMechanismTouchMode(enable);
    operate.setAttribute("aria-pressed",String(enabled));
    operate.textContent=enabled?"Quitter la manipulation":"Manipuler en 3D";
@@ -457,6 +515,18 @@ function renderDetail(o){
   operationPanel.addEventListener("click",event=>{
    const button=event.target.closest("button[data-physical-part]");
    if(button&&!button.disabled)sendPhysicalAction(button.dataset.physicalPart);
+  });
+  const startMission=operationPanel.querySelector("#mission-start");
+  const stopMission=operationPanel.querySelector("#mission-stop");
+  startMission.addEventListener("click",()=>{
+   if(operate.getAttribute("aria-pressed")!=="true"||!lastFigureState||!currentViewer)return;
+   activePracticalMission={id:o.id,index:0};
+   operationPanel.querySelector("#practical-mission").hidden=false;
+   updatePracticalMission();
+  });
+  stopMission.addEventListener("click",()=>{
+   activePracticalMission=null;
+   operationPanel.querySelector("#practical-mission").hidden=true;
   });
   updatePhysicalActions();
  }
