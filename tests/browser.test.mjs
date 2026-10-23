@@ -1131,9 +1131,34 @@ try{
    assert.equal(await fanOperate.getAttribute("aria-pressed"),"false");
    console.log("PASS physical 3D fan blade, original speed picker, rejected commands and mode reset");
 
+   // Complete a real, fully user-driven mission using the original fan.
+   await app.goto(HOST+'/#fan',{waitUntil:'load'});
+   await app.locator(".object-three-canvas").waitFor();
+   await app.locator("#three-operate").click();
+   assert.equal(await app.locator("#practical-mission").isHidden(),true);
+   await app.locator("#mission-start").click();
+   assert.equal(await app.locator("#practical-mission").isVisible(),true);
+   assert.equal(await app.locator("#mission-counter").innerText(),"0 / 3 étapes");
+   const fanChallenge=app.locator("#three-operate-panel");
+   await fanChallenge.locator('[data-physical-part="blades"]').click();
+   await app.waitForFunction(()=>document.querySelector("#mission-counter")?.textContent==="1 / 3 étapes");
+   await fanChallenge.locator('[data-physical-part="motor"]').click();
+   await app.waitForFunction(()=>document.querySelector("#mission-counter")?.textContent==="2 / 3 étapes");
+   await fanChallenge.locator('[data-physical-part="oscillation"]').click();
+   await app.waitForFunction(()=>document.querySelector("#mission-counter")?.textContent==="3 / 3 étapes");
+   assert.match(await app.locator("#mission-message").innerText(),/Défi réussi/);
+   assert.equal(await app.locator('#mission-steps [data-status="done"]').count(),3);
+   await app.locator("#mission-stop").click();
+   assert.equal(await app.locator("#practical-mission").isHidden(),true);
+   assert.equal(await app.frameLocator("iframe.figure-frame").locator("body")
+    .evaluate(()=>window.__st.oscillate),true,
+    "guided practice must operate the genuine fan, not a duplicate simulator");
+   console.log("PASS real three-stage fan challenge, physical controllers and completion");
+
    await app.goto(HOST+'/#washing',{waitUntil:'load'});
    await app.locator(".object-three-canvas").waitFor();
    await app.locator("#three-operate").click();
+   await app.locator("#mission-start").click();
    const washerPanel=app.locator("#three-operate-panel");
    await washerPanel.locator('[data-physical-part="program"]').click();
    await app.frameLocator("iframe.figure-frame").locator("body").evaluate(()=>
@@ -1181,6 +1206,8 @@ try{
       setTimeout(check,25);
      };check();
     }));
+   await app.waitForFunction(()=>document.querySelector("#mission-counter")?.textContent==="3 / 3 étapes");
+   assert.match(await app.locator("#mission-message").innerText(),/Défi réussi/);
    await app.setViewportSize({width:320,height:780});
    assert.ok(await app.evaluate(()=>document.documentElement.scrollWidth<=
      document.documentElement.clientWidth+1),"3D operation panel overflows 320px Android");
@@ -1247,6 +1274,12 @@ try{
    console.log("PASS real bicycle 3D downward piston stroke and accidental-drag guards");
 
    await app.goto(HOST+'/',{waitUntil:'load'});
+   assert.ok((await app.locator(".hero-stat").innerText()).includes("2/8 défis pratiques réussis"));
+   assert.equal(await app.locator(".mission-completed-card").count(),2,
+    "only genuinely completed fan and washer scenarios receive completion cards");
+   await app.reload();
+   assert.ok((await app.locator(".hero-stat").innerText()).includes("2/8 défis pratiques réussis"),
+    "practical mission achievements must persist offline after page reload");
    assert.equal(await app.locator('.tour-completed-card').count(),9);
   assert.ok((await app.locator('.hero-stat').innerText()).includes('9 visites effectuées'));
   await app.reload();
