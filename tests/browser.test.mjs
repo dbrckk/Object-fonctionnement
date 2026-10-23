@@ -555,6 +555,7 @@ try{
    // not an HTML hotspot, after switching the numbered markers off.
    const directTarget=({kettle:{index:1,id:"tank"},
     washing:{index:0,id:"drum"},vending:{index:0,id:"selection"}})[id];
+   if(directTarget)await app.waitForTimeout(570); // projected anchors move with camera easing
    const directAnchor=directTarget?await app.locator(".three-part-leader").nth(directTarget.index)
     .evaluate(node=>({x:Number(node.getAttribute("x1")),y:Number(node.getAttribute("y1"))})):null;
    await app.getByRole('button',{name:"Masquer les repères"}).click();
