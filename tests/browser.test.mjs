@@ -115,7 +115,7 @@ try{
  // of WebGL contexts during the 27 responsive viewport checks.
  await app.evaluate(()=>localStorage.setItem("object-fonctionnement:view:v1","2d"));
  await app.reload();
- assert.equal(await app.locator('article.object-card').count(),9);
+ assert.equal(await app.locator('article.object-card').count(),9,'Catalog boot failure: '+JSON.stringify(pageErrors));
  for(const img of await app.locator('.object-figure img').all()){
   await img.scrollIntoViewIfNeeded();
   await img.evaluate(el=>el.decode());
