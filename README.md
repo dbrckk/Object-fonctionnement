@@ -1130,3 +1130,37 @@ accessibles depuis le panneau tactile et au clavier.
 Tests : 24 indicateurs, transitions discrètes, refus des fausses confirmations
 en cours d'animation, parcours Chromium du chauffage, du ventilateur,
 de la pompe et du lave-linge. APK Android v0.46.0/versionCode 46.
+
+
+## Version 0.47 — huit défis de pratique vérifiés
+
+Le mode « Manipuler en 3D » propose désormais un **défi pratique**
+spécifique à chacun des huit appareils manipulables. Après avoir ouvert
+le défi, l'utilisateur suit des étapes d'utilisation directement sur
+l'objet 3D, ou via le panneau de contrôle accessible au clavier.
+
+Les huit scénarios sont :
+- **Bouilloire** : remplir puis démarrer la chauffe ;
+- **Grille-pain** : insérer le pain, régler le brunissage, démarrer ;
+- **Ventilateur** : allumer, accélérer, activer l'oscillation ;
+- **Cadenas** : insérer la clé puis déverrouiller ;
+- **Pompe** : raccorder le pneu puis le gonfler ;
+- **Cafetière** : ajouter l'eau, le café moulu, lancer l'extraction ;
+- **Lampe** : allumer puis augmenter l'intensité ;
+- **Lave-linge** : charger le tambour, choisir un programme, démarrer.
+
+La progression est vérifiée par les **véritables états des simulations
+ColorFigures**, et non par la pression d'un bouton ou par une animation
+3D décorative. Une étape déjà effectivement satisfaite par le contrôleur
+est reconnue si l'utilisateur ouvre le défi en cours d'utilisation.
+Aucune commande n'est exécutée automatiquement par le moteur de défis.
+
+Chaque scénario terminé est enregistré localement, sans compte ni
+réseau, et ajoute un badge à l'objet ainsi qu'un compteur sur l'accueil.
+Quitter un défi masque ses étapes sans réinitialiser la simulation.
+
+Tests Node : correspondances exactes entre composants et commandes,
+états et verrouillages des huit défis, état incomplet, sauvegarde et
+déduplication. Tests Chromium : réalisation intégrale des défis
+ventilateur et lave-linge, badges, persistance après rechargement et
+interface smartphone 320 px. Android v0.47.0/versionCode 47.
