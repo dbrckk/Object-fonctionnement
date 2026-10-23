@@ -1,17 +1,17 @@
-name: Build and tests
+name: Build, test and Play release prep
 on:
   push:
   pull_request:
   workflow_dispatch:
-# Keep only the newest validation per branch. Frequent Android iterations
-# must not leave dozens of stale Chromium downloads and Gradle builds running.
 concurrency:
-  group: of-app-fast-ci-v2-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  group: object-play-v048-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
+permissions:
+  contents: write
 jobs:
   android:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 38
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,26 +21,73 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      - name: Resolve lockfile for Capacitor 8
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Record resolved dependencies on the preparation branch
+        if: github.event_name == 'push' && github.ref_name == 'feat/play-store-release-v048'
+        run: |
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "chore: regenerate resolved Capacitor 8 dependency lock [skip ci]"
+            git push origin HEAD:feat/play-store-release-v048
+          fi
       - run: npm ci --no-audit --no-fund
-      # Ubuntu hosted runners already provide Chromium's common runtime
-      # libraries. Avoid apt-get update on every push: it can stall for many
-      # minutes even though the app and browser tests have not started.
       - run: npx playwright install chromium
       - run: npm run generate:previews
       - run: npm run test:browser
       - run: npm run check
       - run: npm run build
-      - run: npx cap add android
-      - run: npx cap sync android
-      - run: npm run android:icons
-      - run: |
-          sed -i 's/versionCode 1/versionCode 47/' android/app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "0.47.0"/' android/app/build.gradle
-      - run: chmod +x android/gradlew
-      - run: ./gradlew assembleDebug --no-daemon
-        working-directory: android
+      - name: Validate equal public and in-app privacy statements
+        run: cmp public/privacy.html docs/privacy.html
+      - name: Create actual Google Play screenshots and store banner
+        run: npm run store:assets
+      - name: Generate API 36 Android project
+        run: |
+          npx cap add android
+          npx cap sync android
+          npm run android:icons
+      - name: Prepare and compile Android publication artifacts
+        env:
+          PLAY_UPLOAD_KEYSTORE_BASE64: ${{ secrets.PLAY_UPLOAD_KEYSTORE_BASE64 }}
+          PLAY_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEYSTORE_PASSWORD }}
+          PLAY_UPLOAD_KEY_ALIAS: ${{ secrets.PLAY_UPLOAD_KEY_ALIAS }}
+          PLAY_UPLOAD_KEY_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEY_PASSWORD }}
+        run: |
+          if [[ -n "$PLAY_UPLOAD_KEYSTORE_BASE64" ]]; then
+            umask 077
+            printf '%s' "$PLAY_UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/play-upload.jks"
+            export PLAY_UPLOAD_KEYSTORE_PATH="$RUNNER_TEMP/play-upload.jks"
+          fi
+          npm run android:release:prepare
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleDebug bundleRelease --no-daemon
+          if [[ -n "${PLAY_UPLOAD_KEYSTORE_PATH:-}" ]]; then
+            echo "PLAY_SIGNING_ENABLED=true" >> "$GITHUB_ENV"
+          fi
       - uses: actions/upload-artifact@v4
         with:
-          name: object-fonctionnement-debug-apk
+          name: object-fonctionnement-v048-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: play-store-v048-graphics-and-screenshots
+          path: store-assets/
+          if-no-files-found: error
+      - name: Upload signed Play Store AAB (only with encrypted signing secrets)
+        if: env.PLAY_SIGNING_ENABLED == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: object-fonctionnement-v048-signed-play-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+      - name: Upload unsigned bundle explicitly marked unusable for Play
+        if: env.PLAY_SIGNING_ENABLED != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: object-fonctionnement-v048-UNSIGNED-aab-not-for-upload
+          path: android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
