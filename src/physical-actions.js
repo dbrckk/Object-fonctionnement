@@ -60,10 +60,16 @@ export function partMechanismAction(objectId,partId,figureState={}){
  if(objectId==="coffee"&&partId==="carafe"&&
     typeof s.coffee==="number"&&s.coffee>0&&!s.brewing)
   return PRESS("Servir");
- if(objectId==="washing"&&partId==="drum"){
-  if(s.run||s.paused)return PRESS("Start / pause");
-  if(s.done&&s.laundry==="drum")return PRESS("Open door, unload");
-  if(s.laundry==="drum")return PRESS("Start / pause");
+ if(objectId==="washing"){
+  if(partId==="drum"){
+   if(s.run||s.paused)return PRESS("Start / pause");
+   // Loading finishes before the door's closing animation completes.
+   // Never offer "start" until the original interlock can accept it.
+   if(s.xfer||Number(s.door)>0||Number(s.doorT)>0)return null;
+   if(s.done&&s.laundry==="drum")return PRESS("Open door, unload");
+   if(s.laundry==="drum")return PRESS("Start / pause");
+  }
+  if((partId==="drawer"||partId==="program")&&s.run)return null;
  }
  return baseline;
 }
