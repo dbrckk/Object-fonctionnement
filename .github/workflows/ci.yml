@@ -3,6 +3,11 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+# Keep only the newest validation per branch. Frequent Android iterations
+# must not leave dozens of stale Chromium downloads and Gradle builds running.
+concurrency:
+  group: object-fonctionnement-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 jobs:
   android:
     runs-on: ubuntu-latest
