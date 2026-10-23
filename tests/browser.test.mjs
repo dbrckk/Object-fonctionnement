@@ -1096,7 +1096,7 @@ try{
    // Reactivate its IntersectionObserver and reproject the anchor *after*
    // returning to the canvas, exactly as a real finger would do.
    await fanCanvas.scrollIntoViewIfNeeded();
-   await app.waitForTimeout(250);
+   await app.waitForTimeout(580);
    const latestMotorAnchor=await app.locator(".three-part-leader").nth(1).evaluate(node=>({
     x:Number(node.getAttribute("x1")),y:Number(node.getAttribute("y1"))
    }));
