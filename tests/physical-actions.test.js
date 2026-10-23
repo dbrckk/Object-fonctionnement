@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {getObjectParts} from "../src/part-annotations.js";
 import {INTERACTIVE_MODELS,PHYSICAL_PART_ACTIONS,partMechanismAction,
- physicalControlCommand} from "../src/physical-actions.js";
+ physicalControlCommand,physicalActionLabel} from "../src/physical-actions.js";
 
 test("eight models bind their real figure commands to authentic 3D parts",()=>{
  assert.equal(INTERACTIVE_MODELS.length,8);
@@ -45,4 +45,11 @@ test("all mapping calls are immutable and fail closed for unknown parts",()=>{
  assert.equal(physicalControlCommand("fan",null),null);
  assert.equal(partMechanismAction("coffee","filter",null).label,"Mettre le café moulu");
  assert.equal(JSON.stringify(PHYSICAL_PART_ACTIONS),original);
+});
+
+test("washing commands remain canonical while the user interface is French",()=>{
+ assert.equal(physicalActionLabel(partMechanismAction("washing","drum")),"Charger le linge");
+ assert.equal(physicalActionLabel(partMechanismAction("washing","program")),"Choisir le programme");
+ assert.equal(physicalActionLabel(partMechanismAction("washing","drum",{laundry:"drum"})),"Démarrer / pause");
+ assert.equal(physicalControlCommand("washing","program").label,"Choose program");
 });
