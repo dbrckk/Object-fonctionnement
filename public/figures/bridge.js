@@ -37,8 +37,17 @@
   const {label,action}=event.data;
   if(typeof label!=="string"||label.length>70||!allowed[figure]?.includes(label)||
      (action!=="press"&&action!=="cycle"))return;
+  // The legacy washer controller is authored in English but locale-fr.js
+  // translates button TEXT NODES after mount. Route canonical commands to
+  // their French UI labels without ever changing which controller executes.
+  const washerFrench={
+   "Load laundry":"Charger le linge","Add soap":"Ajouter la lessive",
+   "Choose program":"Choisir le programme","Start / pause":"Démarrer / pause",
+   "Open door, unload":"Ouvrir et décharger"
+  };
+  const expected=figure==="washing"?(washerFrench[label]||label):label;
   const controls=[...document.querySelectorAll("#btns > .stepwrap > button.act")];
-  const button=controls.find(node=>node.firstChild?.textContent?.trim()===label);
+  const button=controls.find(node=>node.firstChild?.textContent?.trim()===expected);
   if(!button)return;
   const wrap=button.parentElement;
   if(action==="press"){
