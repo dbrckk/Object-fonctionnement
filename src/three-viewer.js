@@ -1934,20 +1934,16 @@ export function createObjectViewer(container,id){
     const sx=start.clientX-rect.left,sy=start.clientY-rect.top;
     const nx=sx/rect.width*2-1,ny=1-sy/rect.height*2;
     if(Math.abs(nx)>1||Math.abs(ny)>1)return null;
-    controlRay.setFromCamera(new THREE.Vector2(nx,ny),camera);
-    const hit=controlRay.intersectObjects(root.children,true).some(({object})=>{
-      if(!object.isMesh||!object.visible)return false;
-      const materials=Array.isArray(object.material)?object.material:[object.material];
-      return materials.some(mat=>mat&&mat.visible!==false&&
-       !(mat.transparent&&mat.opacity<.01));
-    });
-    if(!hit)return null;
+    // The actual motor/knob can be partly occluded by its own grille or
+    // casing. A 40px projected touch region centred on its real 3D anchor
+    // gives predictable finger input without requiring a visible raycast hit
+    // on a tiny or rear-facing mesh. Other parts still use ordinary orbit.
     const anchors=points.map(point=>{
       const p=point.world.clone().project(camera);
       return {x:(p.x+1)*rect.width*.5,y:(1-p.y)*rect.height*.5,
        visible:p.z>=-1&&p.z<=1&&Math.abs(p.x)<=1&&Math.abs(p.y)<=1};
     });
-    const index=closestProjectedPart(anchors,sx,sy);
+    const index=closestProjectedPart(anchors,sx,sy,40);
     if(index<0)return null;
     const partId=points[index].part.id;
     const descriptor=physicalGestureType(id,partId,state);
