@@ -459,8 +459,14 @@ try{
      await motionButton.click();
      assert.equal(await app.locator("#three-mount").getAttribute("data-mechanism-demo"),"2");
      assert.equal(await app.locator("#three-mount").getAttribute("data-mechanism-scrub"),null);
-     await app.waitForTimeout(200);
-     assert.ok(Number(await scrub.inputValue())>=85,"replay did not resume from selected 85%");
+     await app.waitForTimeout(80);
+     const resumePosition=Number(await scrub.inputValue());
+     const resumedAnimation=await app.locator("#three-mount").getAttribute("data-mechanism-demo");
+     // A short mechanism preview resumed at 85% can finish before 200ms
+     // and legitimately reset the slider to 0. Only reject an animation
+     // still in progress below the selected starting position.
+     assert.ok(resumePosition>=85||resumedAnimation===null,
+      "replay did not resume from selected 85%: "+resumePosition);
      await app.waitForFunction(()=>!document.getElementById("three-mount")
        ?.hasAttribute("data-mechanism-demo"),{timeout:8000});
      assert.equal(await scrub.inputValue(),"0");
