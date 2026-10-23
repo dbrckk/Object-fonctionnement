@@ -47,7 +47,7 @@ test("commands confirm only model-specific observed controller transitions",()=>
   ["fan","Vitesse",{speed:1,turn:0},{speed:2,turn:7}],
   ["fan","Oscillation",{oscillate:false},{oscillate:true}],
   ["lock","Tourner la clé",{locked:true},{locked:false}],
-  ["bicycle","Pomper",{pumps:0,pressure:.7},{pumps:1,pressure:1}],
+  ["bicycle","Pomper",{pumping:false,pumps:0},{pumping:true,pumps:0}],
   ["coffee","Préparer le café",{brewing:false},{brewing:true}],
   ["flashlight","Marche / arrêt",{on:false},{on:true}],
   ["washing","Choose program",{prog:0},{prog:1}],
