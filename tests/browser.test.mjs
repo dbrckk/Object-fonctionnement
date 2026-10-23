@@ -1055,6 +1055,15 @@ try{
      };check();
     }));
    const fanFrame=app.frameLocator("iframe.figure-frame");
+   await app.evaluate(()=>{
+    window.__gestureTestEvents=[];
+    for(const name of ["object-3d-mechanism-gesture","object-3d-mechanism-press"]){
+     document.getElementById("three-mount").addEventListener(name,e=>{
+      window.__gestureTestEvents.push({name,part:e.detail?.partId,
+       action:e.detail?.command?.action,direction:e.detail?.command?.direction});
+     });
+    }
+   });
    // Horizontal swipes must select the original controller in both
    // directions, without rotating the camera or triggering a second tap.
    const motorBounds=await fanCanvas.boundingBox();
@@ -1066,25 +1075,17 @@ try{
     await app.mouse.up();
    };
    await swipe(motorPoint,-65,4);
-   await fanFrame.locator("body").evaluate(()=>
-    new Promise((resolve,reject)=>{
-     const stop=Date.now()+2000;
-     const check=()=>{
-      if(window.__st.speed===1)return resolve();
-      if(Date.now()>stop)return reject(Error("3D left swipe did not reduce fan speed"));
-      setTimeout(check,25);
-     };check();
-    }));
+   await app.waitForTimeout(400);
+   const speedAfterLeft=await fanFrame.locator("body").evaluate(()=>window.__st.speed);
+   assert.equal(speedAfterLeft,1,
+    "3D left swipe must reduce fan speed. Events: "+JSON.stringify(
+     await app.evaluate(()=>window.__gestureTestEvents)));
    await swipe(motorPoint,65,-3);
-   await fanFrame.locator("body").evaluate(()=>
-    new Promise((resolve,reject)=>{
-     const stop=Date.now()+2000;
-     const check=()=>{
-      if(window.__st.speed===2)return resolve();
-      if(Date.now()>stop)return reject(Error("3D right swipe did not restore fan speed"));
-      setTimeout(check,25);
-     };check();
-    }));
+   await app.waitForTimeout(400);
+   const speedAfterRight=await fanFrame.locator("body").evaluate(()=>window.__st.speed);
+   assert.equal(speedAfterRight,2,
+    "3D right swipe must restore fan speed. Events: "+JSON.stringify(
+     await app.evaluate(()=>window.__gestureTestEvents)));
    await app.evaluate(()=>{
     document.querySelector("iframe.figure-frame").contentWindow.postMessage({
      type:"object-figure:mechanism-command",action:"press",label:"Invalid action"},"*");
