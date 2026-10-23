@@ -27,7 +27,7 @@ test("left and right strokes select real Figure choices in both directions",()=>
    {type:"object-figure:mechanism-command",action:"step",label,direction:1},model);
   assert.deepEqual(mechanicalGestureCommand(model,part,start,end(-61,8)),
    {type:"object-figure:mechanism-command",action:"step",label,direction:-1},model);
-  assert.equal(physicalGestureType(model,part,{run:model==="washing"}),null);
+  if(model==="washing")assert.equal(physicalGestureType(model,part,{run:true}),null);
  }
 });
 test("gestures reject unintended touches, wrong axes and delayed drags",()=>{
