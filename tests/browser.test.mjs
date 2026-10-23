@@ -551,8 +551,37 @@ try{
    await popup.waitFor({state:"hidden"});
    assert.equal(await app.locator('.three-parts').getAttribute('data-selected-part'),null,
      "3D part locator persists after closing the explanation: "+id);
+   // Touch the model's real geometry at the camera-projected component,
+   // not an HTML hotspot, after switching the numbered markers off.
+   const directTarget=({kettle:{index:1,id:"tank"},
+    washing:{index:0,id:"drum"},vending:{index:0,id:"selection"}})[id];
+   const directAnchor=directTarget?await app.locator(".three-part-leader").nth(directTarget.index)
+    .evaluate(node=>({x:Number(node.getAttribute("x1")),y:Number(node.getAttribute("y1"))})):null;
    await app.getByRole('button',{name:"Masquer les repères"}).click();
    assert.equal(await app.locator('.three-part-pin:visible').count(),0);
+   if(directTarget){
+    const touchCanvas=app.locator(".object-three-canvas");
+    await touchCanvas.click({position:directAnchor});
+    await app.waitForFunction(expected=>
+      document.querySelector(".three-parts")?.dataset.selectedPart===expected,
+      directTarget.id,{timeout:2800});
+    assert.equal(await app.locator("#three-parts").getAttribute("aria-pressed"),"true",
+     "direct mesh picking should sync the accessible annotation toolbar");
+    assert.ok((await app.locator(".three-part-description strong").innerText()).length>5);
+    await app.locator(".three-part-description").getByRole("button",{
+     name:"Fermer l'explication de la pièce"}).click();
+    await app.getByRole('button',{name:"Masquer les repères"}).click();
+    await app.waitForTimeout(520);
+    const rect=await touchCanvas.boundingBox();
+    const from={x:rect.x+rect.width*.5,y:rect.y+rect.height*.55};
+    await app.mouse.move(from.x,from.y);
+    await app.mouse.down();
+    await app.mouse.move(from.x+65,from.y+24,{steps:5});
+    await app.mouse.up();
+    assert.equal(await app.locator(".three-parts").getAttribute("data-selected-part"),null,
+     "rotating the object must not open a part explanation");
+    console.log("PASS direct physical 3D mesh inspection: "+id);
+   }
    // A guided tour is completed only after explicitly finishing all 3 stages.
    await app.getByRole('button',{name:"Commencer la visite guidée des pièces"}).click();
    const tour=app.locator('.three-tour-bar');
