@@ -1069,3 +1069,38 @@ Tests : association des 23 commandes à de vrais composants, décisions
 adaptées à l'état, pilotage Chromium d'un chauffage, de la vitesse
 du ventilateur et d'un programme de lavage, refus d'une action inconnue
 et disposition Android de 320 px. Version Android 0.44.0, versionCode 44.
+
+
+## Version 0.45 — manipuler les mécanismes par gestes physiques
+
+Le mode optionnel **Manipuler en 3D** permet désormais, en plus des
+touches courtes de la v0.44, de reproduire des gestes adaptés aux objets :
+
+- Glisser le **piston de la pompe à vélo vers le bas** actionne un véritable
+  cycle de compression, avec la variation de pression et l'animation de la
+  simulation originale. Le geste de remontée ne crée pas une deuxième pompe.
+- Glisser horizontalement sur le **moteur du ventilateur** augmente ou
+  diminue la vitesse selon le sens.
+- Sur le **réglage du grille-pain**, la **LED de la lampe** et le
+  **programmateur du lave-linge**, un geste horizontal sélectionne
+  l'option précédente ou suivante du contrôleur original.
+- Un simple toucher continue de déclencher les commandes v0.44. Le
+  reste de la scène conserve la rotation et le zoom habituels.
+
+Un petit guide contextuel apparaît pendant le mouvement avec une jauge de
+progression de la course ; le geste se déclenche à la libération du doigt.
+Le raycasting confirme que le mouvement commence bien sur la géométrie
+de l'objet. Le seuil minimal de course, l'axe, la direction, la durée,
+les annulations et les contacts multipoints sont vérifiés pour ne
+jamais confondre un appui involontaire avec une commande.
+
+Les opérations continuent d'utiliser uniquement les **commandes
+ColorFigures d'origine**, après validation par liste blanche dans
+l'iframe sandboxée. Aucun état de pression, de chauffe ou de programme
+n'est fabriqué dans le moteur de rendu 3D. Les commandes de rechange
+accessibles au clavier restent présentes sous le modèle.
+
+Tests : classification pure des gestes sur les cinq composants,
+réglage aller-retour du ventilateur, vrai cycle de gonflage au geste
+sur la pompe, et conservation des parcours des neuf objets.
+Version Android 0.45.0, versionCode 45.

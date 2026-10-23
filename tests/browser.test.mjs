@@ -1026,6 +1026,9 @@ try{
    const bladesAnchor=await app.locator(".three-part-leader").first().evaluate(el=>({
     x:Number(el.getAttribute("x1")),y:Number(el.getAttribute("y1"))
    }));
+   const motorAnchor=await app.locator(".three-part-leader").nth(1).evaluate(el=>({
+    x:Number(el.getAttribute("x1")),y:Number(el.getAttribute("y1"))
+   }));
    await app.getByRole("button",{name:"Masquer les repères"}).click();
    const fanOperate=app.locator("#three-operate");
    await fanOperate.click();
@@ -1052,6 +1055,37 @@ try{
      };check();
     }));
    const fanFrame=app.frameLocator("iframe.figure-frame");
+   await app.evaluate(()=>{
+    window.__gestureTestEvents=[];
+    for(const name of ["object-3d-mechanism-gesture","object-3d-mechanism-press"]){
+     document.getElementById("three-mount").addEventListener(name,e=>{
+      window.__gestureTestEvents.push({name,part:e.detail?.partId,
+       action:e.detail?.command?.action,direction:e.detail?.command?.direction});
+     });
+    }
+   });
+   // Horizontal swipes must select the original controller in both
+   // directions, without rotating the camera or triggering a second tap.
+   const motorBounds=await fanCanvas.boundingBox();
+   const motorPoint={x:motorBounds.x+motorAnchor.x,y:motorBounds.y+motorAnchor.y};
+   const swipe=async(point,dx,dy)=>{
+    await app.mouse.move(point.x,point.y);
+    await app.mouse.down();
+    await app.mouse.move(point.x+dx,point.y+dy,{steps:7});
+    await app.mouse.up();
+   };
+   await swipe(motorPoint,-65,4);
+   await app.waitForTimeout(400);
+   const speedAfterLeft=await fanFrame.locator("body").evaluate(()=>window.__st.speed);
+   assert.equal(speedAfterLeft,1,
+    "3D left swipe must reduce fan speed. Events: "+JSON.stringify(
+     await app.evaluate(()=>window.__gestureTestEvents)));
+   await swipe(motorPoint,65,-3);
+   await app.waitForTimeout(400);
+   const speedAfterRight=await fanFrame.locator("body").evaluate(()=>window.__st.speed);
+   assert.equal(speedAfterRight,2,
+    "3D right swipe must restore fan speed. Events: "+JSON.stringify(
+     await app.evaluate(()=>window.__gestureTestEvents)));
    await app.evaluate(()=>{
     document.querySelector("iframe.figure-frame").contentWindow.postMessage({
      type:"object-figure:mechanism-command",action:"press",label:"Invalid action"},"*");
@@ -1118,6 +1152,53 @@ try{
      document.documentElement.clientWidth+1),"3D operation panel overflows 320px Android");
    await app.setViewportSize({width:390,height:844});
    console.log("PASS 3D washer programmed, loaded and started using real guarded controller");
+
+   // The actual pump handle should respond to a downstroke, whereas short
+   // jitter and an upward stroke must never inflate the tire.
+   await app.goto(HOST+'/#bicycle',{waitUntil:'load'});
+   const pumpCanvas=app.locator(".object-three-canvas");
+   await pumpCanvas.waitFor();
+   await app.getByRole("button",{name:"Identifier les pièces"}).click();
+   await app.waitForTimeout(420);
+   const pistonAnchor=await app.locator(".three-part-leader").first().evaluate(node=>({
+    x:Number(node.getAttribute("x1")),y:Number(node.getAttribute("y1"))
+   }));
+   await app.getByRole("button",{name:"Masquer les repères"}).click();
+   await app.locator("#three-operate").click();
+   await app.locator('#three-operate-panel [data-physical-part="check"]').click();
+   const bikeFrame=app.frameLocator("iframe.figure-frame");
+   await bikeFrame.locator("body").evaluate(()=>new Promise((resolve,reject)=>{
+    const stop=Date.now()+2100;
+    const poll=()=>{
+     if(window.__st.connected)return resolve();
+     if(Date.now()>stop)return reject(Error("3D check valve did not connect"));
+     setTimeout(poll,25);
+    };poll();
+   }));
+   const pumpBounds=await pumpCanvas.boundingBox();
+   const pistonPoint={x:pumpBounds.x+pistonAnchor.x,y:pumpBounds.y+pistonAnchor.y};
+   const bicycleSwipe=async(dx,dy)=>{
+    await app.mouse.move(pistonPoint.x,pistonPoint.y);
+    await app.mouse.down();
+    await app.mouse.move(pistonPoint.x+dx,pistonPoint.y+dy,{steps:8});
+    await app.mouse.up();
+   };
+   await bicycleSwipe(3,19);
+   await bicycleSwipe(2,-76);
+   assert.equal(await bikeFrame.locator("body").evaluate(()=>window.__st.pumps),0,
+    "short or upward movement must not inflate the tire");
+   await bicycleSwipe(4,76);
+   await bikeFrame.locator("body").evaluate(()=>new Promise((resolve,reject)=>{
+    const stop=Date.now()+3000;
+    const poll=()=>{
+     if(window.__st.pumps===1&&!window.__st.pumping)return resolve();
+     if(Date.now()>stop)return reject(Error("3D plunger drag did not pump the original tire"));
+     setTimeout(poll,25);
+    };poll();
+   }));
+   assert.ok(await bikeFrame.locator("body").evaluate(()=>window.__st.pressure)>.7);
+   assert.equal(await app.locator(".three-gesture-hint").isHidden(),true);
+   console.log("PASS real bicycle 3D downward piston stroke and accidental-drag guards");
 
    await app.goto(HOST+'/',{waitUntil:'load'});
    assert.equal(await app.locator('.tour-completed-card').count(),9);
