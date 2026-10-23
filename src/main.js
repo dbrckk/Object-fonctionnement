@@ -10,7 +10,7 @@ import {hasMechanismDemo} from "./mechanism-demos.js";
 import {vendingControlView,vendingControlCommand,vendingSlotView,VENDING_SLOT_CODES} from "./vending-controls.js";
 import {GRAPHICS_KEY,readGraphicsMode,validGraphicsMode} from "./graphics-quality.js";
 import {getObjectParts} from "./part-annotations.js";
-import {INTERACTIVE_MODELS,physicalControlCommand,partMechanismAction} from "./physical-actions.js";
+import {INTERACTIVE_MODELS,physicalControlCommand,partMechanismAction,physicalActionLabel} from "./physical-actions.js";
 const root=document.getElementById("app");
 let quizProgress={};
 try{quizProgress=parseQuizProgress(localStorage.getItem(QUIZ_STORAGE_KEY));}catch{}
@@ -107,7 +107,7 @@ function updatePhysicalActions(){
  panel.querySelectorAll("[data-physical-part]").forEach(button=>{
   const action=partMechanismAction(state.selected,button.dataset.physicalPart,lastFigureState);
   const part=getObjectParts(state.selected).find(p=>p.id===button.dataset.physicalPart);
-  const label=(part?.label||"Composant")+" : "+(action?.label||"indicateur seulement");
+  const label=(part?.label||"Composant")+" : "+(action?physicalActionLabel(action):"indicateur seulement");
   if(button.textContent!==label)button.textContent=label;
   button.disabled=!ready||!action;
  });
@@ -362,7 +362,7 @@ function renderDetail(o){
   const iframe=document.querySelector("iframe.figure-frame");
   if(!iframe?.contentWindow)return;
   iframe.contentWindow.postMessage(command,"*"); // sandboxed opaque origin
-  operationStatus.textContent="Commande demandée : "+command.label+
+  operationStatus.textContent="Commande demandée : "+physicalActionLabel(command)+
    ". Les conditions de fonctionnement restent vérifiées par la simulation.";
  }
  if(operate){
