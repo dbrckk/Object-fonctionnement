@@ -77,3 +77,18 @@ test("readouts and proof functions never mutate their source snapshots",()=>{
  }
  assert.deepEqual(actual,before);
 });
+
+test("passive progress cannot confirm a rejected repeated heating, brewing or pumping request",()=>{
+ assert.equal(physicalCommandConfirmed("kettle",{label:"Chauffer"},
+  {heating:true,phase:"heating",hot:.3},
+  {heating:true,phase:"heating",hot:.6}),false);
+ assert.equal(physicalCommandConfirmed("toaster",{label:"Abaisser / griller"},
+  {toasting:true,done:false,hot:.2},
+  {toasting:true,done:false,hot:.7}),false);
+ assert.equal(physicalCommandConfirmed("coffee",{label:"Préparer le café"},
+  {brewing:true,progress:.2,coffee:.2},
+  {brewing:true,progress:.5,coffee:.5}),false);
+ assert.equal(physicalCommandConfirmed("bicycle",{label:"Pomper"},
+  {pumping:true,pumps:0,pressure:.7},
+  {pumping:true,pumps:1,pressure:1}),false);
+});
