@@ -11,6 +11,7 @@ import {vendingControlView,vendingControlCommand,vendingSlotView,VENDING_SLOT_CO
 import {GRAPHICS_KEY,readGraphicsMode,validGraphicsMode} from "./graphics-quality.js";
 import {getObjectParts} from "./part-annotations.js";
 import {INTERACTIVE_MODELS,physicalControlCommand,partMechanismAction,physicalActionLabel} from "./physical-actions.js";
+import {physicalGestureType,dragInstruction} from "./physical-gestures.js";
 const root=document.getElementById("app");
 let quizProgress={};
 try{quizProgress=parseQuizProgress(localStorage.getItem(QUIZ_STORAGE_KEY));}catch{}
@@ -24,8 +25,9 @@ function physicalPanelMarkup(id){
  const parts=getObjectParts(id);
  return '<section class="three-operate-panel" id="three-operate-panel" hidden '+
   'aria-label="Actions réelles du modèle 3D">'+
-  '<p>Touches une pièce sur le modèle pour agir sur sa simulation. '+
-  'Les boutons suivants effectuent les mêmes actions et restent utilisables au clavier.</p>'+
+  '<p>Touche une pièce pour agir sur sa simulation. Glisse le piston vers le bas '+
+  'pour pomper, ou horizontalement sur certains réglages. Glisser ailleurs fait '+
+  'pivoter le modèle. Les boutons restent utilisables au clavier.</p>'+
   '<div class="three-operate-grid">'+parts.map(part=>
    '<button type="button" data-physical-part="'+part.id+'" disabled>'+
     escapeHtml(part.label)+'</button>').join("")+'</div>'+
@@ -107,8 +109,12 @@ function updatePhysicalActions(){
  panel.querySelectorAll("[data-physical-part]").forEach(button=>{
   const action=partMechanismAction(state.selected,button.dataset.physicalPart,lastFigureState);
   const part=getObjectParts(state.selected).find(p=>p.id===button.dataset.physicalPart);
-  const label=(part?.label||"Composant")+" : "+(action?physicalActionLabel(action):"indicateur seulement");
+  const gesture=physicalGestureType(state.selected,button.dataset.physicalPart,lastFigureState);
+  const suffix=gesture?" · "+(gesture.axis==="x"?"↔":"↓"):"";
+  const label=(part?.label||"Composant")+" : "+(action?physicalActionLabel(action):"indicateur seulement")+suffix;
   if(button.textContent!==label)button.textContent=label;
+  const hint=dragInstruction(state.selected,button.dataset.physicalPart,lastFigureState);
+  button.title=hint||label;
   button.disabled=!ready||!action;
  });
 }
@@ -350,14 +356,24 @@ function renderDetail(o){
   operate.textContent="Manipuler en 3D";
   operationPanel.hidden=true;
  }
- function sendPhysicalAction(partId){
+ function sendPhysicalAction(partId,gestureCommand=null){
   if(!operate||operate.getAttribute("aria-pressed")!=="true"||
      state.selected!==o.id||!state.view3D||!lastFigureState||
      !currentViewer||mechanismFlowActive)return;
-  const command=physicalControlCommand(o.id,partId,lastFigureState);
-  if(!command){
+  const baseline=physicalControlCommand(o.id,partId,lastFigureState);
+  if(!baseline){
    operationStatus.textContent="Cette pièce est uniquement informative ; aucune commande n'est associée.";
    return;
+  }
+  let command=baseline;
+  if(gestureCommand){
+   const gesture=physicalGestureType(o.id,partId,lastFigureState);
+   if(!gesture||gestureCommand.type!==baseline.type||
+      gestureCommand.label!==baseline.label||
+      gestureCommand.action!==(gesture.kind==="step"?"step":"press")||
+      (gesture.kind==="step"&&![1,-1].includes(gestureCommand.direction))||
+      (gesture.kind==="press"&&Object.hasOwn(gestureCommand,"direction")))return;
+   command=gestureCommand;
   }
   const iframe=document.querySelector("iframe.figure-frame");
   if(!iframe?.contentWindow)return;
@@ -385,6 +401,11 @@ function renderDetail(o){
   document.getElementById("three-mount").addEventListener("object-3d-mechanism-press",event=>{
    if(event.target===document.getElementById("three-mount")&&
       typeof event.detail?.partId==="string")sendPhysicalAction(event.detail.partId);
+  });
+  document.getElementById("three-mount").addEventListener("object-3d-mechanism-gesture",event=>{
+   if(event.target===document.getElementById("three-mount")&&
+      typeof event.detail?.partId==="string")
+     sendPhysicalAction(event.detail.partId,event.detail.command);
   });
   operationPanel.addEventListener("click",event=>{
    const button=event.target.closest("button[data-physical-part]");
