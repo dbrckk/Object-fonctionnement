@@ -985,6 +985,140 @@ try{
    await app.setViewportSize({width:390,height:844});
    console.log("PASS 16 live-price stock-aware selectors, transactional 3D vending, and 320px Android layout");
 
+   // Manipulation 3D controls dispatch original 2D controller actions.
+   // No new parent-owned simulation state or fake 3D animation is allowed.
+   await app.goto(HOST+'/#kettle',{waitUntil:'load'});
+   await app.locator(".object-three-canvas").waitFor();
+   const kettleOperate=app.locator("#three-operate");
+   await kettleOperate.click();
+   assert.equal(await kettleOperate.getAttribute("aria-pressed"),"true");
+   const kettlePanel=app.locator("#three-operate-panel");
+   assert.equal(await kettlePanel.locator("[data-physical-part]").count(),3);
+   await kettlePanel.locator('[data-physical-part="tank"]').click();
+   await app.frameLocator("iframe.figure-frame").locator("body")
+    .evaluate(()=>new Promise((resolve,reject)=>{
+     const stop=Date.now()+2200;
+     const check=()=>{
+      if(window.__st.water===.85)return resolve();
+      if(Date.now()>stop)return reject(Error("3D water reservoir did not fill the original kettle"));
+      setTimeout(check,25);
+     };check();
+    }));
+   await kettlePanel.locator('[data-physical-part="heater"]').click();
+   await app.frameLocator("iframe.figure-frame").locator("body")
+    .evaluate(()=>new Promise((resolve,reject)=>{
+     const stop=Date.now()+2200;
+     const check=()=>{
+      if(window.__st.heating)return resolve();
+      if(Date.now()>stop)return reject(Error("3D heater did not start actual kettle heating"));
+      setTimeout(check,25);
+     };check();
+    }));
+   await app.getByRole("button",{name:"Identifier les pièces"}).click();
+   assert.equal(await kettleOperate.getAttribute("aria-pressed"),"false");
+   assert.equal(await kettlePanel.isHidden(),true);
+   console.log("PASS kettle 3D manipulation executes original guarded water + heating commands");
+
+   await app.goto(HOST+'/#fan',{waitUntil:'load'});
+   await app.locator(".object-three-canvas").waitFor();
+   await app.getByRole("button",{name:"Identifier les pièces"}).click();
+   // The marker's leader begins at the authentic 3D blade location.
+   const bladesAnchor=await app.locator(".three-part-leader").first().evaluate(el=>({
+    x:Number(el.getAttribute("x1")),y:Number(el.getAttribute("y1"))
+   }));
+   await app.getByRole("button",{name:"Masquer les repères"}).click();
+   const fanOperate=app.locator("#three-operate");
+   await fanOperate.click();
+   const fanCanvas=app.locator(".object-three-canvas");
+   await fanCanvas.click({position:bladesAnchor});
+   await app.frameLocator("iframe.figure-frame").locator("body")
+    .evaluate(()=>new Promise((resolve,reject)=>{
+     const stop=Date.now()+2200;
+     const check=()=>{
+      if(window.__st.speed===1)return resolve();
+      if(Date.now()>stop)return reject(Error("physical 3D fan blade tap did not start motor"));
+      setTimeout(check,25);
+     };check();
+    }));
+   const fanPanel=app.locator("#three-operate-panel");
+   await fanPanel.locator('[data-physical-part="motor"]').click();
+   await app.frameLocator("iframe.figure-frame").locator("body")
+    .evaluate(()=>new Promise((resolve,reject)=>{
+     const stop=Date.now()+2200;
+     const check=()=>{
+      if(window.__st.speed===2)return resolve();
+      if(Date.now()>stop)return reject(Error("3D motor command did not cycle true speed"));
+      setTimeout(check,25);
+     };check();
+    }));
+   const fanFrame=app.frameLocator("iframe.figure-frame");
+   await app.evaluate(()=>{
+    document.querySelector("iframe.figure-frame").contentWindow.postMessage({
+     type:"object-figure:mechanism-command",action:"press",label:"Invalid action"},"*");
+   });
+   await app.waitForTimeout(200);
+   assert.equal(await fanFrame.locator("body").evaluate(()=>window.__st.speed),2,
+    "unsupported parent commands must be rejected");
+   await app.getByRole("button",{name:"Recentrer la caméra 3D"}).click();
+   assert.equal(await fanOperate.getAttribute("aria-pressed"),"false");
+   console.log("PASS physical 3D fan blade, original speed picker, rejected commands and mode reset");
+
+   await app.goto(HOST+'/#washing',{waitUntil:'load'});
+   await app.locator(".object-three-canvas").waitFor();
+   await app.locator("#three-operate").click();
+   const washerPanel=app.locator("#three-operate-panel");
+   await washerPanel.locator('[data-physical-part="program"]').click();
+   await app.frameLocator("iframe.figure-frame").locator("body").evaluate(()=>
+    new Promise((resolve,reject)=>{
+     const stop=Date.now()+2200;
+     const check=()=>{
+      if(window.__st.prog===1)return resolve();
+      if(Date.now()>stop)return reject(Error("wash program did not cycle"));
+      setTimeout(check,25);
+     };check();
+    }));
+   await washerPanel.locator('[data-physical-part="drum"]').click();
+   await app.frameLocator("iframe.figure-frame").locator("body").evaluate(()=>
+    new Promise((resolve,reject)=>{
+     const stop=Date.now()+6500;
+     const check=()=>{
+      if(window.__st.laundry==="drum"&&!window.__st.xfer)return resolve();
+      if(Date.now()>stop)return reject(Error("3D washer drum did not load original laundry"));
+      setTimeout(check,40);
+     };check();
+    }));
+   // The washer finishes transferring clothing before the physical door
+   // fully closes. Wait for the genuine interlock, not only laundry state.
+   await app.frameLocator("iframe.figure-frame").locator("body").evaluate(()=>
+    new Promise((resolve,reject)=>{
+     const stop=Date.now()+5500;
+     const check=()=>{
+      const s=window.__st;
+      if(s.laundry==="drum"&&!s.xfer&&s.door===0&&s.doorT===0)return resolve();
+      if(Date.now()>stop)return reject(Error("washer door interlock never closed after loading"));
+      setTimeout(check,30);
+     };check();
+    }));
+   await app.waitForFunction(()=>{
+    const control=document.querySelector('#three-operate-panel [data-physical-part="drum"]');
+    return control?.textContent.includes("Démarrer / pause")&&!control.disabled;
+   });
+   await washerPanel.locator('[data-physical-part="drum"]').click();
+   await app.frameLocator("iframe.figure-frame").locator("body").evaluate(()=>
+    new Promise((resolve,reject)=>{
+     const stop=Date.now()+2200;
+     const check=()=>{
+      if(window.__st.run)return resolve();
+      if(Date.now()>stop)return reject(Error("3D drum did not start real washing cycle"));
+      setTimeout(check,25);
+     };check();
+    }));
+   await app.setViewportSize({width:320,height:780});
+   assert.ok(await app.evaluate(()=>document.documentElement.scrollWidth<=
+     document.documentElement.clientWidth+1),"3D operation panel overflows 320px Android");
+   await app.setViewportSize({width:390,height:844});
+   console.log("PASS 3D washer programmed, loaded and started using real guarded controller");
+
    await app.goto(HOST+'/',{waitUntil:'load'});
    assert.equal(await app.locator('.tour-completed-card').count(),9);
   assert.ok((await app.locator('.hero-stat').innerText()).includes('9 visites effectuées'));

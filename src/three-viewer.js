@@ -1717,7 +1717,7 @@ export function createObjectViewer(container,id){
   function toggleMechanismPath(visible){
     if(disposed)return false;
     stopMechanismPreview();
-    if(visible)setVendingFocus(false);
+    if(visible){setVendingFocus(false);setMechanismTouchMode(false);}
     flowOpen=Boolean(visible);
     flowSvg.toggleAttribute("hidden",!flowOpen);
     if(flowOpen){
@@ -1822,7 +1822,7 @@ export function createObjectViewer(container,id){
   const clock=new THREE.Clock();
   let state={},stateSignature="",active=true,intersecting=true;
   let disposed=false,frame=0,dirty=true,last=0;
-  let vendingControlsFocused=false,pointerStart=null;
+  let vendingControlsFocused=false,mechanismTouchMode=false,pointerStart=null;
   const controlRay=new THREE.Raycaster();
   const canvas=renderer.domElement;
   const defaultCanvasLabel=canvas.getAttribute("aria-label");
@@ -1831,7 +1831,26 @@ export function createObjectViewer(container,id){
     container.dataset.vendingTouch=vendingControlsFocused?"on":"off";
     canvas.setAttribute("aria-label",vendingControlsFocused
       ?"Distributeur 3D : touchez les touches A à D, 1 à 4 ou la fente à pièces. Glissez pour pivoter."
-      :defaultCanvasLabel+" ; toucher une pièce du modèle affiche son fonctionnement.");
+      :mechanismTouchMode
+       ?"Objet 3D : toucher un composant pour actionner la simulation réelle. Glisser pour pivoter."
+       :defaultCanvasLabel+" ; toucher une pièce du modèle affiche son fonctionnement.");
+  }
+  function setMechanismTouchMode(visible){
+    mechanismTouchMode=Boolean(visible)&&!disposed&&id!=="vending";
+    container.dataset.mechanismTouch=mechanismTouchMode?"on":"off";
+    pointerStart=null;
+    if(mechanismTouchMode){
+      endTour(false);
+      showParts=false;
+      markerLayer.hidden=true;
+      description.hidden=true;
+      partLocator.visible=false;
+      delete markerLayer.dataset.selectedPart;
+      for(const point of points)point.button.setAttribute("aria-pressed","false");
+    }
+    setVendingFocus(false);
+    dirty=true;requestFrame();
+    return mechanismTouchMode;
   }
   function onControlPointerDown(event){
     // Ignore non-primary and secondary-button presses. Starting another finger
@@ -1878,6 +1897,12 @@ export function createObjectViewer(container,id){
     });
     const index=closestProjectedPart(anchors,x,y);
     if(index<0)return;
+    if(mechanismTouchMode){
+      container.dispatchEvent(new CustomEvent("object-3d-mechanism-press",{
+        bubbles:true,detail:{partId:points[index].part.id}
+      }));
+      return;
+    }
     if(!showParts){
       showParts=true;
       markerLayer.hidden=false;
@@ -1988,6 +2013,7 @@ export function createObjectViewer(container,id){
     focusVendingControls(){
       if(id!=="vending"||disposed)return false;
       if(flowOpen)toggleMechanismPath(false);
+      setMechanismTouchMode(false);
       endTour(false);
       showParts=false;markerLayer.hidden=true;
       description.hidden=true;partLocator.visible=false;
@@ -2012,6 +2038,11 @@ export function createObjectViewer(container,id){
       }
       dirty=true;requestFrame();
       return true;
+    },
+    setMechanismTouchMode(visible){
+      if(disposed||id==="vending")return false;
+      if(visible&&flowOpen)toggleMechanismPath(false);
+      return setMechanismTouchMode(visible);
     },
     setMechanismPath(visible){return toggleMechanismPath(visible);},
     setMechanismStep(index){return focusMechanismStep(index);},
@@ -2057,6 +2088,7 @@ export function createObjectViewer(container,id){
       if(disposed||points.length===0)return false;
       if(flowOpen)toggleMechanismPath(false);
       setVendingFocus(false);
+      setMechanismTouchMode(false);
       showParts=true;
       markerLayer.hidden=false;
       tourStep=0;
@@ -2074,6 +2106,7 @@ export function createObjectViewer(container,id){
       if(index<0||disposed)return false;
       if(flowOpen)toggleMechanismPath(false);
       setVendingFocus(false);
+      setMechanismTouchMode(false);
       showParts=true;markerLayer.hidden=false;
       focusPart(index);dirty=true;requestFrame();
       return true;
@@ -2081,6 +2114,7 @@ export function createObjectViewer(container,id){
     setAnnotations(visible){
       if(disposed)return false;
       if(visible&&flowOpen)toggleMechanismPath(false);
+      if(visible)setMechanismTouchMode(false);
       if(!visible)endTour(false);
       showParts=Boolean(visible);
       markerLayer.hidden=!showParts;
@@ -2096,6 +2130,7 @@ export function createObjectViewer(container,id){
     },
     resetCamera(){
       setVendingFocus(false);
+      setMechanismTouchMode(false);
       if(tourStep>=0)endTour(false);
       if(flowOpen)toggleMechanismPath(false);
       cameraMove=null;cameraCustomized=false;
@@ -2115,6 +2150,7 @@ export function createObjectViewer(container,id){
       canvas.removeEventListener("pointercancel",cancelControlPointer);
       canvas.removeEventListener("pointerleave",cancelControlPointer);
       delete container.dataset.vendingTouch;
+      delete container.dataset.mechanismTouch;
       controls.dispose();
       const shared=new Set([...Object.values(mats),glow,steamMaterial,frosted,liquid,alertMat,brassy,blue,white,tint,edgeMaterial]);
       const unique=new Set();

@@ -1035,3 +1035,37 @@ l'illustration 2D continuent à partager leur fonctionnement antérieur.
 Tests : sélection pure et bornée des repères, clics WebGL réels sur la
 bouilloire, le lave-linge et le distributeur, absence d'activation au
 glissement, régression des neuf modèles. APK Android v0.43.0/versionCode 43.
+
+
+## Version 0.44 — actionner les mécanismes depuis la 3D
+
+Huit objets prennent désormais en charge le bouton facultatif **Manipuler en 3D**.
+Dans ce mode distinct de la simple inspection pédagogique, un appui bref
+sur une pièce visible du modèle 3D déclenche sa commande dans la
+**simulation ColorFigures d'origine**, à travers une passerelle
+`postMessage` à source vérifiée. Les vérifications de fonctionnement
+(produit présent, couvercle fermé, charge de linge, machine verrouillée,
+etc.) restent celles du contrôleur original. Aucune duplication de
+l'état machine n'est introduite dans Three.js.
+
+Les 23 associations physiques couvrent la bouilloire, le grille-pain,
+le ventilateur, la serrure, la pompe à vélo, la cafetière, la lampe de
+poche et le lave-linge. Les éléments purement indicateurs, tel le
+manomètre de la pompe, ne déclenchent pas de réinitialisation
+artificielle. Selon l'état original, la verseuse permet de préparer
+ou servir le café, tandis que le tambour permet de charger, démarrer,
+mettre en pause ou décharger le linge. Les réglages par sélecteur
+(avancée de vitesse, brunissage, intensité lumineuse et programmes
+de lavage) passent par les véritables choix du contrôleur original.
+
+Un panneau de commandes tactiles et accessibles au clavier apparaît
+dans ce mode, et les commandes s'ajustent aux états provenant de
+l'iframe. Les glissements, les pincements et les appuis prolongés ne
+sont pas traités comme des commandes. Les visites et explications
+restent séparées de la manipulation. Le distributeur conserve ses
+commandes physiques de la v0.42 sans changement de protocole.
+
+Tests : association des 23 commandes à de vrais composants, décisions
+adaptées à l'état, pilotage Chromium d'un chauffage, de la vitesse
+du ventilateur et d'un programme de lavage, refus d'une action inconnue
+et disposition Android de 320 px. Version Android 0.44.0, versionCode 44.

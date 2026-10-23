@@ -17,6 +17,54 @@
   document.documentElement.classList.toggle("three-active",event.data.mode==="3d");
   queue();
  });
+ // Only commands from this frame's actual parent are accepted. Every
+ // accepted label names an existing, visible-in-2D controller button.
+ // Invoking the original button (instead of mutating __st) preserves guards,
+ // physics, animations and completion messages for all appliance models.
+ const allowed=Object.freeze({
+  kettle:["Chauffer","Remplir d'eau","Verser"],
+  toaster:["Abaisser / griller","Insérer le pain","Régler le brunissage"],
+  fan:["Marche / arrêt","Vitesse","Oscillation"],
+  lock:["Insérer la bonne clé","Tourner la clé","Retirer la clé"],
+  bicycle:["Pomper","Raccorder / retirer embout"],
+  coffee:["Ajouter de l'eau","Mettre le café moulu","Préparer le café","Servir"],
+  flashlight:["Compartiment piles","Marche / arrêt","Intensité"],
+  washing:["Load laundry","Start / pause","Open door, unload","Add soap","Choose program"]
+ });
+ const figure=window.__objectName||(location.pathname.endsWith("/washer.html")?"washing":null);
+ window.addEventListener("message",event=>{
+  if(event.source!==window.parent||event.data?.type!=="object-figure:mechanism-command")return;
+  const {label,action}=event.data;
+  if(typeof label!=="string"||label.length>70||!allowed[figure]?.includes(label)||
+     (action!=="press"&&action!=="cycle"))return;
+  // The legacy washer controller is authored in English but locale-fr.js
+  // translates button TEXT NODES after mount. Route canonical commands to
+  // their French UI labels without ever changing which controller executes.
+  const washerFrench={
+   "Load laundry":"Charger le linge","Add soap":"Ajouter la lessive",
+   "Choose program":"Choisir le programme","Start / pause":"Démarrer / pause",
+   "Open door, unload":"Ouvrir et décharger"
+  };
+  const expected=figure==="washing"?(washerFrench[label]||label):label;
+  const controls=[...document.querySelectorAll("#btns > .stepwrap > button.act")];
+  const button=controls.find(node=>node.firstChild?.textContent?.trim()===expected);
+  if(!button)return;
+  const wrap=button.parentElement;
+  if(action==="press"){
+   // Only the actual simple-button form is valid for press commands.
+   if(wrap.querySelector(".chips"))return;
+   button.click();
+  }else{
+   if(!wrap.querySelector(".chips"))return;
+   button.click();
+   const chips=[...wrap.querySelectorAll(".chips > button.chip")];
+   if(!chips.length)return;
+   const current=chips.findIndex(ch=>ch.classList.contains("current"));
+   const next=chips[(current+1)%chips.length];
+   // Controller itself checks whether this option is enabled or locked.
+   next.click();
+  }
+ });
  let previousState="";
  const emitState=()=>{
   if(!window.__st)return;
